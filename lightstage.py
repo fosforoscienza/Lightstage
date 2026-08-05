@@ -13,6 +13,7 @@ import atexit
 import json
 import os
 import re
+import socket
 import sys
 import threading
 import time
@@ -29,7 +30,7 @@ except ImportError:  # pyserial assente: solo anteprima
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHOW_FILE = os.path.join(BASE_DIR, "show.json")
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"  # raggiungibile anche da telefoni/PC sulla stessa rete
 PORT = 8123
 NUM_PRESETS = 10
 NUM_CHANNELS = 8
@@ -320,6 +321,20 @@ def index():
     return app.send_static_file("index.html")
 
 
+def lan_url():
+    """URL da usare da telefoni/altri computer sulla stessa rete."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))  # nessun dato inviato: serve solo l'IP locale
+        ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        return None
+    if ip.startswith("127."):
+        return None
+    return f"http://{ip}:{PORT}"
+
+
 @app.get("/api/state")
 def get_state():
     with lock:
@@ -329,6 +344,7 @@ def get_state():
             "channels": show["channels"],
             "blackout": show["blackout"],
             "dmx": dmx_state(),
+            "lan_url": lan_url(),
         })
 
 
@@ -510,10 +526,14 @@ def main():
     dmx.start()
     threading.Thread(target=_saver, daemon=True).start()
     atexit.register(write_show)
-    url = f"http://{HOST}:{PORT}"
-    print(f"LightStage in esecuzione su {url}  (Ctrl+C per uscire)")
+    local = f"http://127.0.0.1:{PORT}"
+    print(f"LightStage in esecuzione  (Ctrl+C per uscire)")
+    print(f"  Su questo computer:                {local}")
+    remote = lan_url()
+    if remote:
+        print(f"  Da telefoni/PC sulla stessa rete:  {remote}")
     if "--no-browser" not in sys.argv:
-        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+        threading.Timer(1.0, lambda: webbrowser.open(local)).start()
     app.run(host=HOST, port=PORT, debug=False, threaded=True)
 
 

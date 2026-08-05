@@ -31,7 +31,24 @@ Daslight: solo quello che serve.
 - Un cavo USB→DMX basato su chip **FTDI** (protocollo *Open DMX*: è il tipo più
   comune, ad es. Enttec Open DMX USB e la maggior parte dei cavi economici).
 
-## Installazione e avvio
+## Avvio con doppio clic (senza terminale)
+
+Nella cartella del progetto trovi tre lanciatori — usa quello del tuo sistema:
+
+| Sistema | File da avviare |
+|---------|-----------------|
+| Windows | `Avvia LightStage.bat` |
+| macOS   | `Avvia LightStage.command` *(al primo avvio: clic destro → Apri)* |
+| Linux   | `avvia-lightstage.sh` |
+
+Alla prima esecuzione installano da soli le dipendenze (serve solo Python 3
+già installato), poi avviano il programma e aprono il browser. Per chiudere
+LightStage basta chiudere la finestra del lanciatore.
+
+Puoi creare un collegamento sul desktop: tasto destro sul file →
+*Invia a → Desktop* (Windows) o *Crea alias* (macOS).
+
+## Avvio da terminale
 
 ```bash
 pip install -r requirements.txt
@@ -41,6 +58,28 @@ python lightstage.py
 Il browser si apre da solo su <http://127.0.0.1:8123>. Senza cavo collegato
 l'app funziona comunque: fader, preset e anteprima restano attivi (utile per
 preparare lo spettacolo a casa).
+
+## Usarlo da telefono, tablet o altri computer
+
+Il computer col cavo USB-DMX fa da "centralina": LightStage è un piccolo sito
+web servito da lì a **tutta la rete locale**. Dagli altri dispositivi
+(collegati alla **stessa rete Wi-Fi**) apri nel browser l'indirizzo che trovi:
+
+- nel pulsante **📱 In rete** in alto nell'interfaccia, oppure
+- nel terminale all'avvio (riga *"Da telefoni/PC sulla stessa rete"*),
+  ad es. `http://192.168.1.42:8123`.
+
+Tutti i dispositivi restano sincronizzati: se dal telefono lanci un preset,
+lo vedi cambiare anche sul computer. Al primo avvio **Windows** chiede se
+consentire a Python l'accesso alla rete: scegli *Consenti* (reti private).
+
+Nota: il programma deve girare sul computer fisicamente collegato al cavo
+DMX — un sito su internet non potrebbe raggiungere il cavo USB. Se ti serve
+il controllo da **fuori** dalla rete locale (da casa verso la sala, ecc.),
+il modo più semplice e sicuro è una VPN tipo [Tailscale](https://tailscale.com)
+sui due dispositivi: l'indirizzo resta lo stesso e funziona ovunque.
+Chiunque sia sulla stessa rete può controllare le luci: su reti pubbliche
+tienilo a mente.
 
 ## Collegare i fari (catena DMX)
 

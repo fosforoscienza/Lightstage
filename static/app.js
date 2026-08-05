@@ -10,6 +10,12 @@ const state = {
 let dmx = { available: false, connected: false, port: null, ports: [], error: null };
 let selectedId = null;
 let activePreset = null;
+let lanUrl = null;
+
+/* più dispositivi possono essere aperti insieme: le modifiche locali
+   hanno la precedenza per 1,5 s, poi lo stato del server fa fede */
+let lastInteraction = 0;
+function touch() { lastInteraction = Date.now(); }
 
 const NUM_CHANNELS = 8;
 const ROLE_COLORS = {
@@ -45,6 +51,7 @@ async function api(method, url, body) {
 /* --------------------------------------------- invii ritardati al server */
 const pendingPatch = new Map(); // id -> {timer, patch}
 function pushFixturePatch(id, patch) {
+  touch();
   let e = pendingPatch.get(id);
   if (!e) { e = { timer: null, patch: {} }; pendingPatch.set(id, e); }
   Object.assign(e.patch, patch);
@@ -60,6 +67,7 @@ function pushFixturePatch(id, patch) {
 
 const pendingValues = new Map(); // id -> timer
 function pushValues(f) {
+  touch();
   if (pendingValues.has(f.id)) return;
   pendingValues.set(f.id, setTimeout(() => {
     pendingValues.delete(f.id);
@@ -790,6 +798,49 @@ $('#btn-refresh-ports').addEventListener('click', async () => {
   renderDmx();
 });
 
+/* --------------------------------- sincronizzazione con altri dispositivi */
+function applyRemoteState(s) {
+  const structure = (fs) => JSON.stringify(fs.map((f) => [f.id, f.name, f.address]));
+  const structureChanged = structure(state.fixtures) !== structure(s.fixtures);
+  const channelsChanged = JSON.stringify(state.channels) !== JSON.stringify(s.channels);
+
+  if (JSON.stringify(state.presets) !== JSON.stringify(s.presets)) {
+    state.presets = s.presets;
+    renderPresets();
+  }
+  if (state.blackout !== s.blackout) {
+    state.blackout = s.blackout;
+    $('#btn-blackout').classList.toggle('on', state.blackout);
+    state.fixtures.forEach(updateSwatch);
+  }
+  if (structureChanged || channelsChanged) {
+    state.channels = s.channels;
+    state.fixtures = s.fixtures;
+    if (selectedId !== null && !s.fixtures.some((f) => f.id === selectedId)) {
+      selectedId = null;
+    }
+    renderFixtures();
+    return;
+  }
+  for (const nf of s.fixtures) {
+    const f = state.fixtures.find((x) => x.id === nf.id);
+    if (!f) continue;
+    f.x = nf.x; f.y = nf.y; f.rot = nf.rot;
+    if (JSON.stringify(f.values) !== JSON.stringify(nf.values)) {
+      f.values = nf.values;
+      updateFixtureDisplays(f);
+    }
+  }
+}
+
+/* indirizzo per gli altri dispositivi */
+$('#btn-network').addEventListener('click', () => {
+  if (lanUrl) {
+    prompt('Apri questo indirizzo da telefono, tablet o altri computer\n' +
+      'collegati alla stessa rete Wi-Fi (copialo pure):', lanUrl);
+  }
+});
+
 /* ------------------------------------------------------------------ init */
 async function init() {
   const s = await api('GET', '/api/state');
@@ -798,6 +849,8 @@ async function init() {
   state.channels = s.channels;
   state.blackout = s.blackout;
   dmx = s.dmx;
+  lanUrl = s.lan_url;
+  $('#btn-network').classList.toggle('hidden', !lanUrl);
   $('#btn-blackout').classList.toggle('on', state.blackout);
   renderFixtures();
   renderPresets();
@@ -806,10 +859,19 @@ async function init() {
   requestAnimationFrame(draw);
   setInterval(async () => {
     try {
-      dmx = await api('GET', '/api/dmx');
+      // le modifiche fatte da altri dispositivi arrivano qui
+      if (Date.now() - lastInteraction < 1500 || dragMode) {
+        dmx = await api('GET', '/api/dmx');
+      } else {
+        const s2 = await api('GET', '/api/state');
+        dmx = s2.dmx;
+        lanUrl = s2.lan_url;
+        $('#btn-network').classList.toggle('hidden', !lanUrl);
+        applyRemoteState(s2);
+      }
       renderDmx();
     } catch (err) { /* server non raggiungibile: riprova al prossimo giro */ }
-  }, 3000);
+  }, 2000);
 }
 
 window.addEventListener('resize', () => { resizeCanvas(); sizeFaders(); });
