@@ -102,12 +102,15 @@
     <label>URL dello script (finisce con /exec)
       <input id="cloud-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
     </label>
+    <label>Nome del salvataggio (vuoto = codice automatico)
+      <input id="cloud-name" type="text" placeholder="es. concerto sagra 2026" maxlength="40">
+    </label>
     <div class="modal-actions" style="justify-content:flex-start">
-      <button id="btn-cloud-save" class="btn primary">Salva online &rarr; ottieni codice</button>
+      <button id="btn-cloud-save" class="btn primary">Salva online</button>
     </div>
     <hr style="border:none;border-top:1px solid #262c38">
-    <label>Carica da codice
-      <input id="cloud-code" type="text" placeholder="K7TQ-M2XP" maxlength="12">
+    <label>Carica da nome o codice
+      <input id="cloud-code" type="text" placeholder="concerto sagra 2026 oppure K7TQ-M2XP" maxlength="40">
     </label>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Chiudi</button>

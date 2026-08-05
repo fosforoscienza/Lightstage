@@ -35,18 +35,35 @@ tipo `K7TQ-M2XP`.
 
 ## Uso quotidiano
 
-- **Salva online → codice**: carica lo show attuale (fari, canali, preset,
-  posizioni) sul foglio e ti mostra il codice da annotare.
-- **Carica da codice**: inserisci un codice salvato in precedenza e lo show
-  viene ripristinato — da qualunque computer, basta che nel campo URL ci sia
-  lo stesso script.
+- **Salva online**: carica lo show attuale (fari, canali, preset, posizioni)
+  sul foglio. Puoi dargli un **nome a tua scelta** (es. *concerto sagra
+  2026*); se lasci il campo vuoto viene generato un codice tipo `K7TQ-M2XP`.
+- **Nome già usato?** Il salvataggio si **blocca e ti avvisa**: sovrascrive
+  il salvataggio esistente solo se confermi, altrimenti scegli un altro nome.
+- **Carica da nome o codice**: scrivi il nome (o il codice) e lo show viene
+  ripristinato — da qualunque computer, basta che nel campo URL ci sia lo
+  stesso script. Maiuscole, minuscole e spazi non contano.
 
 Note:
 
-- Ogni salvataggio crea un **codice nuovo** (il vecchio resta valido: è la
-  cronologia, la vedi nel foglio nella scheda "shows" e puoi cancellare le
-  righe che non servono più).
-- Chi conosce un codice può caricare quello show: non scriverci dentro nulla
-  di riservato.
+- Ogni salvataggio senza nome crea un **codice nuovo**; tutti i salvataggi
+  sono righe della scheda "shows" del foglio, dove puoi cancellare quelle
+  che non servono più.
+- Chi conosce un nome o un codice può caricare quello show: non scriverci
+  dentro nulla di riservato.
 - L'URL dello script va incollato una volta per ogni browser/computer che usi
   (oppure tienilo annotato insieme ai codici).
+
+## Aggiornare lo script a una versione nuova
+
+Se hai già configurato tutto e LightStage introduce funzioni nuove dello
+script (come i nomi personalizzati):
+
+1. Apri il foglio → **Estensioni → Apps Script**, cancella il codice e
+   incolla il nuovo contenuto di `Code.gs`.
+2. **Distribuisci → Gestisci distribuzioni** → matita ✏️ → *Versione:*
+   **Nuova versione** → **Distribuisci**.
+
+L'URL resta lo stesso: non devi cambiare nulla in LightStage. Attenzione:
+salvare solo il codice **senza** creare la nuova versione della
+distribuzione non aggiorna l'app web.

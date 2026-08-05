@@ -420,23 +420,46 @@
     return url;
   }
 
+  async function cloudSaveRequest(url, name, overwrite) {
+    // text/plain evita il preflight CORS, che Apps Script non gestisce
+    const body = { data: db };
+    if (name) body.name = name;
+    if (overwrite) body.overwrite = true;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  }
+
   document.getElementById('btn-cloud-save').addEventListener('click', async () => {
     const url = cloudUrl();
     if (!url) return;
+    const name = document.getElementById('cloud-name').value.trim();
     const btn = document.getElementById('btn-cloud-save');
     btn.disabled = true;
     const oldText = btn.textContent;
     btn.textContent = 'Salvataggio…';
     try {
-      // text/plain evita il preflight CORS, che Apps Script non gestisce
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ data: db }),
-      });
-      const out = await res.json();
+      let out = await cloudSaveRequest(url, name, false);
+      if (!out.ok && out.exists) {
+        // nome già usato: blocco e chiedo prima di sovrascrivere
+        const conferma = confirm(
+          `Il nome "${name}" è già usato da un altro salvataggio.\n\n` +
+          'Vuoi SOVRASCRIVERLO con lo show attuale?\n' +
+          '(Annulla per scegliere un altro nome)');
+        if (!conferma) return;
+        out = await cloudSaveRequest(url, name, true);
+      }
       if (!out.ok || !out.code) throw new Error(out.error || 'risposta non valida');
-      prompt('Show salvato online! Annota questo codice per ricaricarlo ovunque:', out.code);
+      if (out.updated) {
+        alert(`Salvataggio "${out.code}" aggiornato con lo show attuale.`);
+      } else if (name) {
+        alert(`Show salvato online con il nome "${out.code}".`);
+      } else {
+        prompt('Show salvato online! Annota questo codice per ricaricarlo ovunque:', out.code);
+      }
     } catch (err) {
       alert('Salvataggio online fallito: ' + (err.message || err));
     } finally {

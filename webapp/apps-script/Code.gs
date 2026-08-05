@@ -17,7 +17,10 @@ function doGet(e) {
   return json_({ ok: false, error: 'codice non trovato' });
 }
 
-// Salvataggio: POST con corpo {"data": {...}}
+// Salvataggio: POST con corpo {"data": {...}, "name": "nome facoltativo"}.
+// Senza nome viene generato un codice nuovo. Se il nome esiste già il
+// salvataggio viene BLOCCATO ({exists: true}): si sovrascrive solo
+// ripetendo la richiesta con "overwrite": true.
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
@@ -28,12 +31,45 @@ function doPost(e) {
     if (testo.length > 45000) {
       return json_({ ok: false, error: 'show troppo grande' });
     }
+    var sheet = getSheet_();
+    var righe = sheet.getDataRange().getValues();
+    var nome = pulisciNome_(body.name || '');
+    if (nome) {
+      var chiave = normalizza_(nome);
+      for (var i = 1; i < righe.length; i++) {
+        if (normalizza_(String(righe[i][0])) === chiave) {
+          if (body.overwrite === true) {
+            sheet.getRange(i + 1, 2, 1, 2).setValues([[new Date(), testo]]);
+            return json_({ ok: true, code: String(righe[i][0]), updated: true });
+          }
+          return json_({ ok: false, exists: true,
+            error: 'nome già usato da un altro salvataggio' });
+        }
+      }
+      sheet.appendRow([nome, new Date(), testo]);
+      return json_({ ok: true, code: nome });
+    }
     var code = nuovoCodice_();
-    getSheet_().appendRow([code, new Date(), testo]);
+    for (var tentativi = 0; tentativi < 5 && esiste_(righe, code); tentativi++) {
+      code = nuovoCodice_();
+    }
+    sheet.appendRow([code, new Date(), testo]);
     return json_({ ok: true, code: code });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
+}
+
+function esiste_(righe, code) {
+  var chiave = normalizza_(code);
+  for (var i = 1; i < righe.length; i++) {
+    if (normalizza_(String(righe[i][0])) === chiave) return true;
+  }
+  return false;
+}
+
+function pulisciNome_(nome) {
+  return String(nome).replace(/\s+/g, ' ').trim().slice(0, 40);
 }
 
 function getSheet_() {
