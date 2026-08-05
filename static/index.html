@@ -20,7 +20,6 @@
   </div>
   <div class="spacer"></div>
   <button id="btn-network" class="btn ghost hidden" title="Usa LightStage da telefono o altri computer">&#128241; In rete</button>
-  <button id="btn-channels" class="btn ghost">Canali</button>
   <button id="btn-add" class="btn primary">+ Aggiungi faro</button>
   <button id="btn-blackout" class="btn danger-ghost">Blackout</button>
 </header>
@@ -53,8 +52,17 @@
     <label>Nome
       <input id="add-name" type="text" maxlength="24">
     </label>
-    <label>Indirizzo DMX (1&ndash;505)
+    <label>Indirizzo DMX
       <input id="add-address" type="number" min="1" max="505">
+    </label>
+    <label>Numero di canali
+      <select id="add-count">
+        <option value="8">8 canali</option>
+        <option value="16">16 canali</option>
+      </select>
+    </label>
+    <label>Canali
+      <select id="add-copy"></select>
     </label>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Annulla</button>
@@ -66,13 +74,15 @@
 <!-- modale: configurazione canali -->
 <div id="modal-channels" class="modal hidden">
   <div class="modal-card">
-    <h2>Configurazione canali</h2>
-    <p class="small">Nomi e ruoli dei canali (uguali per tutti i fari). Il ruolo
-    serve all'anteprima per calcolare il colore del fascio.</p>
+    <h2 id="channels-title">Canali</h2>
+    <p class="small">Nomi e ruoli dei canali di questo faro. Il ruolo serve
+    all'anteprima per il colore del fascio e al selettore colore per sapere
+    quali fader pilotare; l'uscita DMX non cambia.</p>
     <div id="channels-rows"></div>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Annulla</button>
-      <button id="btn-channels-save" class="btn primary">Salva</button>
+      <button id="btn-channels-save-all" class="btn ghost">Salva per tutti i fari</button>
+      <button id="btn-channels-save" class="btn primary">Salva per questo faro</button>
     </div>
   </div>
 </div>

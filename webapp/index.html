@@ -19,11 +19,11 @@
     <span id="dmx-label" class="dmx-label">cavo non collegato</span>
   </div>
   <div class="spacer"></div>
+  <button id="btn-cloud" class="btn ghost" title="Salva e carica gli show online con un codice">&#9729; Online</button>
   <button id="btn-export" class="btn ghost" title="Scarica fari e preset in un file da portare su un altro computer">Esporta</button>
   <label class="btn ghost" for="import-file" title="Carica un file esportato da un altro computer">Importa</label>
   <input id="import-file" type="file" accept="application/json,.json" hidden>
   <button id="btn-network" class="btn ghost hidden">&#128241; In rete</button>
-  <button id="btn-channels" class="btn ghost">Canali</button>
   <button id="btn-add" class="btn primary">+ Aggiungi faro</button>
   <button id="btn-blackout" class="btn danger-ghost">Blackout</button>
 </header>
@@ -56,8 +56,17 @@
     <label>Nome
       <input id="add-name" type="text" maxlength="24">
     </label>
-    <label>Indirizzo DMX (1&ndash;505)
+    <label>Indirizzo DMX
       <input id="add-address" type="number" min="1" max="505">
+    </label>
+    <label>Numero di canali
+      <select id="add-count">
+        <option value="8">8 canali</option>
+        <option value="16">16 canali</option>
+      </select>
+    </label>
+    <label>Canali
+      <select id="add-copy"></select>
     </label>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Annulla</button>
@@ -69,13 +78,40 @@
 <!-- modale: configurazione canali -->
 <div id="modal-channels" class="modal hidden">
   <div class="modal-card">
-    <h2>Configurazione canali</h2>
-    <p class="small">Nomi e ruoli dei canali (uguali per tutti i fari). Il ruolo
-    serve all'anteprima per calcolare il colore del fascio.</p>
+    <h2 id="channels-title">Canali</h2>
+    <p class="small">Nomi e ruoli dei canali di questo faro. Il ruolo serve
+    all'anteprima per il colore del fascio e al selettore colore per sapere
+    quali fader pilotare; l'uscita DMX non cambia.</p>
     <div id="channels-rows"></div>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Annulla</button>
-      <button id="btn-channels-save" class="btn primary">Salva</button>
+      <button id="btn-channels-save-all" class="btn ghost">Salva per tutti i fari</button>
+      <button id="btn-channels-save" class="btn primary">Salva per questo faro</button>
+    </div>
+  </div>
+</div>
+
+<!-- modale: show online via foglio Google -->
+<div id="modal-cloud" class="modal hidden">
+  <div class="modal-card">
+    <h2>Show online (foglio Google)</h2>
+    <p class="small">Salva lo show su un tuo foglio Google e ricaricalo
+    ovunque con un codice. Serve una configurazione una tantum:
+    <a href="https://github.com/fosforoscienza/Lightstage/blob/claude/ukfog-light-control-software-bcle44/webapp/apps-script/ISTRUZIONI.md"
+       target="_blank" rel="noopener" style="color:#5b8cff">istruzioni (5 minuti)</a>.</p>
+    <label>URL dello script (finisce con /exec)
+      <input id="cloud-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
+    </label>
+    <div class="modal-actions" style="justify-content:flex-start">
+      <button id="btn-cloud-save" class="btn primary">Salva online &rarr; ottieni codice</button>
+    </div>
+    <hr style="border:none;border-top:1px solid #262c38">
+    <label>Carica da codice
+      <input id="cloud-code" type="text" placeholder="K7TQ-M2XP" maxlength="12">
+    </label>
+    <div class="modal-actions">
+      <button class="btn ghost modal-close">Chiudi</button>
+      <button id="btn-cloud-load" class="btn primary">Carica</button>
     </div>
   </div>
 </div>

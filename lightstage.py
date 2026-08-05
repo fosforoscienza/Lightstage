@@ -34,7 +34,7 @@ HOST = "0.0.0.0"  # raggiungibile anche da telefoni/PC sulla stessa rete
 PORT = 8123
 NUM_PRESETS = 10
 NUM_CHANNELS = 8
-MAX_ADDRESS = 512 - NUM_CHANNELS + 1  # 505
+# l'indirizzo massimo dipende dal numero di canali del faro: 512 - n + 1
 DMX_FPS = 30
 
 # Layout tipico dei fari UkFog UV+RGB a 8 canali: modificabile
@@ -193,15 +193,46 @@ def rebuild_universe():
 
 
 # -------------------------------------------------------------- persistenza
-def sanitize_values(raw):
-    vals = [0] * NUM_CHANNELS
+def sanitize_values(raw, n=NUM_CHANNELS):
+    vals = [0] * n
     if isinstance(raw, list):
-        for i in range(min(NUM_CHANNELS, len(raw))):
+        for i in range(min(n, len(raw))):
             try:
                 vals[i] = max(0, min(255, int(raw[i])))
             except (TypeError, ValueError):
                 pass
     return vals
+
+
+def sanitize_channels(raw, fallback=None, n=NUM_CHANNELS):
+    base = fallback or DEFAULT_CHANNELS
+    channels = []
+    if isinstance(raw, list):
+        for i, c in enumerate(raw[:n]):
+            if isinstance(c, dict):
+                label = str(c.get("label") or f"CH{i + 1}")[:16]
+                role = c.get("role") if c.get("role") in ROLES else "other"
+                channels.append({"label": label, "role": role})
+    while len(channels) < n:
+        i = len(channels)
+        if i < len(base):
+            channels.append(dict(base[i]))
+        else:
+            channels.append({"label": f"CH{i + 1}", "role": "other"})
+    return channels
+
+
+def fixture_count(f):
+    """Numero di canali del faro (8 o 16)."""
+    return len(f["channels"])
+
+
+def requested_count(body):
+    if body.get("count") == 16:
+        return 16
+    if isinstance(body.get("channels"), list) and len(body["channels"]) == 16:
+        return 16
+    return NUM_CHANNELS
 
 
 def load_show():
@@ -213,14 +244,18 @@ def load_show():
     except Exception as exc:
         print(f"Attenzione: show.json non leggibile ({exc}), riparto da zero.")
         return
+    channels = sanitize_channels(data.get("channels"))
     fixtures = []
     for f in data.get("fixtures", []):
         try:
+            raw_ch = f.get("channels")
+            n = 16 if isinstance(raw_ch, list) and len(raw_ch) == 16 else NUM_CHANNELS
             fixtures.append({
                 "id": int(f["id"]),
                 "name": str(f.get("name", "Faro"))[:24],
-                "address": max(1, min(MAX_ADDRESS, int(f.get("address", 1)))),
-                "values": sanitize_values(f.get("values")),
+                "address": max(1, min(512 - n + 1, int(f.get("address", 1)))),
+                "values": sanitize_values(f.get("values"), n),
+                "channels": sanitize_channels(raw_ch, fallback=channels, n=n),
                 "x": max(0.0, min(1.0, float(f.get("x", 0.5)))),
                 "y": max(0.0, min(1.0, float(f.get("y", 0.2)))),
                 "rot": float(f.get("rot", 0)) % 360,
@@ -233,17 +268,10 @@ def load_show():
             presets[i] = {
                 "name": str(p.get("name", f"Preset {i + 1}"))[:24],
                 "values": {
-                    str(k): sanitize_values(v)
+                    str(k): sanitize_values(v, n=16)
                     for k, v in dict(p["values"]).items()
                 },
             }
-    channels = []
-    for i, c in enumerate(data.get("channels", [])[:NUM_CHANNELS]):
-        label = str(c.get("label", f"CH{i + 1}"))[:16] if isinstance(c, dict) else f"CH{i + 1}"
-        role = c.get("role") if isinstance(c, dict) else "other"
-        channels.append({"label": label, "role": role if role in ROLES else "other"})
-    while len(channels) < NUM_CHANNELS:
-        channels.append(dict(DEFAULT_CHANNELS[len(channels)]))
     show["fixtures"] = fixtures
     show["presets"] = presets
     show["channels"] = channels
@@ -354,15 +382,18 @@ def add_fixture():
     with lock:
         fid = show["next_id"]
         show["next_id"] += 1
+        n = requested_count(body)
         try:
-            address = max(1, min(MAX_ADDRESS, int(body.get("address", 1))))
+            address = max(1, min(512 - n + 1, int(body.get("address", 1))))
         except (TypeError, ValueError):
             address = 1
         fixture = {
             "id": fid,
             "name": str(body.get("name") or f"Faro {fid}")[:24],
             "address": address,
-            "values": sanitize_values(body.get("values")),
+            "values": sanitize_values(body.get("values"), n),
+            "channels": sanitize_channels(body.get("channels"),
+                                          fallback=show["channels"], n=n),
             "x": max(0.0, min(1.0, float(body.get("x", 0.5)))),
             "y": max(0.0, min(1.0, float(body.get("y", 0.2)))),
             "rot": float(body.get("rot", 0)) % 360,
@@ -384,7 +415,8 @@ def update_fixture(fid):
             f["name"] = str(body["name"])[:24] or f["name"]
         if "address" in body:
             try:
-                f["address"] = max(1, min(MAX_ADDRESS, int(body["address"])))
+                max_addr = 512 - fixture_count(f) + 1
+                f["address"] = max(1, min(max_addr, int(body["address"])))
             except (TypeError, ValueError):
                 pass
         for key in ("x", "y"):
@@ -410,7 +442,7 @@ def update_values(fid):
         f = find_fixture(fid)
         if f is None:
             return jsonify({"error": "faro non trovato"}), 404
-        f["values"] = sanitize_values(body.get("values"))
+        f["values"] = sanitize_values(body.get("values"), fixture_count(f))
         rebuild_universe()
         mark_dirty()
         return jsonify({"fixture": f})
@@ -454,7 +486,7 @@ def load_preset(slot):
         for f in show["fixtures"]:
             saved = values.get(str(f["id"]))
             if saved is not None:
-                f["values"] = sanitize_values(saved)
+                f["values"] = sanitize_values(saved, fixture_count(f))
         rebuild_universe()
         mark_dirty()
         return jsonify({"fixtures": show["fixtures"]})
@@ -470,21 +502,29 @@ def delete_preset(slot):
         return jsonify({"presets": show["presets"]})
 
 
-@app.put("/api/channels")
-def update_channels():
+@app.put("/api/fixtures/<int:fid>/channels")
+def update_fixture_channels(fid):
     body = request.get_json(silent=True) or {}
     raw = body.get("channels")
-    if not isinstance(raw, list) or len(raw) != NUM_CHANNELS:
-        return jsonify({"error": "servono 8 canali"}), 400
-    channels = []
-    for i, c in enumerate(raw):
-        label = str(c.get("label") or f"CH{i + 1}")[:16]
-        role = c.get("role") if c.get("role") in ROLES else "other"
-        channels.append({"label": label, "role": role})
     with lock:
-        show["channels"] = channels
+        f = find_fixture(fid)
+        if f is None:
+            return jsonify({"error": "faro non trovato"}), 404
+        n = fixture_count(f)
+        if not isinstance(raw, list) or len(raw) != n:
+            return jsonify({"error": f"servono {n} canali"}), 400
+        channels = sanitize_channels(raw, n=n)
+        f["channels"] = channels
+        if body.get("all"):
+            # si applica solo ai fari con lo stesso numero di canali;
+            # per i fari a 8 diventa anche il predefinito dei nuovi fari
+            if n == NUM_CHANNELS:
+                show["channels"] = [dict(c) for c in channels]
+            for other in show["fixtures"]:
+                if fixture_count(other) == n:
+                    other["channels"] = [dict(c) for c in channels]
         mark_dirty()
-        return jsonify({"channels": channels})
+        return jsonify({"fixtures": show["fixtures"], "channels": show["channels"]})
 
 
 @app.put("/api/blackout")

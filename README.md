@@ -8,9 +8,12 @@ Daslight: solo quello che serve.
 
 ## Cosa fa
 
-- **Fari**: aggiungi un faro con nome e indirizzo DMX; per ogni faro hai
-  **8 fader** (0–255), uno per canale. Il pulsante *"Crea 8 fari"* prepara in
-  un clic la configurazione tipica con indirizzi 1, 9, 17, … 57.
+- **Fari**: aggiungi un faro con nome, indirizzo DMX e **8 o 16 canali**: per
+  ognuno hai un fader (0–255). Ogni faro ha i **suoi** nomi e ruoli dei canali
+  (pulsante ⚙ sulla scheda), quindi puoi mescolare par, teste mobili e altro
+  nello stesso show; aggiungendo un faro puoi copiare i canali da uno già
+  configurato. Il pulsante *"Crea 8 fari"* prepara in un clic la
+  configurazione tipica UkFog con indirizzi 1, 9, 17, … 57.
 - **Selettore colore**: in ogni scheda c'è un quadratino colorato: scegli un
   colore e i fader Rosso/Verde/Blu si impostano da soli (e se il dimmer è a
   zero viene alzato, così il colore si vede subito). Muovendo i fader a mano,
@@ -95,6 +98,10 @@ Serial**, quindi serve **Chrome o Edge** (Firefox e Safari non la supportano).
 - Fari, preset e posizioni vengono salvati **nel browser di quel computer**
   (localStorage). Con **Esporta/Importa** puoi portare tutto su un altro
   computer come file `lightstage-show.json`.
+- Con **☁ Online** puoi salvare lo show su un tuo **foglio Google** e
+  ricaricarlo da qualsiasi computer con un codice tipo `K7TQ-M2XP`. Serve una
+  configurazione una tantum di ~5 minuti:
+  [istruzioni](webapp/apps-script/ISTRUZIONI.md).
 - Per pubblicarla gratis con GitHub Pages: *Settings → Pages → Deploy from a
   branch*, scegli il branch e la cartella `/ (root)`. Il sito sarà su
   `https://<utente>.github.io/Lightstage/webapp/`.
@@ -169,13 +176,22 @@ UV+RGB a 8 canali):
 | 3  | Verde    | 7  | Macro    |
 | 4  | Blu      | 8  | Velocità |
 
-Se il tuo modello usa un ordine diverso — o hai fari con canali differenti,
-ad esempio **Bianco** al posto dell'UV — premi **Canali** in alto e correggi
-nomi e ruoli: il ruolo (Rosso, Verde, Blu, UV, Bianco, Dimmer) serve
-all'anteprima per calcolare il colore del fascio e al selettore colore per
-sapere quali fader pilotare. Nota: i nomi e i ruoli valgono per tutti i fari;
-l'uscita DMX invece manda sempre il fader N sul canale indirizzo+N-1,
-indipendentemente dal ruolo.
+Se il tuo modello usa un ordine diverso — o hai fari di tipo differente —
+premi il **⚙ sulla scheda del faro** e correggi nomi e ruoli dei suoi canali:
+il ruolo (Rosso, Verde, Blu, UV, Bianco, Dimmer, Altro) serve all'anteprima
+per calcolare il colore del fascio e al selettore colore per sapere quali
+fader pilotare. *"Salva per tutti i fari"* applica il layout a tutti i fari
+con lo stesso numero di canali. L'uscita DMX non dipende dai ruoli: manda
+sempre il fader N sul canale indirizzo+N-1.
+
+Esempio, una testa mobile a 8 canali si configura così:
+
+| CH | Nome  | Ruolo | CH | Nome   | Ruolo  |
+|----|-------|-------|----|--------|--------|
+| 1  | Pan   | Altro | 5  | Verde  | Verde  |
+| 2  | Tilt  | Altro | 6  | Blu    | Blu    |
+| 3  | Focus | Altro | 7  | Bianco | Bianco |
+| 4  | Rosso | Rosso | 8  | Return | Altro  |
 
 ## Limitazioni
 

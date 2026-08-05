@@ -80,11 +80,19 @@ function pushValues(f) {
 }
 
 /* ------------------------------------------------------- colore del faro */
+function fixtureChannels(f) {
+  return f.channels || state.channels;
+}
+
+function fixtureSpan(f) {
+  return fixtureChannels(f).length; // 8 o 16 canali DMX occupati
+}
+
 function fixtureColor(f) {
   let master = null;
   let r = 0, g = 0, b = 0, uv = 0, w = 0;
   let hasColor = false;
-  state.channels.forEach((c, i) => {
+  fixtureChannels(f).forEach((c, i) => {
     const v = f.values[i] || 0;
     switch (c.role) {
       case 'dimmer': master = master === null ? v : Math.max(master, v); break;
@@ -120,8 +128,8 @@ function overlappingIds() {
   const fs = state.fixtures;
   for (let i = 0; i < fs.length; i++) {
     for (let j = i + 1; j < fs.length; j++) {
-      if (fs[i].address <= fs[j].address + NUM_CHANNELS - 1 &&
-          fs[j].address <= fs[i].address + NUM_CHANNELS - 1) {
+      if (fs[i].address <= fs[j].address + fixtureSpan(fs[j]) - 1 &&
+          fs[j].address <= fs[i].address + fixtureSpan(fs[i]) - 1) {
         set.add(fs[i].id);
         set.add(fs[j].id);
       }
@@ -155,15 +163,15 @@ function updateFaderFill(input) {
 }
 
 /* --------------------------------------------------- selettore colore */
-function roleIndexes(role) {
+function roleIndexes(f, role) {
   const idx = [];
-  state.channels.forEach((c, i) => { if (c.role === role) idx.push(i); });
+  fixtureChannels(f).forEach((c, i) => { if (c.role === role) idx.push(i); });
   return idx;
 }
 
 function fixtureRgbHex(f) {
   const first = (role) => {
-    const idx = roleIndexes(role);
+    const idx = roleIndexes(f, role);
     return idx.length ? f.values[idx[0]] : 0;
   };
   const hex = (v) => v.toString(16).padStart(2, '0');
@@ -174,11 +182,11 @@ function applyColorToFixture(f, hexColor) {
   const r = parseInt(hexColor.slice(1, 3), 16);
   const g = parseInt(hexColor.slice(3, 5), 16);
   const b = parseInt(hexColor.slice(5, 7), 16);
-  roleIndexes('red').forEach((i) => { f.values[i] = r; });
-  roleIndexes('green').forEach((i) => { f.values[i] = g; });
-  roleIndexes('blue').forEach((i) => { f.values[i] = b; });
+  roleIndexes(f, 'red').forEach((i) => { f.values[i] = r; });
+  roleIndexes(f, 'green').forEach((i) => { f.values[i] = g; });
+  roleIndexes(f, 'blue').forEach((i) => { f.values[i] = b; });
   // se il dimmer è a zero il colore non si vedrebbe: accendilo
-  const dim = roleIndexes('dimmer');
+  const dim = roleIndexes(f, 'dimmer');
   if ((r || g || b) && dim.length && dim.every((i) => f.values[i] === 0)) {
     dim.forEach((i) => { f.values[i] = 255; });
   }
@@ -217,7 +225,7 @@ function renderFixtures() {
     picker.className = 'color-pick';
     picker.title = 'Scegli un colore: i fader RGB si impostano da soli';
     picker.value = fixtureRgbHex(f);
-    if (!state.channels.some((c) => ['red', 'green', 'blue'].includes(c.role))) {
+    if (!fixtureChannels(f).some((c) => ['red', 'green', 'blue'].includes(c.role))) {
       picker.classList.add('hidden');
     }
     picker.addEventListener('input', () => applyColorToFixture(f, picker.value));
@@ -238,18 +246,27 @@ function renderFixtures() {
     const addr = document.createElement('input');
     addr.type = 'number';
     addr.min = 1;
-    addr.max = 505;
+    addr.max = 512 - fixtureSpan(f) + 1;
     addr.value = f.address;
     addr.addEventListener('change', () => {
       let v = parseInt(addr.value, 10);
       if (isNaN(v)) v = f.address;
-      v = Math.max(1, Math.min(505, v));
+      v = Math.max(1, Math.min(512 - fixtureSpan(f) + 1, v));
       addr.value = v;
       f.address = v;
       pushFixturePatch(f.id, { address: v });
       refreshOverlaps();
     });
     addrWrap.append(addr);
+
+    const cfg = document.createElement('button');
+    cfg.className = 'cfg';
+    cfg.textContent = '⚙';
+    cfg.title = 'Canali di questo faro';
+    cfg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openChannelsModal(f);
+    });
 
     const del = document.createElement('button');
     del.className = 'del';
@@ -263,15 +280,15 @@ function renderFixtures() {
       renderFixtures();
     });
 
-    head.append(swatch, picker, name, addrWrap, del);
+    head.append(swatch, picker, name, addrWrap, cfg, del);
 
     const faders = document.createElement('div');
     faders.className = 'faders';
     const inputs = [];
     const valEls = [];
 
-    for (let i = 0; i < NUM_CHANNELS; i++) {
-      const ch = state.channels[i] || { label: `CH${i + 1}`, role: 'other' };
+    for (let i = 0; i < fixtureSpan(f); i++) {
+      const ch = fixtureChannels(f)[i] || { label: `CH${i + 1}`, role: 'other' };
       const col = document.createElement('div');
       col.className = 'fader-col';
 
@@ -745,36 +762,64 @@ document.querySelectorAll('.modal-close').forEach((b) =>
 document.querySelectorAll('.modal').forEach((m) =>
   m.addEventListener('pointerdown', (e) => { if (e.target === m) closeModals(); }));
 
-function nextFreeAddress() {
+function nextFreeAddress(n = NUM_CHANNELS) {
   let addr = 1;
   for (const f of [...state.fixtures].sort((a, b) => a.address - b.address)) {
-    if (addr + NUM_CHANNELS - 1 >= f.address && addr <= f.address + NUM_CHANNELS - 1) {
-      addr = f.address + NUM_CHANNELS;
-    } else if (f.address >= addr + NUM_CHANNELS) {
-      break;
-    } else {
-      addr = Math.max(addr, f.address + NUM_CHANNELS);
+    const span = fixtureSpan(f);
+    if (addr + n - 1 >= f.address && addr <= f.address + span - 1) {
+      addr = f.address + span;
     }
   }
-  return Math.min(addr, 505);
+  return Math.min(addr, 512 - n + 1);
 }
 
 function newFixturePosition(n) {
   return { x: 0.12 + 0.76 * ((n % 8) / 7), y: 0.15 + 0.18 * Math.floor(n / 8) };
 }
 
-async function addFixture(name, address) {
+async function addFixture(name, address, channels, count) {
   const pos = newFixturePosition(state.fixtures.length);
-  const res = await api('POST', '/api/fixtures', {
-    name, address, x: pos.x, y: pos.y, rot: 0,
-  });
+  const body = { name, address, x: pos.x, y: pos.y, rot: 0 };
+  if (channels) body.channels = channels;
+  if (count) body.count = count;
+  const res = await api('POST', '/api/fixtures', body);
   state.fixtures.push(res.fixture);
   renderFixtures();
 }
 
+function addModalCount() {
+  const src = state.fixtures.find((x) => x.id === parseInt($('#add-copy').value, 10));
+  return src ? fixtureSpan(src) : (parseInt($('#add-count').value, 10) || 8);
+}
+
+function refreshAddModal() {
+  // copiando i canali da un faro esistente, il numero di canali segue quello
+  const src = state.fixtures.find((x) => x.id === parseInt($('#add-copy').value, 10));
+  const countSel = $('#add-count');
+  if (src) countSel.value = String(fixtureSpan(src));
+  countSel.disabled = !!src;
+  $('#add-address').value = nextFreeAddress(addModalCount());
+}
+
+$('#add-copy').addEventListener('change', refreshAddModal);
+$('#add-count').addEventListener('change', refreshAddModal);
+
 $('#btn-add').addEventListener('click', () => {
   $('#add-name').value = `Faro ${state.fixtures.length + 1}`;
-  $('#add-address').value = nextFreeAddress();
+  const copySel = $('#add-copy');
+  copySel.innerHTML = '';
+  const def = document.createElement('option');
+  def.value = '';
+  def.textContent = 'Predefiniti (UkFog UV+RGB)';
+  copySel.append(def);
+  for (const f of state.fixtures) {
+    const o = document.createElement('option');
+    o.value = f.id;
+    o.textContent = `Come "${f.name}" (${fixtureSpan(f)} canali)`;
+    copySel.append(o);
+  }
+  $('#add-count').value = '8';
+  refreshAddModal();
   openModal('#modal-add');
   $('#add-name').select();
 });
@@ -782,8 +827,10 @@ $('#btn-add').addEventListener('click', () => {
 $('#btn-add-confirm').addEventListener('click', async () => {
   const name = $('#add-name').value.trim() || `Faro ${state.fixtures.length + 1}`;
   const address = parseInt($('#add-address').value, 10) || 1;
+  const src = state.fixtures.find((x) => x.id === parseInt($('#add-copy').value, 10));
+  const count = addModalCount();
   closeModals();
-  await addFixture(name, address);
+  await addFixture(name, address, src ? fixtureChannels(src) : undefined, count);
 });
 
 $('#btn-setup8').addEventListener('click', async () => {
@@ -792,11 +839,15 @@ $('#btn-setup8').addEventListener('click', async () => {
   }
 });
 
-/* configurazione canali */
-$('#btn-channels').addEventListener('click', () => {
+/* configurazione canali (per faro) */
+let channelsFixture = null;
+
+function openChannelsModal(f) {
+  channelsFixture = f;
+  $('#channels-title').textContent = `Canali — ${f.name}`;
   const rows = $('#channels-rows');
   rows.innerHTML = '';
-  state.channels.forEach((c, i) => {
+  fixtureChannels(f).forEach((c, i) => {
     const row = document.createElement('div');
     row.className = 'ch-row';
     const num = document.createElement('span');
@@ -818,18 +869,27 @@ $('#btn-channels').addEventListener('click', () => {
     rows.append(row);
   });
   openModal('#modal-channels');
-});
+}
 
-$('#btn-channels-save').addEventListener('click', async () => {
+async function saveChannels(all) {
+  if (!channelsFixture) return;
   const rows = Array.from($('#channels-rows').children);
   const channels = rows.map((row, i) => ({
     label: row.children[1].value.trim() || `CH${i + 1}`,
     role: row.children[2].value,
   }));
-  const res = await api('PUT', '/api/channels', { channels });
+  const res = await api('PUT', `/api/fixtures/${channelsFixture.id}/channels`,
+    { channels, all });
+  state.fixtures = res.fixtures;
   state.channels = res.channels;
   closeModals();
   renderFixtures();
+}
+
+$('#btn-channels-save').addEventListener('click', () => saveChannels(false).catch(console.error));
+$('#btn-channels-save-all').addEventListener('click', () => {
+  if (!confirm('Applicare questi canali a TUTTI i fari?')) return;
+  saveChannels(true).catch(console.error);
 });
 
 /* blackout */
@@ -878,7 +938,7 @@ $('#btn-refresh-ports').addEventListener('click', async () => {
 
 /* --------------------------------- sincronizzazione con altri dispositivi */
 function applyRemoteState(s) {
-  const structure = (fs) => JSON.stringify(fs.map((f) => [f.id, f.name, f.address]));
+  const structure = (fs) => JSON.stringify(fs.map((f) => [f.id, f.name, f.address, f.channels]));
   const structureChanged = structure(state.fixtures) !== structure(s.fixtures);
   const channelsChanged = JSON.stringify(state.channels) !== JSON.stringify(s.channels);
 
