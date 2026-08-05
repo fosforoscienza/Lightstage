@@ -1121,6 +1121,8 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyF') {
     toggleFtb();
   } else if (e.code === 'KeyN') {
+    // senza preventDefault la "n" finirebbe nel campo nome appena aperto
+    e.preventDefault();
     $('#btn-add').click();
   }
 });
