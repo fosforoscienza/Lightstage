@@ -410,7 +410,7 @@ function selectFixture(id, scroll = true) {
 
 /* ---------------------------------------------------------------- preset */
 function renderPresets() {
-  const bar = $('#presets-bar');
+  const bar = $('#presets-slots');
   bar.innerHTML = '';
   state.presets.forEach((p, i) => {
     const slot = document.createElement('div');
@@ -471,17 +471,46 @@ async function savePreset(slot, existing) {
   renderPresets();
 }
 
+/* i canali che sfumano nel passaggio tra preset: luce e colore.
+   Pan/Tilt/macro scattano subito al valore del preset, senza vagare
+   per valori intermedi. */
+const PRESET_FADE_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white']);
+
 async function loadPreset(slot) {
-  const res = await api('POST', `/api/presets/${slot}/load`);
-  for (const nf of res.fixtures) {
-    const f = state.fixtures.find((x) => x.id === nf.id);
-    if (f) {
-      f.values = nf.values;
-      updateFixtureDisplays(f);
-    }
-  }
+  const p = state.presets[slot];
+  if (!p) return;
   activePreset = slot;
   renderPresets();
+  const durata = (parseFloat($('#preset-fade').value) || 0) * 1000;
+  const targets = new Map();
+  for (const f of state.fixtures) {
+    const saved = p.values[String(f.id)];
+    if (saved === undefined) continue;
+    const n = fixtureSpan(f);
+    targets.set(f.id, Array.from({ length: n }, (_, i) => {
+      const v = parseInt(saved[i], 10);
+      return isNaN(v) ? 0 : Math.max(0, Math.min(255, v));
+    }));
+  }
+  if (durata <= 0) {
+    for (const f of state.fixtures) {
+      const to = targets.get(f.id);
+      if (!to) continue;
+      f.values = to;
+      updateFixtureDisplays(f);
+      pushValues(f);
+    }
+    return;
+  }
+  // i canali che non sfumano vanno subito a destinazione
+  for (const f of state.fixtures) {
+    const to = targets.get(f.id);
+    if (!to) continue;
+    const chans = fixtureChannels(f);
+    f.values = f.values.map((v, i) =>
+      PRESET_FADE_ROLES.has(chans[i].role) ? v : to[i]);
+  }
+  fadeValues(targets, durata, PRESET_FADE_ROLES);
 }
 
 /* ------------------------------------------------------------------- DMX */
@@ -1023,23 +1052,22 @@ $('#btn-blackout').addEventListener('click', () => toggleBlackout().catch(consol
    riporta tutto com'era prima, sempre in dissolvenza. Pan/Tilt/Focus/
    Return e i canali "Altro" (macro, velocità...) non vengono mai toccati. */
 const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
-let ftbAnim = 0;          // token: un nuovo fade annulla quello in corso
+let fadeToken = 0;        // token: una nuova dissolvenza annulla quella in corso
 let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 
-function ftbFade(target) {
-  const token = ++ftbAnim;
-  const durata = (parseFloat($('#ftb-time').value) || 1) * 1000;
+function fadeValues(targets, durata, fadeRoles) {
+  const token = ++fadeToken;
   const inizio = performance.now();
   const partenza = state.fixtures.map((f) => ({ f, from: [...f.values] }));
   const step = () => {
-    if (token !== ftbAnim) return;
+    if (token !== fadeToken) return;
     const t = Math.min(1, (performance.now() - inizio) / durata);
     for (const { f, from } of partenza) {
-      const to = target.get(f.id);
+      const to = targets.get(f.id);
       if (!to) continue;
       const chans = fixtureChannels(f);
       f.values = f.values.map((v, i) =>
-        FTB_ROLES.has(chans[i].role)
+        fadeRoles.has(chans[i].role)
           ? Math.round(from[i] + (to[i] - from[i]) * t)
           : v);
       updateFixtureDisplays(f);
@@ -1048,6 +1076,10 @@ function ftbFade(target) {
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
+}
+
+function ftbFade(target) {
+  fadeValues(target, (parseFloat($('#ftb-time').value) || 1) * 1000, FTB_ROLES);
 }
 
 function toggleFtb() {
@@ -1069,6 +1101,9 @@ function toggleFtb() {
 $('#btn-ftb').addEventListener('click', toggleFtb);
 $('#ftb-time').addEventListener('change', () => {
   localStorage.setItem('lightstage-ftb-time', $('#ftb-time').value);
+});
+$('#preset-fade').addEventListener('change', () => {
+  localStorage.setItem('lightstage-preset-fade', $('#preset-fade').value);
 });
 
 /* scarica lo show come file (backup / trasferimento) */
@@ -1203,6 +1238,8 @@ async function init() {
   $('#btn-blackout').classList.toggle('on', state.blackout);
   const ftbSaved = localStorage.getItem('lightstage-ftb-time');
   if (ftbSaved) $('#ftb-time').value = ftbSaved;
+  const presetFadeSaved = localStorage.getItem('lightstage-preset-fade');
+  if (presetFadeSaved !== null) $('#preset-fade').value = presetFadeSaved;
   // su Windows/Linux la legenda mostra Ctrl al posto di ⌘
   if (!/Mac/i.test(navigator.platform)) {
     document.querySelectorAll('#credits kbd.mod').forEach((k) => {

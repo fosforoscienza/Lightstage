@@ -65,7 +65,7 @@ body { display: flex; flex-direction: column; }
 }
 @keyframes blink { 50% { opacity: 0.6; } }
 
-#ftb-time {
+#ftb-time, #preset-fade {
   background: #0d1016;
   color: var(--text);
   border: 1px solid var(--border);
@@ -114,13 +114,29 @@ body { display: flex; flex-direction: column; }
 /* --------------------------------------------------------------- preset */
 #presets-bar {
   display: flex;
+  align-items: center;
   gap: 6px;
   padding: 8px 12px;
   background: var(--panel-2);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
   flex: 0 0 auto;
+}
+#preset-fade-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  flex: 0 0 auto;
+  padding-right: 8px;
+  border-right: 1px solid var(--border);
+}
+#presets-slots {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
 }
 .preset {
   display: flex;

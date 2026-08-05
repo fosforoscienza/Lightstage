@@ -35,7 +35,18 @@
   <div id="stage-hint">trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo</div>
 </section>
 
-<section id="presets-bar"></section>
+<section id="presets-bar">
+  <div id="preset-fade-box" title="Dissolvenza quando si passa da un preset all'altro">
+    Fade
+    <select id="preset-fade">
+      <option value="0">no</option>
+      <option value="0.5">0,5 s</option>
+      <option value="1" selected>1 s</option>
+      <option value="1.5">1,5 s</option>
+    </select>
+  </div>
+  <div id="presets-slots"></div>
+</section>
 
 <section id="faders-panel">
   <div id="fixtures-row"></div>
