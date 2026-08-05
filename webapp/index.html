@@ -26,11 +26,11 @@
   <input id="import-file" type="file" accept="application/json,.json" hidden>
   <button id="btn-network" class="btn ghost hidden">&#128241; In rete</button>
   <button id="btn-add" class="btn primary">+ Aggiungi faro</button>
-  <select id="ftb-time" title="Durata della dissolvenza FTB">
-    <option value="0.5">0,5 s</option>
-    <option value="1" selected>1 s</option>
-    <option value="1.5">1,5 s</option>
-  </select>
+  <span id="ftb-time" class="fade-group" title="Durata della dissolvenza FTB">
+    <button type="button" data-value="0.5">0,5s</button>
+    <button type="button" data-value="1" class="sel">1s</button>
+    <button type="button" data-value="1.5">1,5s</button>
+  </span>
   <button id="btn-ftb" class="btn danger-ghost" title="Fade to black: spegne tutte le luci gradualmente (tasto F)">FTB</button>
   <button id="btn-blackout" class="btn danger-ghost">Blackout</button>
 </header>
@@ -41,14 +41,14 @@
 </section>
 
 <section id="presets-bar">
-  <div id="preset-fade-box" title="Dissolvenza quando si passa da un preset all'altro">
+  <div id="preset-fade-box">
     Fade
-    <select id="preset-fade">
-      <option value="0">no</option>
-      <option value="0.5">0,5 s</option>
-      <option value="1" selected>1 s</option>
-      <option value="1.5">1,5 s</option>
-    </select>
+    <span id="preset-fade" class="fade-group"
+          title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
+      <button type="button" data-value="0.5">0,5s</button>
+      <button type="button" data-value="1" class="sel">1s</button>
+      <button type="button" data-value="1.5">1,5s</button>
+    </span>
   </div>
   <div id="presets-slots"></div>
 </section>

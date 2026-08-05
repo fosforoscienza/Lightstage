@@ -65,13 +65,28 @@ body { display: flex; flex-direction: column; }
 }
 @keyframes blink { 50% { opacity: 0.6; } }
 
-#ftb-time, #preset-fade {
+.fade-group {
+  display: inline-flex;
+  gap: 2px;
   background: #0d1016;
-  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 6px 4px;
-  font-size: 12px;
+  padding: 2px;
+}
+.fade-group button {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.fade-group button:hover { background: #222938; color: var(--text); }
+.fade-group button.sel {
+  background: var(--accent);
+  color: #fff;
 }
 
 .dmx-box { display: flex; align-items: center; gap: 6px; }

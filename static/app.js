@@ -74,6 +74,33 @@ const CHANNEL_TEMPLATES = [
 
 const $ = (sel) => document.querySelector(sel);
 
+/* gruppi di pulsantini per le durate di dissolvenza: al contrario di un
+   menù a tendina non trattengono il fuoco, così i tasti rapidi (1-9, 0…)
+   restano sempre disponibili anche dopo averli usati */
+function fadeGroupValue(sel) {
+  const on = $(sel).querySelector('button.sel');
+  return on ? parseFloat(on.dataset.value) : 0;
+}
+
+function setupFadeGroup(sel, storageKey, { allowOff = false } = {}) {
+  const group = $(sel);
+  const salvato = localStorage.getItem(storageKey);
+  const applica = (valore) => {
+    group.querySelectorAll('button').forEach((b) => {
+      b.classList.toggle('sel', b.dataset.value === valore);
+    });
+  };
+  if (salvato !== null) applica(salvato);
+  group.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const spegni = allowOff && btn.classList.contains('sel');
+    applica(spegni ? '' : btn.dataset.value);
+    localStorage.setItem(storageKey, spegni ? '' : btn.dataset.value);
+    btn.blur(); // niente fuoco: la barra spaziatrice non lo ricliccherebbe
+  });
+}
+
 async function api(method, url, body) {
   // versione sito (senza server): le richieste vengono gestite in locale
   if (window.LOCAL_BACKEND) return window.LOCAL_BACKEND(method, url, body);
@@ -481,7 +508,7 @@ async function loadPreset(slot) {
   if (!p) return;
   activePreset = slot;
   renderPresets();
-  const durata = (parseFloat($('#preset-fade').value) || 0) * 1000;
+  const durata = fadeGroupValue('#preset-fade') * 1000;
   const targets = new Map();
   for (const f of state.fixtures) {
     const saved = p.values[String(f.id)];
@@ -1079,7 +1106,7 @@ function fadeValues(targets, durata, fadeRoles) {
 }
 
 function ftbFade(target) {
-  fadeValues(target, (parseFloat($('#ftb-time').value) || 1) * 1000, FTB_ROLES);
+  fadeValues(target, (fadeGroupValue('#ftb-time') || 1) * 1000, FTB_ROLES);
 }
 
 function toggleFtb() {
@@ -1099,12 +1126,8 @@ function toggleFtb() {
 }
 
 $('#btn-ftb').addEventListener('click', toggleFtb);
-$('#ftb-time').addEventListener('change', () => {
-  localStorage.setItem('lightstage-ftb-time', $('#ftb-time').value);
-});
-$('#preset-fade').addEventListener('change', () => {
-  localStorage.setItem('lightstage-preset-fade', $('#preset-fade').value);
-});
+setupFadeGroup('#ftb-time', 'lightstage-ftb-time');
+setupFadeGroup('#preset-fade', 'lightstage-preset-fade', { allowOff: true });
 
 /* scarica lo show come file (backup / trasferimento) */
 function exportShow() {
@@ -1236,10 +1259,6 @@ async function init() {
   lanUrl = s.lan_url;
   $('#btn-network').classList.toggle('hidden', !lanUrl);
   $('#btn-blackout').classList.toggle('on', state.blackout);
-  const ftbSaved = localStorage.getItem('lightstage-ftb-time');
-  if (ftbSaved) $('#ftb-time').value = ftbSaved;
-  const presetFadeSaved = localStorage.getItem('lightstage-preset-fade');
-  if (presetFadeSaved !== null) $('#preset-fade').value = presetFadeSaved;
   // su Windows/Linux la legenda mostra Ctrl al posto di ⌘
   if (!/Mac/i.test(navigator.platform)) {
     document.querySelectorAll('#credits kbd.mod').forEach((k) => {
