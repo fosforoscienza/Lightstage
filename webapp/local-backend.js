@@ -18,7 +18,7 @@
     { label: 'Macro', role: 'other' },
     { label: 'Velocità', role: 'other' },
   ];
-  const ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'other']);
+  const ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'other']);
 
   function sanitizeValues(raw) {
     const vals = new Array(NUM_CHANNELS).fill(0);

@@ -169,9 +169,13 @@ UV+RGB a 8 canali):
 | 3  | Verde    | 7  | Macro    |
 | 4  | Blu      | 8  | Velocità |
 
-Se il tuo modello usa un ordine diverso, premi **Canali** in alto e correggi
-nomi e ruoli: il ruolo (Rosso, Verde, Blu, UV, Dimmer) serve all'anteprima per
-calcolare il colore del fascio.
+Se il tuo modello usa un ordine diverso — o hai fari con canali differenti,
+ad esempio **Bianco** al posto dell'UV — premi **Canali** in alto e correggi
+nomi e ruoli: il ruolo (Rosso, Verde, Blu, UV, Bianco, Dimmer) serve
+all'anteprima per calcolare il colore del fascio e al selettore colore per
+sapere quali fader pilotare. Nota: i nomi e i ruoli valgono per tutti i fari;
+l'uscita DMX invece manda sempre il fader N sul canale indirizzo+N-1,
+indipendentemente dal ruolo.
 
 ## Limitazioni
 

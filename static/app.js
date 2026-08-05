@@ -24,6 +24,7 @@ const ROLE_COLORS = {
   green: '#4cd964',
   blue: '#4aa3ff',
   uv: '#9b5cff',
+  white: '#eef1f6',
   other: '#8a93a5',
 };
 const ROLE_LABELS = {
@@ -32,6 +33,7 @@ const ROLE_LABELS = {
   green: 'Verde',
   blue: 'Blu',
   uv: 'UV',
+  white: 'Bianco',
   other: 'Altro',
 };
 
@@ -80,7 +82,7 @@ function pushValues(f) {
 /* ------------------------------------------------------- colore del faro */
 function fixtureColor(f) {
   let master = null;
-  let r = 0, g = 0, b = 0, uv = 0;
+  let r = 0, g = 0, b = 0, uv = 0, w = 0;
   let hasColor = false;
   state.channels.forEach((c, i) => {
     const v = f.values[i] || 0;
@@ -90,12 +92,17 @@ function fixtureColor(f) {
       case 'green': g = Math.max(g, v); hasColor = true; break;
       case 'blue': b = Math.max(b, v); hasColor = true; break;
       case 'uv': uv = Math.max(uv, v); hasColor = true; break;
+      case 'white': w = Math.max(w, v); hasColor = true; break;
     }
   });
   if (!hasColor) {
     if (master === null) master = Math.max(0, ...f.values);
     r = g = b = 255;
   }
+  // il bianco si somma a tutti e tre i colori
+  r = Math.min(255, r + w);
+  g = Math.min(255, g + w);
+  b = Math.min(255, b + w);
   // l'UV in anteprima appare come un viola intenso
   r = Math.min(255, r + uv * 0.45);
   g = Math.min(255, g + uv * 0.10);

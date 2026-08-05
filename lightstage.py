@@ -49,7 +49,7 @@ DEFAULT_CHANNELS = [
     {"label": "Macro", "role": "other"},
     {"label": "Velocità", "role": "other"},
 ]
-ROLES = {"dimmer", "red", "green", "blue", "uv", "other"}
+ROLES = {"dimmer", "red", "green", "blue", "uv", "white", "other"}
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
