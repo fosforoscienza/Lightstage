@@ -384,7 +384,12 @@ body { display: flex; flex-direction: column; }
   gap: 18px;
   white-space: nowrap;
 }
-.credits-right { flex: 1; }
+.credits-right {
+  flex: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
 .key-item {
   display: inline-flex;
   align-items: center;

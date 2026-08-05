@@ -1,5 +1,9 @@
 'use strict';
 
+/* Versione dell'app, mostrata nel piè di pagina.
+   Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
+const APP_VERSION = '4.9';
+
 /* ------------------------------------------------------------------ stato */
 const state = {
   fixtures: [],
@@ -1259,6 +1263,7 @@ async function init() {
   lanUrl = s.lan_url;
   $('#btn-network').classList.toggle('hidden', !lanUrl);
   $('#btn-blackout').classList.toggle('on', state.blackout);
+  $('#app-version').textContent = `v${APP_VERSION}`;
   // su Windows/Linux la legenda mostra Ctrl al posto di ⌘
   if (!/Mac/i.test(navigator.platform)) {
     document.querySelectorAll('#credits kbd.mod').forEach((k) => {

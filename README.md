@@ -205,6 +205,13 @@ solo). Esempio, una testa mobile a 8 canali:
 | 3  | Focus | Focus | 7  | Bianco | Bianco |
 | 4  | Rosso | Rosso | 8  | Return | Return |
 
+## Versione
+
+Il numero di versione è in basso a destra nell'interfaccia; lo storico delle
+modifiche è in [CHANGELOG.md](CHANGELOG.md). Due cifre soltanto: il primo
+numero cambia con le modifiche strutturali, il secondo con aggiunte e
+ritocchi. Per aggiornarlo basta cambiare `APP_VERSION` in `static/app.js`.
+
 ## Limitazioni
 
 - Un solo universo DMX (512 canali), più che sufficiente per 8 fari.
