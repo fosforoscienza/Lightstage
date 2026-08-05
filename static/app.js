@@ -974,6 +974,44 @@ async function toggleBlackout() {
 }
 $('#btn-blackout').addEventListener('click', () => toggleBlackout().catch(console.error));
 
+/* FTB: dissolvenza a nero. Spegne i canali di luce lasciando fermi
+   Pan/Tilt/Focus/Return e i canali "Altro" (macro, velocità...). */
+const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
+let ftbActive = false;
+
+function fadeToBlack() {
+  if (ftbActive || state.fixtures.length === 0) return;
+  ftbActive = true;
+  const btn = $('#btn-ftb');
+  btn.classList.add('on');
+  const durata = (parseFloat($('#ftb-time').value) || 1) * 1000;
+  const inizio = performance.now();
+  const partenza = state.fixtures.map((f) => ({ f, values: [...f.values] }));
+  clearActivePreset();
+  const step = () => {
+    const t = Math.min(1, (performance.now() - inizio) / durata);
+    for (const { f, values } of partenza) {
+      const chans = fixtureChannels(f);
+      f.values = f.values.map((v, i) =>
+        FTB_ROLES.has(chans[i].role) ? Math.round(values[i] * (1 - t)) : v);
+      updateFixtureDisplays(f);
+      pushValues(f);
+    }
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      ftbActive = false;
+      btn.classList.remove('on');
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+$('#btn-ftb').addEventListener('click', fadeToBlack);
+$('#ftb-time').addEventListener('change', () => {
+  localStorage.setItem('lightstage-ftb-time', $('#ftb-time').value);
+});
+
 /* scorciatoie da tastiera per il live: 1–9 e 0 caricano i preset,
    B attiva/disattiva il blackout */
 window.addEventListener('keydown', (e) => {
@@ -986,6 +1024,8 @@ window.addEventListener('keydown', (e) => {
     if (state.presets[slot]) loadPreset(slot).catch(console.error);
   } else if (e.code === 'KeyB') {
     toggleBlackout().catch(console.error);
+  } else if (e.code === 'KeyF') {
+    fadeToBlack();
   }
 });
 
@@ -1063,6 +1103,8 @@ async function init() {
   lanUrl = s.lan_url;
   $('#btn-network').classList.toggle('hidden', !lanUrl);
   $('#btn-blackout').classList.toggle('on', state.blackout);
+  const ftbSaved = localStorage.getItem('lightstage-ftb-time');
+  if (ftbSaved) $('#ftb-time').value = ftbSaved;
   renderFixtures();
   renderPresets();
   renderDmx();

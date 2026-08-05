@@ -421,6 +421,16 @@
     return url;
   }
 
+  async function cloudJson(res) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (err) {
+      throw new Error("lo script non ha risposto in JSON: controlla che la " +
+        "distribuzione sia con accesso 'Chiunque' e che l'URL finisca con /exec");
+    }
+  }
+
   async function cloudSaveRequest(url, name, overwrite) {
     // text/plain evita il preflight CORS, che Apps Script non gestisce
     const body = { data: db };
@@ -431,7 +441,7 @@
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body),
     });
-    return res.json();
+    return cloudJson(res);
   }
 
   document.getElementById('btn-cloud-save').addEventListener('click', async () => {
@@ -477,8 +487,15 @@
     box.textContent = 'Carico l\'elenco…';
     try {
       const res = await fetch(url + '?list=1');
-      const out = await res.json();
+      const out = await cloudJson(res);
       if (!out.ok || !Array.isArray(out.shows)) {
+        if (out && out.error === 'codice mancante') {
+          // risposta tipica delle versioni vecchie dello script
+          throw new Error('il foglio risponde ma lo script è una VERSIONE ' +
+            'VECCHIA. Incolla il nuovo Code.gs e poi: Distribuisci → Gestisci ' +
+            'distribuzioni → ✏️ → Versione: "Nuova versione" → Distribuisci. ' +
+            "(L'URL non cambia)");
+        }
         throw new Error(out.error ||
           "aggiorna lo script all'ultima versione (vedi istruzioni)");
       }
@@ -515,14 +532,35 @@
     btn.disabled = true;
     try {
       const res = await fetch(url + '?code=' + encodeURIComponent(code));
-      const out = await res.json();
-      if (!out.ok || !out.data) throw new Error(out.error || 'codice non trovato');
-      db = sanitizeShow(out.data);
+      const out = await cloudJson(res);
+      if (!out.ok || !out.data) {
+        throw new Error(out.error || 'nome o codice non trovato');
+      }
+      const data = sanitizeShow(out.data);
+      if (!data.fixtures.length &&
+          !confirm('Questo salvataggio non contiene fari: caricarlo comunque ' +
+            'sostituendo lo show attuale?')) {
+        btn.disabled = false;
+        return;
+      }
+      db = data;
       save();
+      sessionStorage.setItem('lightstage-cloud-loaded', code);
       location.reload();
     } catch (err) {
       alert('Caricamento fallito: ' + (err.message || err));
       btn.disabled = false;
     }
   });
+
+  // conferma visiva dopo un caricamento riuscito (post-ricarica pagina)
+  const caricato = sessionStorage.getItem('lightstage-cloud-loaded');
+  if (caricato) {
+    sessionStorage.removeItem('lightstage-cloud-loaded');
+    const toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.textContent = `Show "${caricato}" caricato dal foglio Google ✓`;
+    document.body.append(toast);
+    setTimeout(() => toast.remove(), 6000);
+  }
 })();

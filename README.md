@@ -27,8 +27,10 @@ Daslight: solo quello che serve.
   per orientare il fascio. Il colore e l'intensità del fascio seguono i fader
   (RGB + UV reso come viola).
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
-  USB-DMX. C'è anche un pulsante **Blackout** (spegne tutto senza perdere i
-  valori dei fader).
+  USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
+  perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to
+  black* — che porta gradualmente a zero i canali di luce in 0,5 / 1 / 1,5
+  secondi (tasto **F**), senza muovere Pan/Tilt/Focus delle teste mobili.
 - **Salvataggio automatico**: fari, posizioni, preset e configurazione canali
   vengono salvati da soli nel file `show.json`.
 
