@@ -13,7 +13,8 @@ Daslight: solo quello che serve.
   un clic la configurazione tipica con indirizzi 1, 9, 17, … 57.
 - **Preset**: **10 slot** con nome. Clic su uno slot vuoto per salvare le luci
   attuali, clic su uno pieno per caricarlo, 💾 per sovrascrivere/rinominare,
-  ✕ per svuotarlo.
+  ✕ per svuotarlo. Durante l'evento puoi lanciarli anche da tastiera:
+  **tasti 1–9 e 0** caricano i preset 1–10, **B** attiva/disattiva il blackout.
 - **Anteprima palco**: vista dall'alto del palco. Trascina i fari per
   posizionarli, ruotali con la maniglia bianca (o con la rotellina del mouse)
   per orientare il fascio. Il colore e l'intensità del fascio seguono i fader
@@ -40,6 +41,26 @@ python lightstage.py
 Il browser si apre da solo su <http://127.0.0.1:8123>. Senza cavo collegato
 l'app funziona comunque: fader, preset e anteprima restano attivi (utile per
 preparare lo spettacolo a casa).
+
+## Collegare i fari (catena DMX)
+
+Il DMX è un bus: **tutti i fari restano collegati contemporaneamente**, in
+cascata, e ricevono tutti lo stesso segnale. Ogni faro legge solo i suoi 8
+canali in base all'indirizzo impostato sul suo display:
+
+```
+Computer ── cavo USB-DMX ──▶ Faro 1 (ind. 1) ──▶ Faro 2 (ind. 9) ──▶ … ──▶ Faro 8 (ind. 57)
+                              DMX IN → DMX OUT    DMX IN → DMX OUT
+```
+
+Ogni faro si collega al successivo con un cavo DMX/XLR da *DMX OUT* a
+*DMX IN*. Sull'ultimo faro è buona pratica (non obbligatoria su tratte corte)
+mettere un terminatore DMX da 120 Ω.
+
+Con delle **trasmittenti/riceventi DMX wireless** lo schema è identico: la
+trasmittente si collega all'uscita XLR del cavo USB-DMX (non al computer) e
+le riceventi si mettono davanti ai fari, che possono comunque essere
+concatenati tra loro dopo ogni ricevente.
 
 ## Collegare il cavo USB-DMX
 

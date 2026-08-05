@@ -746,11 +746,27 @@ $('#btn-channels-save').addEventListener('click', async () => {
 });
 
 /* blackout */
-$('#btn-blackout').addEventListener('click', async () => {
+async function toggleBlackout() {
   const res = await api('PUT', '/api/blackout', { on: !state.blackout });
   state.blackout = res.blackout;
   $('#btn-blackout').classList.toggle('on', state.blackout);
   state.fixtures.forEach(updateSwatch);
+}
+$('#btn-blackout').addEventListener('click', () => toggleBlackout().catch(console.error));
+
+/* scorciatoie da tastiera per il live: 1–9 e 0 caricano i preset,
+   B attiva/disattiva il blackout */
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.matches('input, select, textarea')) return;
+  if (document.querySelector('.modal:not(.hidden)')) return;
+  const m = /^Digit(\d)$/.exec(e.code);
+  if (m) {
+    const slot = m[1] === '0' ? 9 : parseInt(m[1], 10) - 1;
+    if (state.presets[slot]) loadPreset(slot).catch(console.error);
+  } else if (e.code === 'KeyB') {
+    toggleBlackout().catch(console.error);
+  }
 });
 
 /* connessione DMX */
