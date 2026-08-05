@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>LightStage</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon points='8,2 2,14 14,14' fill='%235b8cff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand">Light<span>Stage</span></div>
+  <div class="dmx-box">
+    <select id="port-select" title="Porta del cavo USB-DMX"></select>
+    <button id="btn-refresh-ports" class="btn ghost" title="Aggiorna elenco porte">&#8635;</button>
+    <button id="btn-connect" class="btn">Connetti</button>
+    <span id="dmx-dot" class="status-dot"></span>
+    <span id="dmx-label" class="dmx-label">non connesso</span>
+  </div>
+  <div class="spacer"></div>
+  <button id="btn-channels" class="btn ghost">Canali</button>
+  <button id="btn-add" class="btn primary">+ Aggiungi faro</button>
+  <button id="btn-blackout" class="btn danger-ghost">Blackout</button>
+</header>
+
+<section id="stage-panel">
+  <canvas id="stage"></canvas>
+  <div id="stage-hint">trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo</div>
+</section>
+
+<section id="presets-bar"></section>
+
+<section id="faders-panel">
+  <div id="fixtures-row"></div>
+  <div id="empty-state" class="hidden">
+    <p>Nessun faro configurato.</p>
+    <button id="btn-setup8" class="btn primary">Crea 8 fari UkFog (indirizzi 1&ndash;57)</button>
+    <p class="small">oppure usa &laquo;+ Aggiungi faro&raquo; in alto</p>
+  </div>
+</section>
+
+<!-- modale: aggiungi faro -->
+<div id="modal-add" class="modal hidden">
+  <div class="modal-card">
+    <h2>Nuovo faro</h2>
+    <label>Nome
+      <input id="add-name" type="text" maxlength="24">
+    </label>
+    <label>Indirizzo DMX (1&ndash;505)
+      <input id="add-address" type="number" min="1" max="505">
+    </label>
+    <div class="modal-actions">
+      <button class="btn ghost modal-close">Annulla</button>
+      <button id="btn-add-confirm" class="btn primary">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- modale: configurazione canali -->
+<div id="modal-channels" class="modal hidden">
+  <div class="modal-card">
+    <h2>Configurazione canali</h2>
+    <p class="small">Nomi e ruoli dei canali (uguali per tutti i fari). Il ruolo
+    serve all'anteprima per calcolare il colore del fascio.</p>
+    <div id="channels-rows"></div>
+    <div class="modal-actions">
+      <button class="btn ghost modal-close">Annulla</button>
+      <button id="btn-channels-save" class="btn primary">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
