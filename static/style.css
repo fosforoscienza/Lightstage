@@ -318,6 +318,22 @@ body { display: flex; flex-direction: column; }
   padding-top: 2px;
 }
 
+/* --------------------------------------------------------------- crediti */
+#credits {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0 5px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+}
+#credits img { height: 26px; opacity: 0.9; }
+
 /* ---------------------------------------------------------------- modali */
 .modal {
   position: fixed;
