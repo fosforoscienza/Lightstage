@@ -78,6 +78,21 @@ concatenati tra loro dopo ogni ricevente.
 sudo usermod -a -G dialout $USER   # poi scollegati e riaccedi
 ```
 
+### Problemi di connessione
+
+- **"write timeout" / "la porta non accetta dati"**: hai selezionato una porta
+  che non è il cavo DMX (una seriale interna tipo `COM1`/`/dev/ttyS0` o una
+  porta Bluetooth). Nel menu scegli la voce contrassegnata con ● *(probabile
+  cavo DMX)*: di solito si chiama "USB Serial Port (COMx)" su Windows,
+  `/dev/ttyUSB0` su Linux, `/dev/cu.usbserial-…` su macOS. Se non compare
+  nessuna porta USB, il cavo non viene riconosciuto: su Windows installa i
+  driver FTDI VCP; se il cavo è di tipo **uDMX** non appare come porta
+  seriale e al momento non è supportato.
+- **"Permission denied" (Linux)**: aggiungi l'utente al gruppo `dialout`
+  (comando più sotto) e riaccedi.
+- **"Access is denied" / porta occupata**: un altro programma sta usando la
+  porta: chiudilo e ripremi Connetti.
+
 ## Canali dei fari UkFog
 
 L'indirizzo impostato sul faro (display/dip-switch) deve coincidere con quello

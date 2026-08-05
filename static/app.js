@@ -388,14 +388,15 @@ function renderDmx() {
     for (const p of dmx.ports) {
       const o = document.createElement('option');
       o.value = p.device;
-      o.textContent = `${p.device} — ${p.description}`;
+      o.textContent = (p.likely ? '● ' : '') + `${p.device} — ${p.description}` +
+        (p.likely ? '  (probabile cavo DMX)' : '');
       sel.append(o);
     }
     if (wanted.includes(current)) sel.value = current;
     else if (dmx.port && wanted.includes(dmx.port)) sel.value = dmx.port;
     else {
-      // preseleziona la porta che sembra un cavo USB-DMX (FTDI)
-      const guess = dmx.ports.find((p) => /ftdi|usb|dmx/i.test(p.description + p.device));
+      // preseleziona la porta che sembra un cavo USB-DMX
+      const guess = dmx.ports.find((p) => p.likely);
       if (guess) sel.value = guess.device;
     }
   }
@@ -777,6 +778,9 @@ $('#btn-connect').addEventListener('click', async () => {
     const port = $('#port-select').value;
     if (!port) return;
     dmx = await api('POST', '/api/dmx/connect', { port });
+    if (!dmx.connected && dmx.error) {
+      alert('Connessione fallita.\n\n' + dmx.error);
+    }
   }
   renderDmx();
 });

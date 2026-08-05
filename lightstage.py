@@ -12,6 +12,7 @@ Senza cavo collegato l'app funziona comunque in modalità anteprima.
 import atexit
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -78,13 +79,21 @@ class DmxSender(threading.Thread):
         with self._frame_lock:
             self._frame = bytes(frame)
 
+    WRITE_TIMEOUT_HINT = (
+        "la porta non accetta dati (write timeout): quasi sicuramente non è "
+        "il cavo USB-DMX. Scegli la porta del cavo — 'USB Serial Port (COMx)' "
+        "su Windows, /dev/ttyUSB0 su Linux, /dev/cu.usbserial-… su Mac — e "
+        "non una porta interna (ttyS0/COM1) o Bluetooth."
+    )
+
     def connect(self, port):
         if serial is None:
             self.error = "pyserial non installato (pip install pyserial)"
             return False
         self.disconnect()
+        ser = None
         try:
-            self._serial = serial.Serial(
+            ser = serial.Serial(
                 port,
                 baudrate=250000,
                 bytesize=serial.EIGHTBITS,
@@ -92,12 +101,39 @@ class DmxSender(threading.Thread):
                 stopbits=serial.STOPBITS_TWO,
                 timeout=1,
                 write_timeout=1,
+                xonxoff=False,
+                rtscts=False,
+                dsrdtr=False,
             )
+            try:
+                ser.rts = False
+                ser.dtr = False
+            except Exception:
+                pass
+            ser.reset_output_buffer()
+            # frame di prova: se la porta non trasmette meglio scoprirlo subito
+            ser.break_condition = True
+            time.sleep(0.001)
+            ser.break_condition = False
+            time.sleep(0.0001)
+            ser.write(bytes(513))
+        except serial.SerialTimeoutException:
+            if ser is not None:
+                try:
+                    ser.close()
+                except Exception:
+                    pass
+            self.error = self.WRITE_TIMEOUT_HINT
+            return False
         except Exception as exc:
-            self._serial = None
-            self.port = None
+            if ser is not None:
+                try:
+                    ser.close()
+                except Exception:
+                    pass
             self.error = str(exc)
             return False
+        self._serial = ser
         self.port = port
         self.error = None
         return True
@@ -131,7 +167,10 @@ class DmxSender(threading.Thread):
                 time.sleep(0.0001)  # mark after break
                 ser.write(frame)
             except Exception as exc:
-                self.error = f"errore sulla porta: {exc}"
+                if serial is not None and isinstance(exc, serial.SerialTimeoutException):
+                    self.error = self.WRITE_TIMEOUT_HINT
+                else:
+                    self.error = f"errore sulla porta: {exc}"
                 self.disconnect()
                 continue
             time.sleep(max(0.0, 1.0 / DMX_FPS - 0.003))
@@ -240,8 +279,26 @@ def _saver():
 def dmx_state():
     ports = []
     if list_ports is not None:
-        for p in sorted(list_ports.comports(), key=lambda p: p.device):
-            ports.append({"device": p.device, "description": p.description})
+        detected = sorted(list_ports.comports(), key=lambda p: p.device)
+        devices = {p.device for p in detected}
+        for p in detected:
+            # su macOS ogni porta compare due volte: usa /dev/cu.*, non /dev/tty.*
+            if p.device.startswith("/dev/tty.") and \
+                    p.device.replace("/dev/tty.", "/dev/cu.", 1) in devices:
+                continue
+            info = " ".join(filter(None, [p.device, p.description,
+                                          p.manufacturer, getattr(p, "product", None)]))
+            likely = (
+                bool(re.search(r"ftdi|ft232|usb|dmx|ch340|cp210|serial", info, re.I))
+                and not re.search(r"bluetooth", info, re.I)
+                and not re.match(r"^(/dev/ttyS\d|COM1$)", p.device)
+            )
+            ports.append({
+                "device": p.device,
+                "description": p.description or "n/a",
+                "likely": likely,
+            })
+        ports.sort(key=lambda p: (not p["likely"], p["device"]))
     return {
         "available": serial is not None,
         "connected": dmx.connected,
