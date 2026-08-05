@@ -376,8 +376,21 @@ body { display: flex; flex-direction: column; }
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
 }
+.credits-left a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+.credits-left a:hover {
+  color: var(--text);
+  background: #1a1f28;
+}
+.credits-left a:hover img { opacity: 1; }
 .credits-keys {
   display: flex;
   align-items: center;

@@ -8,6 +8,7 @@ aggiunte e ritocchi.
 ## 4.9
 
 - Numero di versione nel piè di pagina.
+- Logo e crediti rimandano al sito di Brown Enterprises.
 
 ## 4.8
 
