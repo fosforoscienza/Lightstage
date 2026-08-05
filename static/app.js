@@ -47,6 +47,31 @@ const ROLE_LABELS = {
   other: 'Altro',
 };
 
+/* modelli di canali pronti, selezionabili quando si aggiunge un faro */
+const CHANNEL_TEMPLATES = [
+  {
+    name: 'Testa mobile Wash Zoom 19x15',
+    channels: [
+      { label: 'Pan', role: 'pan' },
+      { label: 'Tilt', role: 'tilt' },
+      { label: 'P/T Speed', role: 'other' },
+      { label: 'Dimmer', role: 'dimmer' },
+      { label: 'Red', role: 'red' },
+      { label: 'Green', role: 'green' },
+      { label: 'Blue', role: 'blue' },
+      { label: 'White', role: 'white' },
+      { label: 'Strobo', role: 'strobe' },
+      { label: 'Zoom', role: 'other' },
+      { label: 'Function mode', role: 'other' },
+      { label: 'Mode speed', role: 'other' },
+      { label: 'Pan fine', role: 'pan' },
+      { label: 'Tilt fine', role: 'tilt' },
+      { label: 'Rest (255)', role: 'other' },
+      { label: 'Empty', role: 'other' },
+    ],
+  },
+];
+
 const $ = (sel) => document.querySelector(sel);
 
 async function api(method, url, body) {
@@ -797,9 +822,17 @@ async function addFixture(name, address, channels, count) {
   renderFixtures();
 }
 
+function addModalTemplate() {
+  const m = /^tpl:(\d+)$/.exec($('#add-copy').value);
+  return m ? CHANNEL_TEMPLATES[parseInt(m[1], 10)] : null;
+}
+
 function addModalCount() {
   const src = state.fixtures.find((x) => x.id === parseInt($('#add-copy').value, 10));
-  return src ? fixtureSpan(src) : (parseInt($('#add-count').value, 10) || 8);
+  if (src) return fixtureSpan(src);
+  const tpl = addModalTemplate();
+  if (tpl) return tpl.channels.length;
+  return parseInt($('#add-count').value, 10) || 8;
 }
 
 function buildAddChannelRows() {
@@ -848,12 +881,14 @@ function buildAddChannelRows() {
 
 function refreshAddModal() {
   const selVal = $('#add-copy').value;
-  // copiando i canali da un faro esistente, il numero di canali segue quello
+  // copiando i canali da un faro o da un modello, il numero di canali segue quello
   const src = state.fixtures.find((x) => x.id === parseInt(selVal, 10));
+  const tpl = addModalTemplate();
   const isNew = selVal === 'new';
   const countSel = $('#add-count');
   if (src) countSel.value = String(fixtureSpan(src));
-  countSel.disabled = !!src;
+  else if (tpl) countSel.value = String(tpl.channels.length);
+  countSel.disabled = !!src || !!tpl;
   $('#add-channels-box').classList.toggle('hidden', !isNew);
   if (isNew) buildAddChannelRows();
   $('#add-address').value = nextFreeAddress(addModalCount());
@@ -870,6 +905,12 @@ $('#btn-add').addEventListener('click', () => {
   def.value = '';
   def.textContent = 'Predefiniti (UkFog UV+RGB)';
   copySel.append(def);
+  CHANNEL_TEMPLATES.forEach((tpl, i) => {
+    const o = document.createElement('option');
+    o.value = `tpl:${i}`;
+    o.textContent = `${tpl.name} (${tpl.channels.length} canali)`;
+    copySel.append(o);
+  });
   const nuovo = document.createElement('option');
   nuovo.value = 'new';
   nuovo.textContent = 'Nuovo set di canali…';
@@ -892,6 +933,7 @@ $('#btn-add-confirm').addEventListener('click', async () => {
   const address = parseInt($('#add-address').value, 10) || 1;
   const selVal = $('#add-copy').value;
   const src = state.fixtures.find((x) => x.id === parseInt(selVal, 10));
+  const tpl = addModalTemplate();
   const count = addModalCount();
   let channels;
   if (selVal === 'new') {
@@ -901,6 +943,8 @@ $('#btn-add-confirm').addEventListener('click', async () => {
     }));
   } else if (src) {
     channels = fixtureChannels(src);
+  } else if (tpl) {
+    channels = tpl.channels.map((c) => ({ ...c }));
   }
   closeModals();
   await addFixture(name, address, channels, count);
@@ -974,40 +1018,55 @@ async function toggleBlackout() {
 }
 $('#btn-blackout').addEventListener('click', () => toggleBlackout().catch(console.error));
 
-/* FTB: dissolvenza a nero. Spegne i canali di luce lasciando fermi
-   Pan/Tilt/Focus/Return e i canali "Altro" (macro, velocità...). */
+/* FTB: interruttore di dissolvenza a nero. Primo clic: memorizza le luci
+   e le spegne gradualmente, il pulsante lampeggia rosso. Secondo clic:
+   riporta tutto com'era prima, sempre in dissolvenza. Pan/Tilt/Focus/
+   Return e i canali "Altro" (macro, velocità...) non vengono mai toccati. */
 const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
-let ftbActive = false;
+let ftbAnim = 0;          // token: un nuovo fade annulla quello in corso
+let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 
-function fadeToBlack() {
-  if (ftbActive || state.fixtures.length === 0) return;
-  ftbActive = true;
-  const btn = $('#btn-ftb');
-  btn.classList.add('on');
+function ftbFade(target) {
+  const token = ++ftbAnim;
   const durata = (parseFloat($('#ftb-time').value) || 1) * 1000;
   const inizio = performance.now();
-  const partenza = state.fixtures.map((f) => ({ f, values: [...f.values] }));
-  clearActivePreset();
+  const partenza = state.fixtures.map((f) => ({ f, from: [...f.values] }));
   const step = () => {
+    if (token !== ftbAnim) return;
     const t = Math.min(1, (performance.now() - inizio) / durata);
-    for (const { f, values } of partenza) {
+    for (const { f, from } of partenza) {
+      const to = target.get(f.id);
+      if (!to) continue;
       const chans = fixtureChannels(f);
       f.values = f.values.map((v, i) =>
-        FTB_ROLES.has(chans[i].role) ? Math.round(values[i] * (1 - t)) : v);
+        FTB_ROLES.has(chans[i].role)
+          ? Math.round(from[i] + (to[i] - from[i]) * t)
+          : v);
       updateFixtureDisplays(f);
       pushValues(f);
     }
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      ftbActive = false;
-      btn.classList.remove('on');
-    }
+    if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
 
-$('#btn-ftb').addEventListener('click', fadeToBlack);
+function toggleFtb() {
+  if (state.fixtures.length === 0) return;
+  const btn = $('#btn-ftb');
+  if (ftbSnapshot === null) {
+    ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...f.values]]));
+    btn.classList.add('on');
+    clearActivePreset();
+    ftbFade(new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)])));
+  } else {
+    const target = ftbSnapshot;
+    ftbSnapshot = null;
+    btn.classList.remove('on');
+    ftbFade(target);
+  }
+}
+
+$('#btn-ftb').addEventListener('click', toggleFtb);
 $('#ftb-time').addEventListener('change', () => {
   localStorage.setItem('lightstage-ftb-time', $('#ftb-time').value);
 });
@@ -1025,7 +1084,7 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyB') {
     toggleBlackout().catch(console.error);
   } else if (e.code === 'KeyF') {
-    fadeToBlack();
+    toggleFtb();
   }
 });
 

@@ -29,8 +29,10 @@ Daslight: solo quello che serve.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to
-  black* — che porta gradualmente a zero i canali di luce in 0,5 / 1 / 1,5
-  secondi (tasto **F**), senza muovere Pan/Tilt/Focus delle teste mobili.
+  black*, tasto **F** — che funziona da interruttore: al primo clic spegne
+  gradualmente i canali di luce (0,5 / 1 / 1,5 secondi a scelta) e resta
+  **rosso lampeggiante**; al secondo clic riaccende le luci com'erano, in
+  dissolvenza. Pan/Tilt/Focus delle teste mobili non si muovono mai.
 - **Salvataggio automatico**: fari, posizioni, preset e configurazione canali
   vengono salvati da soli nel file `show.json`.
 
