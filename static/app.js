@@ -1071,11 +1071,46 @@ $('#ftb-time').addEventListener('change', () => {
   localStorage.setItem('lightstage-ftb-time', $('#ftb-time').value);
 });
 
-/* scorciatoie da tastiera per il live: 1–9 e 0 caricano i preset,
-   B attiva/disattiva il blackout */
+/* scarica lo show come file (backup / trasferimento) */
+function exportShow() {
+  const data = {
+    fixtures: state.fixtures,
+    presets: state.presets,
+    channels: state.channels,
+    blackout: state.blackout,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lightstage-show.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* scorciatoie da tastiera: 1–9/0 preset, B blackout, F fade to black;
+   con Cmd/Ctrl: C connetti cavo, N nuovo faro, O finestra online, S salva */
 window.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.matches('input, select, textarea')) return;
+  if (e.altKey) return;
+  if (e.ctrlKey || e.metaKey) {
+    if (e.code === 'KeyC') {
+      if (window.getSelection().toString()) return; // lascia copiare il testo
+      e.preventDefault();
+      $('#btn-connect').click();
+    } else if (e.code === 'KeyO') {
+      const cloud = $('#btn-cloud');
+      if (cloud) {
+        e.preventDefault();
+        cloud.click();
+      }
+    } else if (e.code === 'KeyS') {
+      e.preventDefault();
+      const save = $('#btn-save');
+      if (save) save.click();
+      else exportShow();
+    }
+    return;
+  }
   if (document.querySelector('.modal:not(.hidden)')) return;
   const m = /^Digit(\d)$/.exec(e.code);
   if (m) {
@@ -1085,6 +1120,8 @@ window.addEventListener('keydown', (e) => {
     toggleBlackout().catch(console.error);
   } else if (e.code === 'KeyF') {
     toggleFtb();
+  } else if (e.code === 'KeyN') {
+    $('#btn-add').click();
   }
 });
 
@@ -1164,6 +1201,12 @@ async function init() {
   $('#btn-blackout').classList.toggle('on', state.blackout);
   const ftbSaved = localStorage.getItem('lightstage-ftb-time');
   if (ftbSaved) $('#ftb-time').value = ftbSaved;
+  // su Windows/Linux la legenda mostra Ctrl al posto di ⌘
+  if (!/Mac/i.test(navigator.platform)) {
+    document.querySelectorAll('#credits kbd.mod').forEach((k) => {
+      k.textContent = k.textContent.replace('⌘', 'Ctrl+');
+    });
+  }
   renderFixtures();
   renderPresets();
   renderDmx();

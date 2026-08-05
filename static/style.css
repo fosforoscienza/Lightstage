@@ -333,7 +333,7 @@ body { display: flex; flex-direction: column; }
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding: 4px 14px 5px;
+  padding: 5px 8px 6px;
   border-top: 1px solid var(--border);
   background: var(--bg);
   font-size: 11px;
@@ -350,20 +350,34 @@ body { display: flex; flex-direction: column; }
 .credits-keys {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   white-space: nowrap;
 }
 .credits-right { flex: 1; }
+.key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.key-item em {
+  font-style: normal;
+  color: var(--text-dim);
+}
 #credits kbd {
-  background: #10141b;
-  border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  padding: 0 5px;
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+  padding: 2px 5px 3px;
+  border-radius: 5px;
+  background: linear-gradient(#2c3444, #1b2029);
+  border: 1px solid #3a4356;
+  box-shadow: 0 2px 0 #0b0e13, inset 0 1px 0 rgba(255, 255, 255, 0.07);
   font-family: inherit;
   font-size: 10px;
-  color: var(--text);
+  font-weight: 600;
+  color: #e8ecf3;
 }
+#credits kbd.mod { letter-spacing: 0.5px; }
 
 /* ---------------------------------------------------------------- modali */
 .modal {

@@ -400,13 +400,24 @@
 
   /* ------------------- show online con codice (foglio Google + script) */
   const CLOUD_URL_KEY = 'lightstage-cloud-url';
+  const SHOW_NAME_KEY = 'lightstage-show-name';
   const cloudUrlInput = document.getElementById('cloud-url');
   cloudUrlInput.value = localStorage.getItem(CLOUD_URL_KEY) || '';
   cloudUrlInput.addEventListener('change', () => {
     localStorage.setItem(CLOUD_URL_KEY, cloudUrlInput.value.trim());
   });
 
+  // nome del setup su cui si sta lavorando (dall'ultimo salva/carica online)
+  let currentShowName = localStorage.getItem(SHOW_NAME_KEY) || '';
+  function setCurrentShowName(n) {
+    currentShowName = (n || '').trim();
+    if (currentShowName) localStorage.setItem(SHOW_NAME_KEY, currentShowName);
+    else localStorage.removeItem(SHOW_NAME_KEY);
+  }
+
   document.getElementById('btn-cloud').addEventListener('click', () => {
+    const nameInput = document.getElementById('cloud-name');
+    if (!nameInput.value.trim() && currentShowName) nameInput.value = currentShowName;
     document.getElementById('modal-cloud').classList.remove('hidden');
   });
 
@@ -444,6 +455,28 @@
     return cloudJson(res);
   }
 
+  async function saveOnline(url, name, overwriteDirect) {
+    let out = await cloudSaveRequest(url, name, overwriteDirect);
+    if (!out.ok && out.exists) {
+      // nome già usato: blocco e chiedo prima di sovrascrivere
+      const conferma = confirm(
+        `Il nome "${name}" è già usato da un altro salvataggio.\n\n` +
+        'Vuoi SOVRASCRIVERLO con lo show attuale?\n' +
+        '(Annulla per scegliere un altro nome)');
+      if (!conferma) return;
+      out = await cloudSaveRequest(url, name, true);
+    }
+    if (!out.ok || !out.code) throw new Error(out.error || 'risposta non valida');
+    setCurrentShowName(out.code);
+    if (out.updated) {
+      alert(`Setup "${out.code}" aggiornato con lo show attuale.`);
+    } else if (name) {
+      alert(`Setup salvato online con il nome "${out.code}".`);
+    } else {
+      prompt('Show salvato online! Annota questo codice per ricaricarlo ovunque:', out.code);
+    }
+  }
+
   document.getElementById('btn-cloud-save').addEventListener('click', async () => {
     const url = cloudUrl();
     if (!url) return;
@@ -453,29 +486,49 @@
     const oldText = btn.textContent;
     btn.textContent = 'Salvataggio…';
     try {
-      let out = await cloudSaveRequest(url, name, false);
-      if (!out.ok && out.exists) {
-        // nome già usato: blocco e chiedo prima di sovrascrivere
-        const conferma = confirm(
-          `Il nome "${name}" è già usato da un altro salvataggio.\n\n` +
-          'Vuoi SOVRASCRIVERLO con lo show attuale?\n' +
-          '(Annulla per scegliere un altro nome)');
-        if (!conferma) return;
-        out = await cloudSaveRequest(url, name, true);
-      }
-      if (!out.ok || !out.code) throw new Error(out.error || 'risposta non valida');
-      if (out.updated) {
-        alert(`Salvataggio "${out.code}" aggiornato con lo show attuale.`);
-      } else if (name) {
-        alert(`Show salvato online con il nome "${out.code}".`);
-      } else {
-        prompt('Show salvato online! Annota questo codice per ricaricarlo ovunque:', out.code);
-      }
+      await saveOnline(url, name, false);
     } catch (err) {
       alert('Salvataggio online fallito: ' + (err.message || err));
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;
+    }
+  });
+
+  /* 💾 in alto: salva il setup corrente, chiedendo se sovrascrivere
+     quello su cui si sta lavorando o dargli un nuovo nome */
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    const urlVal = (cloudUrlInput.value || '').trim();
+    if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(urlVal)) {
+      document.getElementById('modal-cloud').classList.remove('hidden');
+      alert("Per salvare i setup online configura prima il foglio Google: " +
+        "incolla l'URL dello script nella finestra Online (vedi istruzioni).");
+      return;
+    }
+    let name;
+    let overwrite = false;
+    if (currentShowName) {
+      overwrite = confirm(
+        `Stai lavorando sul setup "${currentShowName}".\n\n` +
+        'OK = sovrascrivilo con lo stato attuale\n' +
+        'Annulla = salvalo come nuovo setup con un altro nome');
+      if (overwrite) {
+        name = currentShowName;
+      } else {
+        const nuovo = prompt('Nome del nuovo setup:', currentShowName);
+        if (nuovo === null) return;
+        name = nuovo.trim();
+        if (!name) return;
+      }
+    } else {
+      const nuovo = prompt('Nome del setup da salvare (vuoto = codice automatico):', '');
+      if (nuovo === null) return;
+      name = nuovo.trim();
+    }
+    try {
+      await saveOnline(urlVal, name, overwrite);
+    } catch (err) {
+      alert('Salvataggio online fallito: ' + (err.message || err));
     }
   });
 
@@ -545,6 +598,7 @@
       }
       db = data;
       save();
+      setCurrentShowName(code);
       sessionStorage.setItem('lightstage-cloud-loaded', code);
       location.reload();
     } catch (err) {

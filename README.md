@@ -20,8 +20,12 @@ Daslight: solo quello che serve.
   il selettore si aggiorna di conseguenza.
 - **Preset**: **10 slot** con nome. Clic su uno slot vuoto per salvare le luci
   attuali, clic su uno pieno per caricarlo, 💾 per sovrascrivere/rinominare,
-  ✕ per svuotarlo. Durante l'evento puoi lanciarli anche da tastiera:
-  **tasti 1–9 e 0** caricano i preset 1–10, **B** attiva/disattiva il blackout.
+  ✕ per svuotarlo.
+- **Scorciatoie da tastiera** (legenda sempre visibile nel piè di pagina):
+  **1–9 e 0** lanciano i preset, **B** blackout, **F** fade to black,
+  **N** nuovo faro, **Cmd/Ctrl+C** connetti il cavo, **Cmd/Ctrl+S** salva lo
+  show (nella versione web salva il setup online, altrimenti scarica il file),
+  **Cmd/Ctrl+O** apre la finestra Online (solo versione web).
 - **Anteprima palco**: vista dall'alto del palco. Trascina i fari per
   posizionarli, ruotali con la maniglia bianca (o con la rotellina del mouse)
   per orientare il fascio. Il colore e l'intensità del fascio seguono i fader
