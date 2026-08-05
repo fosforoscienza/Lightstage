@@ -81,6 +81,26 @@ sui due dispositivi: l'indirizzo resta lo stesso e funziona ovunque.
 Chiunque sia sulla stessa rete può controllare le luci: su reti pubbliche
 tienilo a mente.
 
+## Versione sito web (usarlo da qualsiasi computer)
+
+Nella cartella `webapp/` c'è una **versione che gira interamente nel browser**,
+senza installare niente: si apre il sito, si collega il cavo USB-DMX al
+computer che si sta usando e si preme *Connetti cavo*. Usa l'API **Web
+Serial**, quindi serve **Chrome o Edge** (Firefox e Safari non la supportano).
+
+- Fari, preset e posizioni vengono salvati **nel browser di quel computer**
+  (localStorage). Con **Esporta/Importa** puoi portare tutto su un altro
+  computer come file `lightstage-show.json`.
+- Per pubblicarla gratis con GitHub Pages: *Settings → Pages → Deploy from a
+  branch*, scegli il branch e la cartella `/ (root)`. Il sito sarà su
+  `https://<utente>.github.io/Lightstage/webapp/`.
+- Durante lo spettacolo tieni la scheda del browser **in primo piano**: le
+  schede in secondo piano vengono rallentate e il segnale DMX perde fluidità.
+
+La versione Python (sopra) resta quella consigliata per l'uso fisso: funziona
+con qualsiasi browser, salva su file e permette il controllo da più
+dispositivi in contemporanea sulla rete locale.
+
 ## Collegare i fari (catena DMX)
 
 Il DMX è un bus: **tutti i fari restano collegati contemporaneamente**, in

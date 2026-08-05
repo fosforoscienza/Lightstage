@@ -38,6 +38,8 @@ const ROLE_LABELS = {
 const $ = (sel) => document.querySelector(sel);
 
 async function api(method, url, body) {
+  // versione sito (senza server): le richieste vengono gestite in locale
+  if (window.LOCAL_BACKEND) return window.LOCAL_BACKEND(method, url, body);
   const opts = { method };
   if (body !== undefined) {
     opts.headers = { 'Content-Type': 'application/json' };
@@ -382,6 +384,31 @@ async function loadPreset(slot) {
 /* ------------------------------------------------------------------- DMX */
 function renderDmx() {
   const sel = $('#port-select');
+  if (window.LIGHTSTAGE_STATIC) {
+    // con Web Serial la porta si sceglie dalla finestra del browser
+    sel.classList.add('hidden');
+    $('#btn-refresh-ports').classList.add('hidden');
+    const dot = $('#dmx-dot');
+    const label = $('#dmx-label');
+    const btn = $('#btn-connect');
+    dot.className = 'status-dot';
+    if (dmx.connected) {
+      dot.classList.add('ok');
+      label.textContent = 'connesso al cavo USB-DMX';
+      btn.textContent = 'Disconnetti';
+    } else if (dmx.error) {
+      dot.classList.add('err');
+      label.textContent = dmx.error;
+      label.title = dmx.error;
+      btn.textContent = 'Connetti cavo';
+    } else {
+      label.textContent = dmx.available
+        ? 'cavo non collegato (solo anteprima)'
+        : 'serve Chrome o Edge per il DMX';
+      btn.textContent = 'Connetti cavo';
+    }
+    return;
+  }
   const current = sel.value;
   const wanted = dmx.ports.map((p) => p.device);
   const have = Array.from(sel.options).map((o) => o.value);
@@ -783,7 +810,7 @@ $('#btn-connect').addEventListener('click', async () => {
   if (dmx.connected) {
     dmx = await api('POST', '/api/dmx/disconnect');
   } else {
-    const port = $('#port-select').value;
+    const port = window.LIGHTSTAGE_STATIC ? 'webserial' : $('#port-select').value;
     if (!port) return;
     dmx = await api('POST', '/api/dmx/connect', { port });
     if (!dmx.connected && dmx.error) {
