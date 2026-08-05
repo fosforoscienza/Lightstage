@@ -43,6 +43,8 @@ tipo `K7TQ-M2XP`.
 - **Carica da nome o codice**: scrivi il nome (o il codice) e lo show viene
   ripristinato — da qualunque computer, basta che nel campo URL ci sia lo
   stesso script. Maiuscole, minuscole e spazi non contano.
+- **📋 Elenco salvataggi**: mostra tutti i salvataggi sul foglio con la data;
+  clicchi su uno e il campo di caricamento si compila da solo.
 
 Note:
 

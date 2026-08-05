@@ -384,7 +384,7 @@ body { display: flex; flex-direction: column; }
   padding-top: 8px;
   margin-top: -4px;
 }
-#modal-channels .modal-card { width: 430px; }
+#modal-channels .modal-card, #modal-add .modal-card { width: 430px; }
 
 .ch-row {
   display: grid;
@@ -394,3 +394,22 @@ body { display: flex; flex-direction: column; }
   margin-bottom: 6px;
 }
 .ch-row .ch-num { font-size: 12px; color: var(--text-dim); }
+
+#cloud-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.cloud-item {
+  text-align: left;
+  background: #1b2029;
+  border: 1px solid #2a3140;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cloud-item:hover { background: #232a37; border-color: var(--accent); }

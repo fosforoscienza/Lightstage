@@ -45,11 +45,12 @@ DEFAULT_CHANNELS = [
     {"label": "Verde", "role": "green"},
     {"label": "Blu", "role": "blue"},
     {"label": "UV", "role": "uv"},
-    {"label": "Strobo", "role": "other"},
+    {"label": "Strobo", "role": "strobe"},
     {"label": "Macro", "role": "other"},
     {"label": "Velocità", "role": "other"},
 ]
-ROLES = {"dimmer", "red", "green", "blue", "uv", "white", "other"}
+ROLES = {"dimmer", "red", "green", "blue", "uv", "white",
+         "strobe", "pan", "tilt", "focus", "return", "other"}
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 

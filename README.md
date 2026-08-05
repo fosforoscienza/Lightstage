@@ -177,21 +177,25 @@ UV+RGB a 8 canali):
 | 4  | Blu      | 8  | Velocità |
 
 Se il tuo modello usa un ordine diverso — o hai fari di tipo differente —
-premi il **⚙ sulla scheda del faro** e correggi nomi e ruoli dei suoi canali:
-il ruolo (Rosso, Verde, Blu, UV, Bianco, Dimmer, Altro) serve all'anteprima
-per calcolare il colore del fascio e al selettore colore per sapere quali
-fader pilotare. *"Salva per tutti i fari"* applica il layout a tutti i fari
-con lo stesso numero di canali. L'uscita DMX non dipende dai ruoli: manda
-sempre il fader N sul canale indirizzo+N-1.
+premi il **⚙ sulla scheda del faro** e correggi nomi e ruoli dei suoi canali.
+I ruoli disponibili sono: **Dimmer, Rosso, Verde, Blu, UV, Bianco, Strobo,
+Pan, Tilt, Focus, Return, Altro**. Il ruolo serve all'anteprima per calcolare
+il colore del fascio e al selettore colore per capire dove sono i canali RGB
+(in qualunque posizione siano). *"Salva per tutti i fari"* applica il layout
+a tutti i fari con lo stesso numero di canali. L'uscita DMX non dipende dai
+ruoli: manda sempre il fader N sul canale indirizzo+N-1.
 
-Esempio, una testa mobile a 8 canali si configura così:
+Quando aggiungi un faro scegli fra tre possibilità: canali **predefiniti
+UkFog**, **come un faro esistente**, oppure **nuovo set di canali** da
+comporre subito lì (per ogni canale scegli il ruolo e il nome si compila da
+solo). Esempio, una testa mobile a 8 canali:
 
 | CH | Nome  | Ruolo | CH | Nome   | Ruolo  |
 |----|-------|-------|----|--------|--------|
-| 1  | Pan   | Altro | 5  | Verde  | Verde  |
-| 2  | Tilt  | Altro | 6  | Blu    | Blu    |
-| 3  | Focus | Altro | 7  | Bianco | Bianco |
-| 4  | Rosso | Rosso | 8  | Return | Altro  |
+| 1  | Pan   | Pan   | 5  | Verde  | Verde  |
+| 2  | Tilt  | Tilt  | 6  | Blu    | Blu    |
+| 3  | Focus | Focus | 7  | Bianco | Bianco |
+| 4  | Rosso | Rosso | 8  | Return | Return |
 
 ## Limitazioni
 

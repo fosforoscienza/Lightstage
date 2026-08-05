@@ -68,6 +68,10 @@
     <label>Canali
       <select id="add-copy"></select>
     </label>
+    <div id="add-channels-box" class="hidden">
+      <p class="small">Imposta i canali del nuovo set:</p>
+      <div id="add-channels-rows"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Annulla</button>
       <button id="btn-add-confirm" class="btn primary">Aggiungi</button>
@@ -109,6 +113,10 @@
       <button id="btn-cloud-save" class="btn primary">Salva online</button>
     </div>
     <hr style="border:none;border-top:1px solid #262c38">
+    <div class="modal-actions" style="justify-content:flex-start">
+      <button id="btn-cloud-list" class="btn ghost">&#128203; Elenco salvataggi</button>
+    </div>
+    <div id="cloud-list" class="hidden"></div>
     <label>Carica da nome o codice
       <input id="cloud-code" type="text" placeholder="concerto sagra 2026 oppure K7TQ-M2XP" maxlength="40">
     </label>

@@ -4,8 +4,19 @@
 
 var SHEET_NAME = 'shows';
 
-// Caricamento: GET ?code=ABCD-1234
+// Caricamento: GET ?code=<nome o codice>   Elenco: GET ?list=1
 function doGet(e) {
+  if (e.parameter && e.parameter.list !== undefined) {
+    var tutte = getSheet_().getDataRange().getValues();
+    var shows = [];
+    for (var j = 1; j < tutte.length; j++) {
+      shows.push({
+        code: String(tutte[j][0]),
+        date: tutte[j][1] ? new Date(tutte[j][1]).toISOString() : null,
+      });
+    }
+    return json_({ ok: true, shows: shows });
+  }
   var code = normalizza_((e.parameter && e.parameter.code) || '');
   if (!code) return json_({ ok: false, error: 'codice mancante' });
   var righe = getSheet_().getDataRange().getValues();
@@ -14,7 +25,7 @@ function doGet(e) {
       return json_({ ok: true, data: JSON.parse(righe[i][2]) });
     }
   }
-  return json_({ ok: false, error: 'codice non trovato' });
+  return json_({ ok: false, error: 'nome o codice non trovato' });
 }
 
 // Salvataggio: POST con corpo {"data": {...}, "name": "nome facoltativo"}.

@@ -25,6 +25,11 @@ const ROLE_COLORS = {
   blue: '#4aa3ff',
   uv: '#9b5cff',
   white: '#eef1f6',
+  strobe: '#ffa640',
+  pan: '#2ec9b8',
+  tilt: '#1f9e8f',
+  focus: '#b9c86b',
+  return: '#a08fa5',
   other: '#8a93a5',
 };
 const ROLE_LABELS = {
@@ -34,6 +39,11 @@ const ROLE_LABELS = {
   blue: 'Blu',
   uv: 'UV',
   white: 'Bianco',
+  strobe: 'Strobo',
+  pan: 'Pan',
+  tilt: 'Tilt',
+  focus: 'Focus',
+  return: 'Return',
   other: 'Altro',
 };
 
@@ -792,12 +802,60 @@ function addModalCount() {
   return src ? fixtureSpan(src) : (parseInt($('#add-count').value, 10) || 8);
 }
 
+function buildAddChannelRows() {
+  const n = parseInt($('#add-count').value, 10) || 8;
+  const wrap = $('#add-channels-rows');
+  // cambiando 8<->16 si conservano le righe già compilate
+  const prev = Array.from(wrap.children).map((row) => ({
+    label: row.children[1].value,
+    role: row.children[2].value,
+  }));
+  wrap.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const row = document.createElement('div');
+    row.className = 'ch-row';
+    const num = document.createElement('span');
+    num.className = 'ch-num';
+    num.textContent = `CH ${i + 1}`;
+    const label = document.createElement('input');
+    label.type = 'text';
+    label.maxLength = 16;
+    label.placeholder = `CH${i + 1}`;
+    const role = document.createElement('select');
+    for (const [value, text] of Object.entries(ROLE_LABELS)) {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = text;
+      role.append(o);
+    }
+    if (prev[i]) {
+      label.value = prev[i].label;
+      role.value = prev[i].role;
+    } else {
+      role.value = 'other';
+    }
+    // scegliendo il ruolo, il nome si compila da solo (se non personalizzato)
+    role.addEventListener('change', () => {
+      const cur = label.value.trim();
+      if (!cur || Object.values(ROLE_LABELS).includes(cur)) {
+        label.value = role.value === 'other' ? '' : ROLE_LABELS[role.value];
+      }
+    });
+    row.append(num, label, role);
+    wrap.append(row);
+  }
+}
+
 function refreshAddModal() {
+  const selVal = $('#add-copy').value;
   // copiando i canali da un faro esistente, il numero di canali segue quello
-  const src = state.fixtures.find((x) => x.id === parseInt($('#add-copy').value, 10));
+  const src = state.fixtures.find((x) => x.id === parseInt(selVal, 10));
+  const isNew = selVal === 'new';
   const countSel = $('#add-count');
   if (src) countSel.value = String(fixtureSpan(src));
   countSel.disabled = !!src;
+  $('#add-channels-box').classList.toggle('hidden', !isNew);
+  if (isNew) buildAddChannelRows();
   $('#add-address').value = nextFreeAddress(addModalCount());
 }
 
@@ -812,6 +870,10 @@ $('#btn-add').addEventListener('click', () => {
   def.value = '';
   def.textContent = 'Predefiniti (UkFog UV+RGB)';
   copySel.append(def);
+  const nuovo = document.createElement('option');
+  nuovo.value = 'new';
+  nuovo.textContent = 'Nuovo set di canali…';
+  copySel.append(nuovo);
   for (const f of state.fixtures) {
     const o = document.createElement('option');
     o.value = f.id;
@@ -819,6 +881,7 @@ $('#btn-add').addEventListener('click', () => {
     copySel.append(o);
   }
   $('#add-count').value = '8';
+  $('#add-channels-rows').innerHTML = '';
   refreshAddModal();
   openModal('#modal-add');
   $('#add-name').select();
@@ -827,10 +890,20 @@ $('#btn-add').addEventListener('click', () => {
 $('#btn-add-confirm').addEventListener('click', async () => {
   const name = $('#add-name').value.trim() || `Faro ${state.fixtures.length + 1}`;
   const address = parseInt($('#add-address').value, 10) || 1;
-  const src = state.fixtures.find((x) => x.id === parseInt($('#add-copy').value, 10));
+  const selVal = $('#add-copy').value;
+  const src = state.fixtures.find((x) => x.id === parseInt(selVal, 10));
   const count = addModalCount();
+  let channels;
+  if (selVal === 'new') {
+    channels = Array.from($('#add-channels-rows').children).map((row, i) => ({
+      label: row.children[1].value.trim() || `CH${i + 1}`,
+      role: row.children[2].value,
+    }));
+  } else if (src) {
+    channels = fixtureChannels(src);
+  }
   closeModals();
-  await addFixture(name, address, src ? fixtureChannels(src) : undefined, count);
+  await addFixture(name, address, channels, count);
 });
 
 $('#btn-setup8').addEventListener('click', async () => {

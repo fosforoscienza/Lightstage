@@ -13,11 +13,12 @@
     { label: 'Verde', role: 'green' },
     { label: 'Blu', role: 'blue' },
     { label: 'UV', role: 'uv' },
-    { label: 'Strobo', role: 'other' },
+    { label: 'Strobo', role: 'strobe' },
     { label: 'Macro', role: 'other' },
     { label: 'Velocità', role: 'other' },
   ];
-  const ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'other']);
+  const ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white',
+    'strobe', 'pan', 'tilt', 'focus', 'return', 'other']);
 
   function sanitizeValues(raw, n = NUM_CHANNELS) {
     const vals = new Array(n).fill(0);
@@ -465,6 +466,40 @@
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;
+    }
+  });
+
+  document.getElementById('btn-cloud-list').addEventListener('click', async () => {
+    const url = cloudUrl();
+    if (!url) return;
+    const box = document.getElementById('cloud-list');
+    box.classList.remove('hidden');
+    box.textContent = 'Carico l\'elenco…';
+    try {
+      const res = await fetch(url + '?list=1');
+      const out = await res.json();
+      if (!out.ok || !Array.isArray(out.shows)) {
+        throw new Error(out.error ||
+          "aggiorna lo script all'ultima versione (vedi istruzioni)");
+      }
+      box.innerHTML = '';
+      if (!out.shows.length) {
+        box.textContent = 'Nessun salvataggio ancora.';
+        return;
+      }
+      for (const s of out.shows.reverse()) {
+        const item = document.createElement('button');
+        item.className = 'cloud-item';
+        const quando = s.date ? new Date(s.date).toLocaleString('it-IT') : '';
+        item.textContent = s.code + (quando ? ` — ${quando}` : '');
+        item.title = 'Clic per usare questo salvataggio';
+        item.addEventListener('click', () => {
+          document.getElementById('cloud-code').value = s.code;
+        });
+        box.append(item);
+      }
+    } catch (err) {
+      box.textContent = 'Elenco non disponibile: ' + (err.message || err);
     }
   });
 
