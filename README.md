@@ -11,6 +11,10 @@ Daslight: solo quello che serve.
 - **Fari**: aggiungi un faro con nome e indirizzo DMX; per ogni faro hai
   **8 fader** (0–255), uno per canale. Il pulsante *"Crea 8 fari"* prepara in
   un clic la configurazione tipica con indirizzi 1, 9, 17, … 57.
+- **Selettore colore**: in ogni scheda c'è un quadratino colorato: scegli un
+  colore e i fader Rosso/Verde/Blu si impostano da soli (e se il dimmer è a
+  zero viene alzato, così il colore si vede subito). Muovendo i fader a mano,
+  il selettore si aggiorna di conseguenza.
 - **Preset**: **10 slot** con nome. Clic su uno slot vuoto per salvare le luci
   attuali, clic su uno pieno per caricarlo, 💾 per sovrascrivere/rinominare,
   ✕ per svuotarlo. Durante l'evento puoi lanciarli anche da tastiera:

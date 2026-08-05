@@ -140,10 +140,44 @@ function updateSwatch(f) {
   ref.swatch.style.background = `rgba(${c.r},${c.g},${c.b},${Math.max(0.15, a)})`;
   ref.swatch.style.boxShadow = a > 0.05
     ? `0 0 ${8 * a}px rgba(${c.r},${c.g},${c.b},${a})` : 'none';
+  if (ref.picker) ref.picker.value = fixtureRgbHex(f);
 }
 
 function updateFaderFill(input) {
   input.style.setProperty('--fill', (input.value / 255 * 100) + '%');
+}
+
+/* --------------------------------------------------- selettore colore */
+function roleIndexes(role) {
+  const idx = [];
+  state.channels.forEach((c, i) => { if (c.role === role) idx.push(i); });
+  return idx;
+}
+
+function fixtureRgbHex(f) {
+  const first = (role) => {
+    const idx = roleIndexes(role);
+    return idx.length ? f.values[idx[0]] : 0;
+  };
+  const hex = (v) => v.toString(16).padStart(2, '0');
+  return `#${hex(first('red'))}${hex(first('green'))}${hex(first('blue'))}`;
+}
+
+function applyColorToFixture(f, hexColor) {
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  roleIndexes('red').forEach((i) => { f.values[i] = r; });
+  roleIndexes('green').forEach((i) => { f.values[i] = g; });
+  roleIndexes('blue').forEach((i) => { f.values[i] = b; });
+  // se il dimmer è a zero il colore non si vedrebbe: accendilo
+  const dim = roleIndexes('dimmer');
+  if ((r || g || b) && dim.length && dim.every((i) => f.values[i] === 0)) {
+    dim.forEach((i) => { f.values[i] = 255; });
+  }
+  updateFixtureDisplays(f);
+  pushValues(f);
+  clearActivePreset();
 }
 
 function clearActivePreset() {
@@ -170,6 +204,16 @@ function renderFixtures() {
 
     const swatch = document.createElement('span');
     swatch.className = 'swatch';
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.className = 'color-pick';
+    picker.title = 'Scegli un colore: i fader RGB si impostano da soli';
+    picker.value = fixtureRgbHex(f);
+    if (!state.channels.some((c) => ['red', 'green', 'blue'].includes(c.role))) {
+      picker.classList.add('hidden');
+    }
+    picker.addEventListener('input', () => applyColorToFixture(f, picker.value));
 
     const name = document.createElement('input');
     name.className = 'name';
@@ -212,7 +256,7 @@ function renderFixtures() {
       renderFixtures();
     });
 
-    head.append(swatch, name, addrWrap, del);
+    head.append(swatch, picker, name, addrWrap, del);
 
     const faders = document.createElement('div');
     faders.className = 'faders';
@@ -265,7 +309,7 @@ function renderFixtures() {
       selectFixture(f.id, false);
     });
     row.append(card);
-    cardRefs.set(f.id, { card, inputs, valEls, swatch, addrInput: addr });
+    cardRefs.set(f.id, { card, inputs, valEls, swatch, picker, addrInput: addr });
     updateSwatch(f);
   }
   refreshOverlaps();

@@ -196,13 +196,28 @@ body { display: flex; flex-direction: column; }
   border: 1px solid var(--border);
   flex: 0 0 auto;
 }
+.card-head .color-pick {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.card-head .color-pick::-webkit-color-swatch-wrapper { padding: 2px; }
+.card-head .color-pick::-webkit-color-swatch { border: none; border-radius: 4px; }
+.card-head .color-pick::-moz-color-swatch { border: none; border-radius: 4px; }
 .card-head input.name {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
-  width: 110px;
+  width: 88px;
+  min-width: 40px;
+  flex: 1 1 auto;
   border-radius: 6px;
   padding: 2px 4px;
 }
