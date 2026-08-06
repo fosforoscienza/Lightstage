@@ -5,6 +5,11 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.10
+
+- L'avviso di aggiornamento compare anche a pagina già aperta: il controllo
+  si ripete ogni minuto e quando si torna sulla scheda, senza ricaricare.
+
 ## 5.9
 
 - Mentre si ruota un faro sulla mappa compare una targhetta con i **gradi**.

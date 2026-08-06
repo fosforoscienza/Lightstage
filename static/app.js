@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.9';
+const APP_VERSION = '5.10';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -1571,6 +1571,7 @@ $('#btn-network').addEventListener('click', () => {
    aggiornamento del sito: version.json viene letto ignorando la cache, così
    la versione nuova viene notata comunque e basta un clic per caricarla. */
 async function checkForUpdate() {
+  if (document.getElementById('update-bar')) return;   // avviso già mostrato
   try {
     const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return;
@@ -1595,6 +1596,13 @@ async function checkForUpdate() {
     /* offline o file assente: nessun avviso */
   }
 }
+
+/* il controllo si ripete da solo: chi tiene la pagina aperta tutto il giorno
+   si accorge dell'aggiornamento entro un minuto, senza ricaricare a mano */
+setInterval(() => checkForUpdate(), 60000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkForUpdate();
+});
 
 /* ------------------------------------------------------------------ init */
 async function init() {
