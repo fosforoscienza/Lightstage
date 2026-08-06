@@ -5,6 +5,13 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.7
+
+- Nell'anteprima il canale **pan fa ruotare il fascio**: la direzione in cui
+  hai orientato il faro sulla mappa è lo zero, e il pan si muove da lì.
+- Il canale **focus apre il fascio da 10° a 60°** (sulle teste Wash Zoom è il
+  canale Zoom, ora impostato con questo ruolo nel modello).
+
 ## 5.6
 
 - FTB e Blackout hanno i loro pulsanti anche nella schermata Preset grid,

@@ -34,6 +34,11 @@ Daslight: solo quello che serve.
   posizionarli, ruotali con la maniglia bianca (o con la rotellina del mouse)
   per orientare il fascio. Il colore e l'intensità del fascio seguono i fader
   (RGB + UV reso come viola).
+- **Teste mobili nell'anteprima**: la direzione in cui orienti un faro sulla
+  mappa diventa il suo **zero**; da lì il canale **pan** fa ruotare il fascio
+  (fino a 540°, come su un wash) e il canale **focus** ne apre l'angolo da
+  **10° a 60°**. Ri-orientando il faro sulla mappa lo zero si riposiziona sul
+  valore di pan in quel momento.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to

@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.6';
+const APP_VERSION = '5.7';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -65,7 +65,7 @@ const CHANNEL_TEMPLATES = [
       { label: 'Blue', role: 'blue' },
       { label: 'White', role: 'white' },
       { label: 'Strobo', role: 'strobe' },
-      { label: 'Zoom', role: 'other' },
+      { label: 'Zoom', role: 'focus' },   // apre il fascio da 10° a 60°
       { label: 'Function mode', role: 'other' },
       { label: 'Mode speed', role: 'other' },
       { label: 'Pan fine', role: 'pan' },
@@ -154,6 +154,38 @@ function fixtureChannels(f) {
 
 function fixtureSpan(f) {
   return fixtureChannels(f).length; // 8 o 16 canali DMX occupati
+}
+
+/* ------------------------------------------- puntamento e apertura fascio
+   La rotazione impostata sulla mappa è lo "zero" del faro: da lì il canale
+   pan fa ruotare il fascio, e il focus ne apre l'angolo da 10° a 60°. */
+const PAN_RANGE = 540;   // gradi coperti dal canale pan (tipico di un wash)
+const BEAM_MIN = 10;     // apertura minima del fascio, in gradi
+const BEAM_MAX = 60;     // apertura massima
+
+/* posizione del pan in 0..1, usando il canale fine se presente */
+function panPosition(f, values) {
+  const vals = values || f.values;
+  const idx = roleIndexes(f, 'pan');
+  if (!idx.length) return null;
+  const coarse = vals[idx[0]] || 0;
+  const fine = idx.length > 1 ? (vals[idx[1]] || 0) : 0;
+  return (coarse * 256 + fine) / 65535;
+}
+
+/* direzione del fascio: zero della mappa più lo spostamento del pan */
+function beamAngle(f, values) {
+  const pos = panPosition(f, values);
+  if (pos === null) return f.rot;
+  return f.rot + (pos - (f.panzero || 0)) * PAN_RANGE;
+}
+
+/* apertura del fascio in gradi (metà angolo), comandata dal focus */
+function beamHalfAngle(f, values) {
+  const idx = roleIndexes(f, 'focus');
+  if (!idx.length) return 24;   // fari senza focus: apertura fissa come prima
+  const vals = values || f.values;
+  return (BEAM_MIN + (BEAM_MAX - BEAM_MIN) * ((vals[idx[0]] || 0) / 255)) / 2;
 }
 
 function fixtureColor(f) {
@@ -528,12 +560,12 @@ function drawPresetThumb(canvas, preset) {
     const len = h * 0.75;
     ctx2.save();
     ctx2.translate(x, y);
-    ctx2.rotate(-f.rot * Math.PI / 180);
+    ctx2.rotate(-beamAngle(f, values) * Math.PI / 180);
     const grad = ctx2.createRadialGradient(0, 0, 1, 0, 0, len);
     grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${0.75 * c.intensity})`);
     grad.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
     ctx2.fillStyle = grad;
-    const half = Math.tan(24 * Math.PI / 180) * len;
+    const half = Math.tan(beamHalfAngle(f, values) * Math.PI / 180) * len;
     ctx2.beginPath();
     ctx2.moveTo(0, 0);
     ctx2.lineTo(-half, len);
@@ -811,7 +843,7 @@ function fixtureAt(px, py) {
 
 function handlePos(f) {
   const p = fixturePos(f);
-  const th = f.rot * Math.PI / 180;
+  const th = beamAngle(f) * Math.PI / 180;
   return { x: p.x + Math.sin(th) * 40, y: p.y + Math.cos(th) * 40 };
 }
 
@@ -879,10 +911,10 @@ function drawBeam(f) {
   if (c.intensity <= 0.004) return;
   const p = fixturePos(f);
   const len = Math.min(cw, ch) * 0.55;
-  const half = 24 * Math.PI / 180;
+  const half = beamHalfAngle(f) * Math.PI / 180;
   ctx.save();
   ctx.translate(p.x, p.y);
-  ctx.rotate(-f.rot * Math.PI / 180);
+  ctx.rotate(-beamAngle(f) * Math.PI / 180);
 
   const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, len * 1.05);
   grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${0.55 * c.intensity})`);
@@ -913,7 +945,7 @@ function drawFixture(f) {
   const on = !state.blackout && c.intensity > 0.01;
   ctx.save();
   ctx.translate(p.x, p.y);
-  ctx.rotate(-f.rot * Math.PI / 180);
+  ctx.rotate(-beamAngle(f) * Math.PI / 180);
   ctx.fillStyle = '#242b38';
   ctx.strokeStyle = f.id === selectedId ? '#8fb0ff' : '#3a4356';
   ctx.lineWidth = 1.5;
@@ -993,7 +1025,8 @@ canvas.addEventListener('pointermove', (e) => {
   } else {
     const p = fixturePos(f);
     f.rot = (Math.atan2(px - p.x, py - p.y) * 180 / Math.PI + 360) % 360;
-    pushFixturePatch(f.id, { rot: f.rot });
+    f.panzero = panPosition(f) ?? 0;   // la nuova direzione diventa lo zero
+    pushFixturePatch(f.id, { rot: f.rot, panzero: f.panzero });
   }
 });
 
@@ -1008,7 +1041,8 @@ canvas.addEventListener('wheel', (e) => {
   if (!f) return;
   e.preventDefault();
   f.rot = (f.rot + (e.deltaY > 0 ? 4 : -4) + 360) % 360;
-  pushFixturePatch(f.id, { rot: f.rot });
+  f.panzero = panPosition(f) ?? 0;
+  pushFixturePatch(f.id, { rot: f.rot, panzero: f.panzero });
 }, { passive: false });
 
 /* ---------------------------------------------------------------- modali */
@@ -1438,7 +1472,7 @@ function applyRemoteState(s) {
   for (const nf of s.fixtures) {
     const f = state.fixtures.find((x) => x.id === nf.id);
     if (!f) continue;
-    f.x = nf.x; f.y = nf.y; f.rot = nf.rot;
+    f.x = nf.x; f.y = nf.y; f.rot = nf.rot; f.panzero = nf.panzero;
     if (JSON.stringify(f.values) !== JSON.stringify(nf.values)) {
       f.values = nf.values;
       updateFixtureDisplays(f);

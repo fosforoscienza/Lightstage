@@ -260,6 +260,7 @@ def load_show():
                 "x": max(0.0, min(1.0, float(f.get("x", 0.5)))),
                 "y": max(0.0, min(1.0, float(f.get("y", 0.2)))),
                 "rot": float(f.get("rot", 0)) % 360,
+                "panzero": max(0.0, min(1.0, float(f.get("panzero", 0)))),
             })
         except (KeyError, TypeError, ValueError):
             continue
@@ -398,6 +399,7 @@ def add_fixture():
             "x": max(0.0, min(1.0, float(body.get("x", 0.5)))),
             "y": max(0.0, min(1.0, float(body.get("y", 0.2)))),
             "rot": float(body.get("rot", 0)) % 360,
+            "panzero": max(0.0, min(1.0, float(body.get("panzero", 0)))),
         }
         show["fixtures"].append(fixture)
         rebuild_universe()
@@ -420,7 +422,7 @@ def update_fixture(fid):
                 f["address"] = max(1, min(max_addr, int(body["address"])))
             except (TypeError, ValueError):
                 pass
-        for key in ("x", "y"):
+        for key in ("x", "y", "panzero"):
             if key in body:
                 try:
                     f[key] = max(0.0, min(1.0, float(body[key])))

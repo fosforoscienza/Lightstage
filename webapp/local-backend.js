@@ -86,6 +86,7 @@
         x: Math.max(0, Math.min(1, parseFloat(f.x) || 0.5)),
         y: Math.max(0, Math.min(1, parseFloat(f.y) || 0.2)),
         rot: ((parseFloat(f.rot) || 0) % 360 + 360) % 360,
+        panzero: Math.max(0, Math.min(1, parseFloat(f.panzero) || 0)),
       });
     }
     (data.presets || []).slice(0, NUM_PRESETS).forEach((p, i) => {
@@ -263,6 +264,7 @@
         x: Math.max(0, Math.min(1, parseFloat(b.x) || 0.5)),
         y: Math.max(0, Math.min(1, parseFloat(b.y) || 0.2)),
         rot: ((parseFloat(b.rot) || 0) % 360 + 360) % 360,
+        panzero: Math.max(0, Math.min(1, parseFloat(b.panzero) || 0)),
       };
       db.fixtures.push(fixture);
       rebuildFrame();
@@ -308,7 +310,7 @@
           const a = parseInt(b.address, 10);
           if (!isNaN(a)) f.address = Math.max(1, Math.min(512 - fixtureCount(f) + 1, a));
         }
-        for (const k of ['x', 'y']) {
+        for (const k of ['x', 'y', 'panzero']) {
           if (k in b) {
             const v = parseFloat(b[k]);
             if (!isNaN(v)) f[k] = Math.max(0, Math.min(1, v));
