@@ -5,6 +5,11 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.6
+
+- FTB e Blackout hanno i loro pulsanti anche nella schermata Preset grid,
+  con la durata dell'FTB; i tasti B e F funzionano da entrambe le schermate.
+
 ## 5.5
 
 - Nel passaggio tra preset **pan e tilt cambiano di netto**: le teste si

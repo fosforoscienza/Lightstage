@@ -7,7 +7,7 @@
 <meta http-equiv="cache-control" content="no-cache">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E">
 <!-- il ?v= serve a non far riusare al browser i file della versione precedente -->
-<link rel="stylesheet" href="../static/style.css?v=5.5">
+<link rel="stylesheet" href="../static/style.css?v=5.6">
 </head>
 <body>
 
@@ -33,8 +33,8 @@
     <button type="button" data-value="1" class="sel">1s</button>
     <button type="button" data-value="1.5">1,5s</button>
   </span>
-  <button id="btn-ftb" class="btn danger-ghost" title="Fade to black: spegne tutte le luci gradualmente (tasto F)">FTB</button>
-  <button id="btn-blackout" class="btn danger-ghost">Blackout</button>
+  <button id="btn-ftb" class="btn danger-ghost js-ftb" title="Fade to black: spegne tutte le luci gradualmente (tasto F)">FTB</button>
+  <button id="btn-blackout" class="btn danger-ghost js-blackout" title="Spegne tutto all'istante (tasto B)">Blackout</button>
 </header>
 
 <section id="stage-panel">
@@ -43,7 +43,7 @@
 </section>
 
 <section id="presets-bar">
-  <div id="preset-fade-box">
+  <div class="fade-box">
     Fade
     <span id="preset-fade" class="fade-group"
           title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
@@ -93,8 +93,8 @@
   <header>
     <h2>Preset grid</h2>
     <div class="spacer"></div>
-    <div id="preset-fade-box">
-      Fade
+    <div class="fade-box">
+      Preset
       <span id="preset-fade-grid" class="fade-group"
             title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
         <button type="button" data-value="0.5">0,5s</button>
@@ -102,6 +102,16 @@
         <button type="button" data-value="1.5">1,5s</button>
       </span>
     </div>
+    <div class="fade-box">
+      FTB
+      <span id="ftb-time-grid" class="fade-group" title="Durata della dissolvenza FTB">
+      <button type="button" data-value="0.5">0,5s</button>
+      <button type="button" data-value="1" class="sel">1s</button>
+        <button type="button" data-value="1.5">1,5s</button>
+      </span>
+    </div>
+    <button class="btn danger-ghost js-ftb" title="Fade to black: spegne tutte le luci gradualmente (tasto F)">FTB</button>
+    <button class="btn danger-ghost js-blackout" title="Spegne tutto all'istante (tasto B)">Blackout</button>
     <button id="btn-grid-close" class="btn">Chiudi</button>
   </header>
   <div id="preset-grid-cells"></div>
@@ -113,6 +123,8 @@
     <span class="key-item"><kbd>clic</kbd><em>su uno vuoto: salva le luci attuali</em></span>
     <span class="key-item"><kbd>&#128190;</kbd><em>sovrascrivi</em></span>
     <span class="key-item"><kbd>&#10005;</kbd><em>svuota</em></span>
+    <span class="key-item"><kbd>B</kbd><em>blackout</em></span>
+    <span class="key-item"><kbd>F</kbd><em>fade to black</em></span>
     <span class="key-item"><kbd>Esc</kbd><em>chiudi</em></span>
     <span id="app-version-grid"></span>
   </footer>
@@ -196,7 +208,7 @@
   </div>
 </div>
 
-<script src="local-backend.js?v=5.5"></script>
-<script src="../static/app.js?v=5.5"></script>
+<script src="local-backend.js?v=5.6"></script>
+<script src="../static/app.js?v=5.6"></script>
 </body>
 </html>

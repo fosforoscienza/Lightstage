@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.5';
+const APP_VERSION = '5.6';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -1233,14 +1233,22 @@ $('#btn-channels-save-all').addEventListener('click', () => {
   saveChannels(true).catch(console.error);
 });
 
+/* FTB e Blackout hanno un pulsante nella barra in alto e uno nella griglia
+   dei preset: restano sempre accesi o spenti insieme */
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+function setButtonsOn(sel, on) {
+  $$(sel).forEach((b) => b.classList.toggle('on', on));
+}
+
 /* blackout */
 async function toggleBlackout() {
   const res = await api('PUT', '/api/blackout', { on: !state.blackout });
   state.blackout = res.blackout;
-  $('#btn-blackout').classList.toggle('on', state.blackout);
+  setButtonsOn('.js-blackout', state.blackout);
   state.fixtures.forEach(updateSwatch);
 }
-$('#btn-blackout').addEventListener('click', () => toggleBlackout().catch(console.error));
+$$('.js-blackout').forEach((b) =>
+  b.addEventListener('click', () => toggleBlackout().catch(console.error)));
 
 /* FTB: interruttore di dissolvenza a nero. Primo clic: memorizza le luci
    e le spegne gradualmente, il pulsante lampeggia rosso. Secondo clic:
@@ -1296,22 +1304,21 @@ function ftbFade(target) {
 
 function toggleFtb() {
   if (state.fixtures.length === 0) return;
-  const btn = $('#btn-ftb');
   if (ftbSnapshot === null) {
     ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...f.values]]));
-    btn.classList.add('on');
+    setButtonsOn('.js-ftb', true);
     clearActivePreset();
     ftbFade(new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)])));
   } else {
     const target = ftbSnapshot;
     ftbSnapshot = null;
-    btn.classList.remove('on');
+    setButtonsOn('.js-ftb', false);
     ftbFade(target);
   }
 }
 
-$('#btn-ftb').addEventListener('click', toggleFtb);
-setupFadeGroup('#ftb-time', 'lightstage-ftb-time');
+$$('.js-ftb').forEach((b) => b.addEventListener('click', toggleFtb));
+setupFadeGroup(['#ftb-time', '#ftb-time-grid'], 'lightstage-ftb-time');
 setupFadeGroup(['#preset-fade', '#preset-fade-grid'], 'lightstage-preset-fade',
   { allowOff: true });
 
@@ -1416,7 +1423,7 @@ function applyRemoteState(s) {
   }
   if (state.blackout !== s.blackout) {
     state.blackout = s.blackout;
-    $('#btn-blackout').classList.toggle('on', state.blackout);
+    setButtonsOn('.js-blackout', state.blackout);
     state.fixtures.forEach(updateSwatch);
   }
   if (structureChanged || channelsChanged) {
@@ -1487,7 +1494,7 @@ async function init() {
   dmx = s.dmx;
   lanUrl = s.lan_url;
   $('#btn-network').classList.toggle('hidden', !lanUrl);
-  $('#btn-blackout').classList.toggle('on', state.blackout);
+  setButtonsOn('.js-blackout', state.blackout);
   $('#app-version').textContent = `v${APP_VERSION}`;
   $('#app-version-grid').textContent = `v${APP_VERSION}`;
   // su Windows/Linux la legenda mostra Ctrl al posto di ⌘
