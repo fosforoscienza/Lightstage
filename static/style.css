@@ -497,6 +497,11 @@ body { display: flex; flex-direction: column; }
 }
 #grid-legend .dot.live { background: #4cd964; }
 #grid-legend .dot.armed { background: var(--danger); }
+#grid-legend #app-version-grid {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
 .grid-cell canvas {
   width: 100%;
   aspect-ratio: 16 / 7;
