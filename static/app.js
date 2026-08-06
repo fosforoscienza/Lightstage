@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.7';
+const APP_VERSION = '5.8';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -1480,6 +1480,46 @@ function applyRemoteState(s) {
   }
 }
 
+/* ------------------------------- lavoro a più mani sullo stesso progetto
+   Il server avvisa appena qualcosa cambia (regia, iPad, telefono...), così
+   l'aggiornamento è immediato invece di aspettare il giro successivo. */
+let showRev = -1;
+let refreshTimer = null;
+
+async function refreshFromServer() {
+  const s2 = await api('GET', '/api/state');
+  showRev = s2.rev !== undefined ? s2.rev : showRev;
+  dmx = s2.dmx;
+  lanUrl = s2.lan_url;
+  $('#btn-network').classList.toggle('hidden', !lanUrl);
+  applyRemoteState(s2);
+  renderDmx();
+}
+
+function scheduleRefresh() {
+  // mentre si sta manovrando qui, le modifiche locali hanno la precedenza
+  if (Date.now() - lastInteraction < 1500 || dragMode || refreshTimer) return;
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    refreshFromServer().catch(() => { /* riprova al prossimo avviso */ });
+  }, 120);
+}
+
+function startLiveSync() {
+  if (window.LIGHTSTAGE_STATIC || !window.EventSource) return;
+  try {
+    const es = new EventSource('/api/events');
+    es.onmessage = (e) => {
+      const rev = parseInt(e.data, 10);
+      if (rev === showRev) return;   // è una modifica fatta da qui
+      scheduleRefresh();
+    };
+    // in caso di caduta il browser riconnette da solo; resta il giro ogni 2 s
+  } catch (err) {
+    /* niente notifiche: si continua con il controllo periodico */
+  }
+}
+
 /* indirizzo per gli altri dispositivi */
 $('#btn-network').addEventListener('click', () => {
   if (lanUrl) {
@@ -1527,6 +1567,7 @@ async function init() {
   state.blackout = s.blackout;
   dmx = s.dmx;
   lanUrl = s.lan_url;
+  if (s.rev !== undefined) showRev = s.rev;
   $('#btn-network').classList.toggle('hidden', !lanUrl);
   setButtonsOn('.js-blackout', state.blackout);
   $('#app-version').textContent = `v${APP_VERSION}`;
@@ -1549,15 +1590,12 @@ async function init() {
       if (Date.now() - lastInteraction < 1500 || dragMode) {
         dmx = await api('GET', '/api/dmx');
       } else {
-        const s2 = await api('GET', '/api/state');
-        dmx = s2.dmx;
-        lanUrl = s2.lan_url;
-        $('#btn-network').classList.toggle('hidden', !lanUrl);
-        applyRemoteState(s2);
+        await refreshFromServer();
       }
       renderDmx();
     } catch (err) { /* server non raggiungibile: riprova al prossimo giro */ }
   }, 2000);
+  startLiveSync();
 }
 
 window.addEventListener('resize', () => { resizeCanvas(); sizeFaders(); });

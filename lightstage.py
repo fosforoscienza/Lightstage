@@ -19,7 +19,7 @@ import threading
 import time
 import webbrowser
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 try:
     import serial
@@ -63,6 +63,7 @@ show = {
     "blackout": False,
 }
 _dirty = threading.Event()
+show_rev = 0        # aumenta a ogni modifica: i dispositivi collegati se ne accorgono
 
 
 # ---------------------------------------------------------------- uscita DMX
@@ -291,6 +292,8 @@ def write_show():
 
 
 def mark_dirty():
+    global show_rev
+    show_rev += 1
     _dirty.set()
 
 
@@ -375,6 +378,7 @@ def get_state():
             "blackout": show["blackout"],
             "dmx": dmx_state(),
             "lan_url": lan_url(),
+            "rev": show_rev,
         })
 
 
@@ -538,6 +542,33 @@ def set_blackout():
         rebuild_universe()
         mark_dirty()
         return jsonify({"blackout": show["blackout"]})
+
+
+@app.get("/api/events")
+def events():
+    """Avvisa i dispositivi collegati appena lo show cambia (niente attese)."""
+    def stream():
+        ultimo = -1
+        fermo = 0.0
+        while True:
+            with lock:
+                rev = show_rev
+            if rev != ultimo:
+                ultimo = rev
+                fermo = 0.0
+                yield f"data: {rev}\n\n"
+            else:
+                time.sleep(0.1)
+                fermo += 0.1
+                if fermo >= 15:   # battito per non far cadere la connessione
+                    fermo = 0.0
+                    yield ": ping\n\n"
+
+    return Response(stream(), mimetype="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+    })
 
 
 @app.get("/version.json")

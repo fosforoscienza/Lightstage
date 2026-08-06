@@ -93,8 +93,12 @@ web servito da lì a **tutta la rete locale**. Dagli altri dispositivi
 - nel terminale all'avvio (riga *"Da telefoni/PC sulla stessa rete"*),
   ad es. `http://192.168.1.42:8123`.
 
-Tutti i dispositivi restano sincronizzati: se dal telefono lanci un preset,
-lo vedi cambiare anche sul computer. Al primo avvio **Windows** chiede se
+Tutti i dispositivi restano sincronizzati **in tempo reale** (meno di mezzo
+secondo): il computer in regia resta collegato al cavo DMX e comanda le luci,
+mentre da iPad o telefono muovi i fader, lanci i preset, aggiungi fari o
+sposti i fari sulla mappa — ogni modifica compare subito anche sugli altri
+schermi. Chi sta manovrando un fader ha la precedenza, così due persone non
+si contendono lo stesso comando. Al primo avvio **Windows** chiede se
 consentire a Python l'accesso alla rete: scegli *Consenti* (reti private).
 
 Nota: il programma deve girare sul computer fisicamente collegato al cavo

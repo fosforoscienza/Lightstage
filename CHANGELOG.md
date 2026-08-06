@@ -5,6 +5,14 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.8
+
+- Lavoro a più mani immediato: il computer in regia avvisa gli altri
+  dispositivi appena qualcosa cambia, così da iPad o telefono si vedono le
+  modifiche in una frazione di secondo invece che dopo qualche secondo.
+- Ritocchi per il tocco su iPad: trascinare un faro sulla mappa non fa più
+  scorrere la pagina e il doppio tocco non ingrandisce.
+
 ## 5.7
 
 - Nell'anteprima il canale **pan fa ruotare il fascio**: la direzione in cui
