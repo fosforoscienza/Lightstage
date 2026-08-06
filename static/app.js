@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.0';
+const APP_VERSION = '5.1';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -86,23 +86,25 @@ function fadeGroupValue(sel) {
   return on ? parseFloat(on.dataset.value) : 0;
 }
 
-function setupFadeGroup(sel, storageKey, { allowOff = false } = {}) {
-  const group = $(sel);
-  const salvato = localStorage.getItem(storageKey);
+/* più gruppi possono comandare la stessa impostazione (barra preset e
+   schermata griglia): restano sempre allineati fra loro */
+function setupFadeGroup(selectors, storageKey, { allowOff = false } = {}) {
+  const gruppi = [].concat(selectors).map((s) => $(s)).filter(Boolean);
   const applica = (valore) => {
-    group.querySelectorAll('button').forEach((b) => {
+    gruppi.forEach((g) => g.querySelectorAll('button').forEach((b) => {
       b.classList.toggle('sel', b.dataset.value === valore);
-    });
+    }));
   };
+  const salvato = localStorage.getItem(storageKey);
   if (salvato !== null) applica(salvato);
-  group.addEventListener('click', (e) => {
+  gruppi.forEach((group) => group.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
     const spegni = allowOff && btn.classList.contains('sel');
     applica(spegni ? '' : btn.dataset.value);
     localStorage.setItem(storageKey, spegni ? '' : btn.dataset.value);
     btn.blur(); // niente fuoco: la barra spaziatrice non lo ricliccherebbe
-  });
+  }));
 }
 
 async function api(method, url, body) {
@@ -644,11 +646,6 @@ async function savePreset(slot, existing) {
   if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
 }
 
-/* i canali che sfumano nel passaggio tra preset: luce e colore.
-   Pan/Tilt/macro scattano subito al valore del preset, senza vagare
-   per valori intermedi. */
-const PRESET_FADE_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white']);
-
 async function loadPreset(slot) {
   const p = state.presets[slot];
   if (!p) return;
@@ -675,15 +672,9 @@ async function loadPreset(slot) {
     }
     return;
   }
-  // i canali che non sfumano vanno subito a destinazione
-  for (const f of state.fixtures) {
-    const to = targets.get(f.id);
-    if (!to) continue;
-    const chans = fixtureChannels(f);
-    f.values = f.values.map((v, i) =>
-      PRESET_FADE_ROLES.has(chans[i].role) ? v : to[i]);
-  }
-  fadeValues(targets, durata, PRESET_FADE_ROLES);
+  // la dissolvenza agisce su tutti i canali: le teste mobili si spostano
+  // e zoomano gradualmente invece di scattare
+  fadeValues(targets, durata, null);
 }
 
 /* ------------------------------------------------------------------- DMX */
@@ -1228,6 +1219,8 @@ const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'str
 let fadeToken = 0;        // token: una nuova dissolvenza annulla quella in corso
 let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 
+/* fadeRoles: insieme dei ruoli che sfumano, oppure null per sfumare
+   tutti i canali (compresi pan/tilt/zoom delle teste mobili) */
 function fadeValues(targets, durata, fadeRoles) {
   const token = ++fadeToken;
   const inizio = performance.now();
@@ -1240,7 +1233,7 @@ function fadeValues(targets, durata, fadeRoles) {
       if (!to) continue;
       const chans = fixtureChannels(f);
       f.values = f.values.map((v, i) =>
-        fadeRoles.has(chans[i].role)
+        !fadeRoles || fadeRoles.has(chans[i].role)
           ? Math.round(from[i] + (to[i] - from[i]) * t)
           : v);
       updateFixtureDisplays(f);
@@ -1273,7 +1266,8 @@ function toggleFtb() {
 
 $('#btn-ftb').addEventListener('click', toggleFtb);
 setupFadeGroup('#ftb-time', 'lightstage-ftb-time');
-setupFadeGroup('#preset-fade', 'lightstage-preset-fade', { allowOff: true });
+setupFadeGroup(['#preset-fade', '#preset-fade-grid'], 'lightstage-preset-fade',
+  { allowOff: true });
 
 /* scarica lo show come file (backup / trasferimento) */
 function exportShow() {

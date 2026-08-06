@@ -5,6 +5,13 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.1
+
+- I pulsanti del fade ci sono anche nella schermata Preset grid, allineati
+  con quelli della barra.
+- La dissolvenza fra preset agisce su **tutti** i canali: le teste mobili si
+  spostano e zoomano gradualmente invece di scattare.
+
 ## 5.0 — *strutturale*
 
 - I preset passano da 10 a **100**.

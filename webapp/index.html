@@ -92,6 +92,15 @@
     <h2>Preset grid</h2>
     <span class="small">clic su un preset per lanciarlo &middot; su uno vuoto per salvarci le luci attuali</span>
     <div class="spacer"></div>
+    <div id="preset-fade-box">
+      Fade
+      <span id="preset-fade-grid" class="fade-group"
+            title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
+        <button type="button" data-value="0.5">0,5s</button>
+        <button type="button" data-value="1" class="sel">1s</button>
+        <button type="button" data-value="1.5">1,5s</button>
+      </span>
+    </div>
     <button id="btn-grid-close" class="btn">Chiudi</button>
   </header>
   <div id="preset-grid-cells"></div>

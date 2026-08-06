@@ -427,6 +427,7 @@ body { display: flex; flex-direction: column; }
   flex: 0 0 auto;
 }
 #preset-grid header h2 { font-size: 16px; }
+#preset-grid header #preset-fade-box { border-right: none; padding-right: 0; }
 #preset-grid-cells {
   flex: 1;
   overflow-y: auto;
