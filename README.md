@@ -214,7 +214,16 @@ solo). Esempio, una testa mobile a 8 canali:
 Il numero di versione è in basso a destra nell'interfaccia; lo storico delle
 modifiche è in [CHANGELOG.md](CHANGELOG.md). Due cifre soltanto: il primo
 numero cambia con le modifiche strutturali, il secondo con aggiunte e
-ritocchi. Per aggiornarlo basta cambiare `APP_VERSION` in `static/app.js`.
+ritocchi.
+
+**Non vedi le ultime modifiche?** Controlla il numero in basso a destra: se
+non è quello dell'ultima versione, il browser sta usando la copia vecchia —
+ricarica con **Ctrl+F5** (Cmd+Shift+R su Mac). Se usi la versione Python,
+ricordati di aggiornare la cartella con `git pull` e riavviare il programma.
+
+Per rilasciare una versione nuova: cambia `APP_VERSION` in `static/app.js` e
+il `?v=` nei due file `index.html` (serve a non far riusare al browser i file
+della versione precedente).
 
 ## Limitazioni
 

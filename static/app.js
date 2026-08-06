@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.2';
+const APP_VERSION = '5.3';
 
 /* ------------------------------------------------------------------ stato */
 const state = {

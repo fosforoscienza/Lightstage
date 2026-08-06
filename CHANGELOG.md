@@ -5,6 +5,11 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.3
+
+- I file dell'interfaccia sono richiamati con il numero di versione, così il
+  browser non riusa quelli vecchi dopo un aggiornamento.
+
 ## 5.2
 
 - Nella Preset grid il preset in onda ha il bordo verde; cliccandone un
