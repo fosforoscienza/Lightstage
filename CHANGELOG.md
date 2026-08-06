@@ -5,6 +5,12 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.9
+
+- Mentre si ruota un faro sulla mappa compare una targhetta con i **gradi**.
+- Tenendo **Maiusc** la rotazione va a scatti di **15°** (sia con la maniglia
+  sia con la rotellina).
+
 ## 5.8
 
 - Lavoro a più mani immediato: il computer in regia avvisa gli altri

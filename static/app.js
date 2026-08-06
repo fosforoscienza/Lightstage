@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.8';
+const APP_VERSION = '5.9';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -903,6 +903,11 @@ function draw() {
     ctx.fill();
   }
 
+  const inRotazione = dragMode === 'rotate' && dragFixture
+    ? dragFixture
+    : (rotateHint && performance.now() < rotateHint.until ? rotateHint.f : null);
+  if (inRotazione && state.fixtures.includes(inRotazione)) drawRotateBadge(inRotazione);
+
   requestAnimationFrame(draw);
 }
 
@@ -975,6 +980,32 @@ function roundRect(c2, x, y, w, h, r) {
 }
 
 /* interazione con il palco */
+const ROT_STEP = 15;      // scatti con il tasto Maiusc
+let rotateHint = null;    // {f, until}: mostra i gradi mentre si ruota
+
+function showRotateHint(f, ms = 1000) {
+  rotateHint = { f, until: performance.now() + ms };
+}
+
+/* targhetta con i gradi accanto al faro che si sta ruotando */
+function drawRotateBadge(f) {
+  const p = fixturePos(f);
+  const testo = `${Math.round(f.rot) % 360}°`;
+  ctx.font = 'bold 12px sans-serif';
+  const w = ctx.measureText(testo).width + 14;
+  const x = p.x - w / 2;
+  const y = p.y - 42;
+  ctx.fillStyle = 'rgba(16, 20, 27, 0.9)';
+  ctx.strokeStyle = '#5b8cff';
+  ctx.lineWidth = 1;
+  roundRect(ctx, x, y, w, 20, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#e8ecf3';
+  ctx.textAlign = 'center';
+  ctx.fillText(testo, p.x, y + 14);
+}
+
 let dragMode = null; // 'move' | 'rotate'
 let dragFixture = null;
 let dragOff = { x: 0, y: 0 };
@@ -1024,9 +1055,12 @@ canvas.addEventListener('pointermove', (e) => {
     pushFixturePatch(f.id, { x: f.x, y: f.y });
   } else {
     const p = fixturePos(f);
-    f.rot = (Math.atan2(px - p.x, py - p.y) * 180 / Math.PI + 360) % 360;
+    let ang = (Math.atan2(px - p.x, py - p.y) * 180 / Math.PI + 360) % 360;
+    if (e.shiftKey) ang = (Math.round(ang / ROT_STEP) * ROT_STEP) % 360;
+    f.rot = ang;
     f.panzero = panPosition(f) ?? 0;   // la nuova direzione diventa lo zero
     pushFixturePatch(f.id, { rot: f.rot, panzero: f.panzero });
+    showRotateHint(f);
   }
 });
 
@@ -1040,9 +1074,13 @@ canvas.addEventListener('wheel', (e) => {
   const f = fixtureAt(e.clientX - rect.left, e.clientY - rect.top);
   if (!f) return;
   e.preventDefault();
-  f.rot = (f.rot + (e.deltaY > 0 ? 4 : -4) + 360) % 360;
+  const verso = e.deltaY > 0 ? 1 : -1;
+  f.rot = e.shiftKey
+    ? (Math.round(f.rot / ROT_STEP) * ROT_STEP + verso * ROT_STEP + 360) % 360
+    : (f.rot + verso * 4 + 360) % 360;
   f.panzero = panPosition(f) ?? 0;
   pushFixturePatch(f.id, { rot: f.rot, panzero: f.panzero });
+  showRotateHint(f);
 }, { passive: false });
 
 /* ---------------------------------------------------------------- modali */
