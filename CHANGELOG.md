@@ -5,6 +5,12 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.4
+
+- L'app si accorge da sola quando è disponibile una versione nuova (anche se
+  il browser ha in cache quella vecchia) e propone di caricarla con un clic.
+- Il numero di versione compare anche nella schermata Preset grid.
+
 ## 5.3
 
 - I file dell'interfaccia sono richiamati con il numero di versione, così il

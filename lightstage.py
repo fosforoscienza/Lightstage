@@ -538,6 +538,22 @@ def set_blackout():
         return jsonify({"blackout": show["blackout"]})
 
 
+@app.get("/version.json")
+def get_version():
+    """Serve all'app per accorgersi se il browser sta usando una copia vecchia."""
+    version = "?"
+    try:
+        with open(os.path.join(BASE_DIR, "static", "app.js"), encoding="utf-8") as fh:
+            for line in fh:
+                m = re.search(r"APP_VERSION\s*=\s*'([^']+)'", line)
+                if m:
+                    version = m.group(1)
+                    break
+    except OSError:
+        pass
+    return jsonify({"version": version})
+
+
 @app.get("/api/dmx")
 def get_dmx():
     return jsonify(dmx_state())

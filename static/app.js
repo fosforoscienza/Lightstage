@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.3';
+const APP_VERSION = '5.4';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -1433,6 +1433,36 @@ $('#btn-network').addEventListener('click', () => {
   }
 });
 
+/* ------------------------------------------------- avviso di aggiornamento
+   Il browser può servire una copia vecchia dell'app anche dopo un
+   aggiornamento del sito: version.json viene letto ignorando la cache, così
+   la versione nuova viene notata comunque e basta un clic per caricarla. */
+async function checkForUpdate() {
+  try {
+    const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const info = await res.json();
+    if (!info.version || info.version === APP_VERSION) return;
+    const bar = document.createElement('div');
+    bar.id = 'update-bar';
+    bar.append(`È disponibile la versione ${info.version} (stai usando la ${APP_VERSION}).`);
+    const btn = document.createElement('button');
+    btn.className = 'btn primary';
+    btn.textContent = 'Aggiorna adesso';
+    btn.addEventListener('click', () => {
+      location.replace(`${location.pathname}?v=${encodeURIComponent(info.version)}`);
+    });
+    const close = document.createElement('button');
+    close.className = 'btn ghost';
+    close.textContent = 'Più tardi';
+    close.addEventListener('click', () => bar.remove());
+    bar.append(btn, close);
+    document.body.append(bar);
+  } catch (err) {
+    /* offline o file assente: nessun avviso */
+  }
+}
+
 /* ------------------------------------------------------------------ init */
 async function init() {
   const s = await api('GET', '/api/state');
@@ -1457,6 +1487,7 @@ async function init() {
   renderDmx();
   resizeCanvas();
   requestAnimationFrame(draw);
+  checkForUpdate();
   setInterval(async () => {
     try {
       // le modifiche fatte da altri dispositivi arrivano qui
