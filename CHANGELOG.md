@@ -5,6 +5,13 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.2
+
+- Nella Preset grid il preset in onda ha il bordo verde; cliccandone un
+  altro lo si *prepara* (bordo rosso lampeggiante) e va in onda solo con la
+  **barra spaziatrice**, come su una console.
+- Legenda dei comandi in fondo alla schermata.
+
 ## 5.1
 
 - I pulsanti del fade ci sono anche nella schermata Preset grid, allineati

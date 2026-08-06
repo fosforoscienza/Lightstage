@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.1';
+const APP_VERSION = '5.2';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -271,6 +271,7 @@ function clearActivePreset() {
   if (activePreset !== null) {
     activePreset = null;
     renderPresets();
+    updateGridSelection();
   }
 }
 
@@ -500,7 +501,8 @@ function renderPresets() {
 }
 
 /* ------------------------------------------------- griglia dei 100 preset */
-const gridCells = new Map(); // slot -> {cell, canvas, nameEl}
+const gridCells = new Map(); // slot -> {cell, canvas, nameEl, badge}
+let armedPreset = null;      // preset preparato, parte con la barra spaziatrice
 
 /* miniatura del palco con le luci di un preset (o del look attuale) */
 function drawPresetThumb(canvas, preset) {
@@ -562,10 +564,14 @@ function renderGrid() {
   gridCells.clear();
   state.presets.forEach((p, i) => {
     const cell = document.createElement('div');
-    cell.className = 'grid-cell' + (p ? '' : ' empty') + (i === activePreset ? ' active' : '');
+    cell.className = 'grid-cell' + (p ? '' : ' empty');
 
     const canvas = document.createElement('canvas');
     cell.append(canvas);
+
+    const badge = document.createElement('span');
+    badge.className = 'cell-badge';
+    cell.append(badge);
 
     const foot = document.createElement('div');
     foot.className = 'cell-foot';
@@ -598,6 +604,7 @@ function renderGrid() {
         const res = await api('DELETE', `/api/presets/${i}`);
         state.presets = res.presets;
         if (activePreset === i) activePreset = null;
+        if (armedPreset === i) armedPreset = null;
         renderPresets();
         renderGrid();
       });
@@ -605,23 +612,47 @@ function renderGrid() {
     }
     cell.append(actions);
 
-    cell.title = p ? `Lancia "${p.name}"` : 'Vuoto: clic per salvarci le luci attuali';
+    cell.title = p
+      ? `Prepara "${p.name}" — poi barra spaziatrice per mandarlo in onda`
+      : 'Vuoto: clic per salvarci le luci attuali';
     cell.addEventListener('click', async () => {
-      if (p) {
-        await loadPreset(i);
-        renderGrid();
-      } else {
+      if (!p) {
         await savePreset(i, null);
+        return;
       }
+      // clic = prepara (rosso lampeggiante); riclic sul preparato = annulla
+      armedPreset = armedPreset === i ? null : i;
+      updateGridSelection();
     });
 
     wrap.append(cell);
-    gridCells.set(i, { cell, canvas, nameEl });
+    gridCells.set(i, { cell, canvas, nameEl, badge });
   });
+  updateGridSelection();
   // le miniature si disegnano dopo il layout, così hanno le misure giuste
   requestAnimationFrame(() => {
     gridCells.forEach((ref, slot) => drawPresetThumb(ref.canvas, state.presets[slot]));
   });
+}
+
+/* aggiorna solo i bordi, senza ridisegnare le 100 miniature */
+function updateGridSelection() {
+  gridCells.forEach((ref, slot) => {
+    const live = slot === activePreset && state.presets[slot];
+    const armed = slot === armedPreset;
+    ref.cell.classList.toggle('live', !!live && !armed);
+    ref.cell.classList.toggle('armed', armed);
+    ref.badge.textContent = armed ? 'PRONTO' : (live ? 'IN ONDA' : '');
+  });
+}
+
+/* manda in onda il preset preparato (barra spaziatrice) */
+async function fireArmedPreset() {
+  if (armedPreset === null || !state.presets[armedPreset]) return;
+  const slot = armedPreset;
+  armedPreset = null;
+  await loadPreset(slot);
+  updateGridSelection();
 }
 
 function openGrid() {
@@ -651,6 +682,7 @@ async function loadPreset(slot) {
   if (!p) return;
   activePreset = slot;
   renderPresets();
+  updateGridSelection();
   const durata = fadeGroupValue('#preset-fade') * 1000;
   const targets = new Map();
   for (const f of state.fixtures) {
@@ -1292,6 +1324,11 @@ window.addEventListener('keydown', (e) => {
   if (e.altKey) return;
   if (e.code === 'Escape' && !$('#preset-grid').classList.contains('hidden')) {
     closeGrid();
+    return;
+  }
+  if (e.code === 'Space') {
+    e.preventDefault(); // niente scorrimento della pagina
+    fireArmedPreset().catch(console.error);
     return;
   }
   if (e.ctrlKey || e.metaKey) {
