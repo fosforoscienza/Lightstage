@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '4.9';
+const APP_VERSION = '5.0';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -155,11 +155,15 @@ function fixtureSpan(f) {
 }
 
 function fixtureColor(f) {
+  return colorFromValues(f.values, fixtureChannels(f));
+}
+
+function colorFromValues(values, channels) {
   let master = null;
   let r = 0, g = 0, b = 0, uv = 0, w = 0;
   let hasColor = false;
-  fixtureChannels(f).forEach((c, i) => {
-    const v = f.values[i] || 0;
+  channels.forEach((c, i) => {
+    const v = values[i] || 0;
     switch (c.role) {
       case 'dimmer': master = master === null ? v : Math.max(master, v); break;
       case 'red': r = Math.max(r, v); hasColor = true; break;
@@ -170,7 +174,7 @@ function fixtureColor(f) {
     }
   });
   if (!hasColor) {
-    if (master === null) master = Math.max(0, ...f.values);
+    if (master === null) master = Math.max(0, ...values);
     r = g = b = 255;
   }
   // il bianco si somma a tutti e tre i colori
@@ -493,6 +497,143 @@ function renderPresets() {
   });
 }
 
+/* ------------------------------------------------- griglia dei 100 preset */
+const gridCells = new Map(); // slot -> {cell, canvas, nameEl}
+
+/* miniatura del palco con le luci di un preset (o del look attuale) */
+function drawPresetThumb(canvas, preset) {
+  const ctx2 = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || 180;
+  const h = canvas.clientHeight || 80;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx2.clearRect(0, 0, w, h);
+
+  ctx2.save();
+  ctx2.globalCompositeOperation = 'lighter';
+  for (const f of state.fixtures) {
+    // slot vuoto: nessun fascio, solo i fari spenti
+    const values = preset ? preset.values[String(f.id)] : null;
+    if (!values) continue;
+    const c = colorFromValues(values, fixtureChannels(f));
+    if (c.intensity <= 0.02) continue;
+    const x = f.x * w;
+    const y = f.y * h;
+    const len = h * 0.75;
+    ctx2.save();
+    ctx2.translate(x, y);
+    ctx2.rotate(-f.rot * Math.PI / 180);
+    const grad = ctx2.createRadialGradient(0, 0, 1, 0, 0, len);
+    grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${0.75 * c.intensity})`);
+    grad.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
+    ctx2.fillStyle = grad;
+    const half = Math.tan(24 * Math.PI / 180) * len;
+    ctx2.beginPath();
+    ctx2.moveTo(0, 0);
+    ctx2.lineTo(-half, len);
+    ctx2.lineTo(half, len);
+    ctx2.closePath();
+    ctx2.fill();
+    ctx2.restore();
+  }
+  ctx2.restore();
+
+  // corpi dei fari
+  for (const f of state.fixtures) {
+    const values = preset ? preset.values[String(f.id)] : null;
+    const c = values ? colorFromValues(values, fixtureChannels(f)) : null;
+    const x = f.x * w;
+    const y = f.y * h;
+    ctx2.fillStyle = c && c.intensity > 0.02
+      ? `rgb(${c.r},${c.g},${c.b})` : '#39414f';
+    ctx2.beginPath();
+    ctx2.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx2.fill();
+  }
+}
+
+function renderGrid() {
+  const wrap = $('#preset-grid-cells');
+  wrap.innerHTML = '';
+  gridCells.clear();
+  state.presets.forEach((p, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell' + (p ? '' : ' empty') + (i === activePreset ? ' active' : '');
+
+    const canvas = document.createElement('canvas');
+    cell.append(canvas);
+
+    const foot = document.createElement('div');
+    foot.className = 'cell-foot';
+    const num = document.createElement('span');
+    num.className = 'cell-num';
+    num.textContent = i + 1;
+    const nameEl = document.createElement('span');
+    nameEl.className = 'cell-name';
+    nameEl.textContent = p ? p.name : 'vuoto';
+    foot.append(num, nameEl);
+    cell.append(foot);
+
+    const actions = document.createElement('div');
+    actions.className = 'cell-actions';
+    const save = document.createElement('button');
+    save.textContent = '💾';
+    save.title = p ? 'Sovrascrivi con le luci attuali' : 'Salva le luci attuali';
+    save.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await savePreset(i, p);
+    });
+    actions.append(save);
+    if (p) {
+      const clear = document.createElement('button');
+      clear.textContent = '✕';
+      clear.title = 'Svuota preset';
+      clear.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Svuotare il preset "${p.name}"?`)) return;
+        const res = await api('DELETE', `/api/presets/${i}`);
+        state.presets = res.presets;
+        if (activePreset === i) activePreset = null;
+        renderPresets();
+        renderGrid();
+      });
+      actions.append(clear);
+    }
+    cell.append(actions);
+
+    cell.title = p ? `Lancia "${p.name}"` : 'Vuoto: clic per salvarci le luci attuali';
+    cell.addEventListener('click', async () => {
+      if (p) {
+        await loadPreset(i);
+        renderGrid();
+      } else {
+        await savePreset(i, null);
+      }
+    });
+
+    wrap.append(cell);
+    gridCells.set(i, { cell, canvas, nameEl });
+  });
+  // le miniature si disegnano dopo il layout, così hanno le misure giuste
+  requestAnimationFrame(() => {
+    gridCells.forEach((ref, slot) => drawPresetThumb(ref.canvas, state.presets[slot]));
+  });
+}
+
+function openGrid() {
+  renderGrid();
+  $('#preset-grid').classList.remove('hidden');
+}
+
+function closeGrid() {
+  $('#preset-grid').classList.add('hidden');
+}
+
+$('#btn-grid').addEventListener('click', openGrid);
+$('#btn-grid-close').addEventListener('click', closeGrid);
+
 async function savePreset(slot, existing) {
   const name = prompt('Nome del preset:', existing ? existing.name : `Preset ${slot + 1}`);
   if (name === null) return;
@@ -500,6 +641,7 @@ async function savePreset(slot, existing) {
   state.presets = res.presets;
   activePreset = slot;
   renderPresets();
+  if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
 }
 
 /* i canali che sfumano nel passaggio tra preset: luce e colore.
@@ -1154,6 +1296,10 @@ function exportShow() {
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, select, textarea')) return;
   if (e.altKey) return;
+  if (e.code === 'Escape' && !$('#preset-grid').classList.contains('hidden')) {
+    closeGrid();
+    return;
+  }
   if (e.ctrlKey || e.metaKey) {
     if (e.code === 'KeyC') {
       if (window.getSelection().toString()) return; // lascia copiare il testo
@@ -1186,6 +1332,9 @@ window.addEventListener('keydown', (e) => {
     // senza preventDefault la "n" finirebbe nel campo nome appena aperto
     e.preventDefault();
     $('#btn-add').click();
+  } else if (e.code === 'KeyG') {
+    if ($('#preset-grid').classList.contains('hidden')) openGrid();
+    else closeGrid();
   }
 });
 
@@ -1218,6 +1367,7 @@ function applyRemoteState(s) {
   if (JSON.stringify(state.presets) !== JSON.stringify(s.presets)) {
     state.presets = s.presets;
     renderPresets();
+    if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
   }
   if (state.blackout !== s.blackout) {
     state.blackout = s.blackout;

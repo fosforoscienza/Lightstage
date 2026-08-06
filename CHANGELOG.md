@@ -5,6 +5,13 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.0 — *strutturale*
+
+- I preset passano da 10 a **100**.
+- Nuova schermata **Preset grid** (pulsante in basso a destra o tasto G):
+  tutti i preset in griglia da 5 colonne, ognuno con l'anteprima del palco e
+  il suo nome; si lanciano, si salvano e si svuotano da lì.
+
 ## 4.9
 
 - Numero di versione nel piè di pagina.

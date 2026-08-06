@@ -18,9 +18,13 @@ Daslight: solo quello che serve.
   colore e i fader Rosso/Verde/Blu si impostano da soli (e se il dimmer è a
   zero viene alzato, così il colore si vede subito). Muovendo i fader a mano,
   il selettore si aggiorna di conseguenza.
-- **Preset**: **10 slot** con nome. Clic su uno slot vuoto per salvare le luci
+- **Preset**: **100 slot** con nome. Clic su uno slot vuoto per salvare le luci
   attuali, clic su uno pieno per caricarlo, 💾 per sovrascrivere/rinominare,
-  ✕ per svuotarlo.
+  ✕ per svuotarlo. Il selettore **Fade** applica una dissolvenza nel passaggio
+  da un preset all'altro.
+- **Preset grid**: il pulsante in basso a destra (o il tasto **G**) apre la
+  schermata con tutti i 100 preset in griglia da 5 colonne, ognuno con
+  l'anteprima del palco e il suo nome, per ritrovare al volo la scena giusta.
 - **Scorciatoie da tastiera** (legenda sempre visibile nel piè di pagina):
   **1–9 e 0** lanciano i preset, **B** blackout, **F** fade to black,
   **N** nuovo faro, **Cmd/Ctrl+C** connetti il cavo, **Cmd/Ctrl+S** salva lo

@@ -75,12 +75,27 @@
     <span class="key-item"><kbd>B</kbd><em>blackout</em></span>
     <span class="key-item"><kbd>F</kbd><em>fade to black</em></span>
     <span class="key-item"><kbd>N</kbd><em>nuovo faro</em></span>
+    <span class="key-item"><kbd>G</kbd><em>griglia preset</em></span>
     <span class="key-item"><kbd class="mod">&#8984;C</kbd><em>connetti cavo</em></span>
     <span class="key-item"><kbd class="mod">&#8984;O</kbd><em>online</em></span>
     <span class="key-item"><kbd class="mod">&#8984;S</kbd><em>salva show</em></span>
   </div>
-  <div class="credits-right"><span id="app-version"></span></div>
+  <div class="credits-right">
+    <button id="btn-grid" class="btn ghost" title="Tutti i 100 preset con anteprima (tasto G)">&#9638; Preset grid</button>
+    <span id="app-version"></span>
+  </div>
 </footer>
+
+<!-- schermata: griglia dei preset -->
+<section id="preset-grid" class="hidden">
+  <header>
+    <h2>Preset grid</h2>
+    <span class="small">clic su un preset per lanciarlo &middot; su uno vuoto per salvarci le luci attuali</span>
+    <div class="spacer"></div>
+    <button id="btn-grid-close" class="btn">Chiudi</button>
+  </header>
+  <div id="preset-grid-cells"></div>
+</section>
 
 <!-- modale: aggiungi faro -->
 <div id="modal-add" class="modal hidden">

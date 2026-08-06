@@ -32,7 +32,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHOW_FILE = os.path.join(BASE_DIR, "show.json")
 HOST = "0.0.0.0"  # raggiungibile anche da telefoni/PC sulla stessa rete
 PORT = 8123
-NUM_PRESETS = 10
+NUM_PRESETS = 100
 NUM_CHANNELS = 8
 # l'indirizzo massimo dipende dal numero di canali del faro: 512 - n + 1
 DMX_FPS = 30

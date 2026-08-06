@@ -399,10 +399,103 @@ body { display: flex; flex-direction: column; }
 }
 .credits-right {
   flex: 1;
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.5px;
 }
+#btn-grid { font-size: 12px; padding: 4px 10px; }
+
+/* ------------------------------------------------------- griglia preset */
+#preset-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+#preset-grid header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex: 0 0 auto;
+}
+#preset-grid header h2 { font-size: 16px; }
+#preset-grid-cells {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  padding: 12px 16px 20px;
+  align-content: start;
+}
+.grid-cell {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+}
+.grid-cell:hover { border-color: var(--accent); background: #1b2230; }
+.grid-cell.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.grid-cell.empty { opacity: 0.55; }
+.grid-cell canvas {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  background: #0a0c10;
+  border-radius: 6px;
+  display: block;
+}
+.grid-cell .cell-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.grid-cell .cell-num {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: #10141b;
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex: 0 0 auto;
+}
+.grid-cell .cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.grid-cell.empty .cell-name { font-style: italic; color: #566074; }
+.grid-cell .cell-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  gap: 3px;
+}
+.grid-cell:hover .cell-actions { display: flex; }
+.grid-cell .cell-actions button {
+  background: rgba(16, 20, 27, 0.85);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 2px 5px;
+  cursor: pointer;
+}
+.grid-cell .cell-actions button:hover { color: #fff; background: #333c4d; }
 .key-item {
   display: inline-flex;
   align-items: center;

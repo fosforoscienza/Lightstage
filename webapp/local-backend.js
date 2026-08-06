@@ -5,7 +5,7 @@
    USB tramite l'API Web Serial (Chrome/Edge). */
 (function () {
   const NUM_CHANNELS = 8;   // predefinito: i fari possono averne anche 16
-  const NUM_PRESETS = 10;
+  const NUM_PRESETS = 100;
   const STORE_KEY = 'lightstage-show';
   const DEFAULT_CHANNELS = [
     { label: 'Dimmer', role: 'dimmer' },
