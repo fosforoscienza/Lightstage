@@ -5,6 +5,14 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.11
+
+- Nell'anteprima le **teste mobili hanno un disegno diverso dai par**: base
+  tonda con forcella e testa orientata verso il fascio, così si distinguono
+  a colpo d'occhio (anche nelle miniature dei preset).
+- Il nome del faro resta sempre leggibile: passa sopra al faro quando è
+  vicino al bordo inferiore, rientra ai lati e ha un velo scuro dietro.
+
 ## 5.10
 
 - L'avviso di aggiornamento compare anche a pagina già aperta: il controllo

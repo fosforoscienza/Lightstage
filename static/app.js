@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.10';
+const APP_VERSION = '5.11';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -584,9 +584,13 @@ function drawPresetThumb(canvas, preset) {
     const y = f.y * h;
     ctx2.fillStyle = c && c.intensity > 0.02
       ? `rgb(${c.r},${c.g},${c.b})` : '#39414f';
-    ctx2.beginPath();
-    ctx2.arc(x, y, 2.5, 0, Math.PI * 2);
-    ctx2.fill();
+    if (isMovingHead(f)) {
+      ctx2.beginPath();
+      ctx2.arc(x, y, 2.8, 0, Math.PI * 2);
+      ctx2.fill();
+    } else {
+      ctx2.fillRect(x - 2.5, y - 2, 5, 4);
+    }
   }
 }
 
@@ -944,29 +948,68 @@ function drawBeam(f) {
   ctx.restore();
 }
 
+/* una testa mobile si riconosce dai canali di movimento */
+function isMovingHead(f) {
+  return fixtureChannels(f).some((c) => c.role === 'pan' || c.role === 'tilt');
+}
+
 function drawFixture(f) {
   const p = fixturePos(f);
   const c = fixtureColor(f);
   const on = !state.blackout && c.intensity > 0.01;
+  const lente = on ? `rgb(${c.r},${c.g},${c.b})` : '#151922';
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(-beamAngle(f) * Math.PI / 180);
-  ctx.fillStyle = '#242b38';
   ctx.strokeStyle = f.id === selectedId ? '#8fb0ff' : '#3a4356';
   ctx.lineWidth = 1.5;
-  roundRect(ctx, -13, -9, 26, 18, 4);
-  ctx.fill();
-  ctx.stroke();
-  // lente sul lato del fascio
-  ctx.fillStyle = on ? `rgb(${c.r},${c.g},${c.b})` : '#151922';
-  roundRect(ctx, -9, 4, 18, 5, 2);
-  ctx.fill();
+
+  if (isMovingHead(f)) {
+    // vista dall'alto: base tonda, forcella e testa orientata verso il fascio
+    ctx.fillStyle = '#1b2029';
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#2b3444';
+    roundRect(ctx, -11, -2, 4, 14, 2);   // braccio sinistro
+    ctx.fill();
+    ctx.stroke();
+    roundRect(ctx, 7, -2, 4, 14, 2);     // braccio destro
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#242b38';
+    roundRect(ctx, -6, 0, 12, 13, 3);    // testa
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = lente;
+    ctx.beginPath();
+    ctx.arc(0, 8, 4, 0, Math.PI * 2);    // lente tonda
+    ctx.fill();
+  } else {
+    // par: corpo squadrato con la lente a fascia
+    ctx.fillStyle = '#242b38';
+    roundRect(ctx, -13, -9, 26, 18, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = lente;
+    roundRect(ctx, -9, 4, 18, 5, 2);
+    ctx.fill();
+  }
   ctx.restore();
 
-  ctx.fillStyle = 'rgba(223,227,234,0.85)';
+  // il nome sta sotto il faro, ma passa sopra se lo spazio in basso non basta
+  const testo = `${f.name} · ${f.address}`;
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`${f.name} · ${f.address}`, p.x, p.y + 30);
+  const mezzo = ctx.measureText(testo).width / 2;
+  const x = Math.max(mezzo + 4, Math.min(cw - mezzo - 4, p.x));
+  const y = p.y + 30 > ch - 6 ? p.y - 20 : p.y + 30;
+  ctx.fillStyle = 'rgba(10, 12, 16, 0.65)';   // velo scuro per leggerlo sul fascio
+  roundRect(ctx, x - mezzo - 3, y - 9, mezzo * 2 + 6, 12, 3);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(223,227,234,0.9)';
+  ctx.fillText(testo, x, y);
 }
 
 function roundRect(c2, x, y, w, h, r) {
