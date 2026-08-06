@@ -1,0 +1,13 @@
+# Online va pubblicata solo la versione web (cartelle webapp/ e static/).
+# La versione Python gira sul computer collegato al cavo DMX, non sul sito:
+# escluderla evita che Vercel provi a costruirla come applicazione Flask.
+lightstage.py
+requirements.txt
+show.json
+*.bat
+*.command
+*.sh
+docs/
+CHANGELOG.md
+README.md
+__pycache__/
