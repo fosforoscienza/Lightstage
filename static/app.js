@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.4';
+const APP_VERSION = '5.5';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -704,9 +704,8 @@ async function loadPreset(slot) {
     }
     return;
   }
-  // la dissolvenza agisce su tutti i canali: le teste mobili si spostano
-  // e zoomano gradualmente invece di scattare
-  fadeValues(targets, durata, null);
+  // sfuma tutto tranne il movimento: pan e tilt vanno subito in posizione
+  fadeValues(targets, durata, { skip: PRESET_SNAP_ROLES });
 }
 
 /* ------------------------------------------------------------------- DMX */
@@ -1248,13 +1247,28 @@ $('#btn-blackout').addEventListener('click', () => toggleBlackout().catch(consol
    riporta tutto com'era prima, sempre in dissolvenza. Pan/Tilt/Focus/
    Return e i canali "Altro" (macro, velocità...) non vengono mai toccati. */
 const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
+/* nel passaggio tra preset il movimento non sfuma: le teste si riposizionano
+   di netto, mentre luci, colori e zoom seguono la dissolvenza */
+const PRESET_SNAP_ROLES = new Set(['pan', 'tilt']);
 let fadeToken = 0;        // token: una nuova dissolvenza annulla quella in corso
 let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 
-/* fadeRoles: insieme dei ruoli che sfumano, oppure null per sfumare
-   tutti i canali (compresi pan/tilt/zoom delle teste mobili) */
-function fadeValues(targets, durata, fadeRoles) {
+/* only: solo questi ruoli sfumano (gli altri restano fermi)
+   skip: questi ruoli vanno subito a destinazione, gli altri sfumano */
+function fadeValues(targets, durata, { only = null, skip = null } = {}) {
   const token = ++fadeToken;
+  const sfuma = (ruolo) => (only ? only.has(ruolo) : !(skip && skip.has(ruolo)));
+
+  // i canali esclusi dalla dissolvenza scattano subito
+  for (const f of state.fixtures) {
+    const to = targets.get(f.id);
+    if (!to) continue;
+    const chans = fixtureChannels(f);
+    f.values = f.values.map((v, i) => (sfuma(chans[i].role) ? v : to[i]));
+    updateFixtureDisplays(f);
+    pushValues(f);
+  }
+
   const inizio = performance.now();
   const partenza = state.fixtures.map((f) => ({ f, from: [...f.values] }));
   const step = () => {
@@ -1265,7 +1279,7 @@ function fadeValues(targets, durata, fadeRoles) {
       if (!to) continue;
       const chans = fixtureChannels(f);
       f.values = f.values.map((v, i) =>
-        !fadeRoles || fadeRoles.has(chans[i].role)
+        sfuma(chans[i].role)
           ? Math.round(from[i] + (to[i] - from[i]) * t)
           : v);
       updateFixtureDisplays(f);
@@ -1277,7 +1291,7 @@ function fadeValues(targets, durata, fadeRoles) {
 }
 
 function ftbFade(target) {
-  fadeValues(target, (fadeGroupValue('#ftb-time') || 1) * 1000, FTB_ROLES);
+  fadeValues(target, (fadeGroupValue('#ftb-time') || 1) * 1000, { only: FTB_ROLES });
 }
 
 function toggleFtb() {

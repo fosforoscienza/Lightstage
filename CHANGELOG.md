@@ -5,6 +5,11 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.5
+
+- Nel passaggio tra preset **pan e tilt cambiano di netto**: le teste si
+  riposizionano subito, mentre luci, colori, zoom e strobo sfumano.
+
 ## 5.4
 
 - L'app si accorge da sola quando è disponibile una versione nuova (anche se
