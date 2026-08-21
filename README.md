@@ -66,6 +66,13 @@ Daslight: solo quello che serve.
   connetti il cavo, **Cmd/Ctrl+S** salva lo show (nella versione web salva il
   setup online, altrimenti scarica il file), **Cmd/Ctrl+O** apre la finestra
   Online (solo versione web).
+- **Più fari insieme**: clic sul primo faro, poi **Maiusc**+clic sugli altri
+  (sulla mappa o sulle schede dei fader). Da quel momento un fader, il
+  selettore colore e il mirino agiscono su **tutti** i fari scelti; il mirino
+  in particolare li punta sullo stesso punto del palco, ognuno dalla sua
+  posizione. Si possono unire solo fari con gli **stessi canali** (un par e una
+  testa mobile no). Maiusc+clic su un faro già scelto lo toglie, un clic sul
+  palco vuoto azzera la scelta.
 - **Anteprima palco**: vista dall'alto del palco. Trascina i fari per
   posizionarli, ruotali con la maniglia bianca (o con la rotellina del mouse)
   per orientare il fascio. Il colore e l'intensità del fascio seguono i fader

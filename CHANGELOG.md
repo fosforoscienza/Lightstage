@@ -5,6 +5,18 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.17
+
+- **Più fari insieme**: si sceglie il primo e con **Maiusc**+clic si aggiungono
+  gli altri (sulla mappa o sulle schede). Muovendo un fader, cambiando colore o
+  puntando col mirino si comandano tutti insieme.
+- Si possono unire solo fari con gli **stessi canali**: un par e una testa
+  mobile non stanno insieme, e l'app lo dice invece di lasciar fare.
+- Il mirino punta tutte le teste scelte **sullo stesso punto del palco**,
+  ognuna calcolata dalla sua posizione.
+- Un riclic con Maiusc toglie un faro dalla scelta; un clic sul palco vuoto
+  la azzera.
+
 ## 5.16
 
 - Ogni preset ha **il suo tempo di entrata** e decide se le **teste mobili si

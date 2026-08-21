@@ -139,6 +139,23 @@ body {
   color: #566074;
   pointer-events: none;
 }
+/* quanti fari si stanno muovendo insieme */
+#multi-hint {
+  position: absolute;
+  left: 50%;
+  top: 30px;   /* sotto la riga dei suggerimenti */
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(16, 20, 27, 0.9);
+  border: 1px solid var(--accent);
+  color: #cfd8ea;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+#multi-hint.warn { border-color: var(--held); color: var(--held); }
 
 /* --------------------------------------------------------------- preset */
 #presets-bar {
@@ -241,6 +258,8 @@ body {
   flex-direction: column;
 }
 .fixture-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* il faro principale, quello con le maniglie sulla mappa */
+.fixture-card.selected.primary { box-shadow: 0 0 0 1px var(--accent), 0 0 10px rgba(91, 140, 255, 0.35); }
 
 .card-head {
   display: flex;

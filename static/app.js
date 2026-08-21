@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.16';
+const APP_VERSION = '5.17';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -13,7 +13,8 @@ const state = {
   blackout: false,
 };
 let dmx = { available: false, connected: false, port: null, ports: [], error: null };
-let selectedId = null;
+let selectedId = null;          // faro principale (maniglie e mirino)
+let selectedIds = new Set();    // tutti i fari scelti insieme
 let activePreset = null;
 let lanUrl = null;
 
@@ -344,16 +345,18 @@ function applyColorToFixture(f, hexColor) {
   const r = parseInt(hexColor.slice(1, 3), 16);
   const g = parseInt(hexColor.slice(3, 5), 16);
   const b = parseInt(hexColor.slice(5, 7), 16);
-  roleIndexes(f, 'red').forEach((i) => { f.values[i] = r; });
-  roleIndexes(f, 'green').forEach((i) => { f.values[i] = g; });
-  roleIndexes(f, 'blue').forEach((i) => { f.values[i] = b; });
-  // se il dimmer è a zero il colore non si vedrebbe: accendilo
-  const dim = roleIndexes(f, 'dimmer');
-  if ((r || g || b) && dim.length && dim.every((i) => f.values[i] === 0)) {
-    dim.forEach((i) => { f.values[i] = 255; });
+  for (const x of [f, ...compagniDi(f)]) {
+    roleIndexes(x, 'red').forEach((i) => { x.values[i] = r; });
+    roleIndexes(x, 'green').forEach((i) => { x.values[i] = g; });
+    roleIndexes(x, 'blue').forEach((i) => { x.values[i] = b; });
+    // se il dimmer è a zero il colore non si vedrebbe: accendilo
+    const dim = roleIndexes(x, 'dimmer');
+    if ((r || g || b) && dim.length && dim.every((i) => x.values[i] === 0)) {
+      dim.forEach((i) => { x.values[i] = 255; });
+    }
+    updateFixtureDisplays(x);
+    pushValues(x);
   }
-  updateFixtureDisplays(f);
-  pushValues(f);
   clearActivePreset();
 }
 
@@ -375,7 +378,8 @@ function renderFixtures() {
   for (const f of state.fixtures) {
     const card = document.createElement('div');
     card.className = 'fixture-card';
-    if (f.id === selectedId) card.classList.add('selected');
+    if (selectedIds.has(f.id)) card.classList.add('selected');
+    if (f.id === selectedId) card.classList.add('primary');
 
     const head = document.createElement('div');
     head.className = 'card-head';
@@ -439,7 +443,8 @@ function renderFixtures() {
       if (!confirm(`Eliminare "${f.name}"?`)) return;
       await api('DELETE', `/api/fixtures/${f.id}`).catch(console.error);
       state.fixtures = state.fixtures.filter((x) => x.id !== f.id);
-      if (selectedId === f.id) selectedId = null;
+      selectedIds.delete(f.id);
+      if (selectedId === f.id) selectedId = [...selectedIds][0] ?? null;
       renderFixtures();
     });
 
@@ -469,14 +474,11 @@ function renderFixtures() {
       input.style.setProperty('--accent-c', ROLE_COLORS[ch.role] || ROLE_COLORS.other);
       updateFaderFill(input);
       input.addEventListener('input', () => {
-        f.values[i] = parseInt(input.value, 10);
-        val.textContent = input.value;
-        updateFaderFill(input);
-        updateSwatch(f);
-        pushValues(f);
+        impostaCanale(f, i, parseInt(input.value, 10));
         clearActivePreset();
       });
-      input.addEventListener('pointerdown', () => selectFixture(f.id));
+      // afferrando un fader la scelta multipla resta: è il senso della cosa
+      input.addEventListener('pointerdown', () => focusFixture(f.id));
       holder.append(input);
 
       const label = document.createElement('div');
@@ -493,7 +495,8 @@ function renderFixtures() {
     card.append(head, faders);
     card.addEventListener('pointerdown', (e) => {
       if (e.target === del) return;
-      selectFixture(f.id, false);
+      if (e.target.closest('.fader')) return;   // se ne occupa il fader
+      selectFixture(f.id, false, e.shiftKey);
     });
     row.append(card);
     cardRefs.set(f.id, { card, inputs, valEls, swatch, picker, addrInput: addr });
@@ -525,16 +528,89 @@ function updateFixtureDisplays(f) {
   updateSwatch(f);
 }
 
-function selectFixture(id, scroll = true) {
-  if (selectedId === id) return;
-  stopAiming();   // cambiando faro il puntamento in corso decade
-  selectedId = id;
+/* ------------------------------------------------- scelta di più fari
+   Con Maiusc si aggiungono altri fari alla scelta, ma solo se hanno gli
+   stessi canali: muovendo un fader si muovono tutti insieme. */
+function tipoFaro(f) {
+  return fixtureChannels(f).map((c) => c.role).join(',');
+}
+
+/* gli altri fari scelti con gli stessi canali di f */
+function compagniDi(f) {
+  const tipo = tipoFaro(f);
+  return state.fixtures.filter((x) => x.id !== f.id && selectedIds.has(x.id)
+    && tipoFaro(x) === tipo);
+}
+
+let avvisoTimer = null;
+function avvisoSelezione(testo) {
+  const hint = $('#multi-hint');
+  if (!hint) return;
+  hint.textContent = testo;
+  hint.classList.remove('hidden');
+  hint.classList.add('warn');
+  clearTimeout(avvisoTimer);
+  avvisoTimer = setTimeout(() => { hint.classList.remove('warn'); aggiornaSelezione(); }, 2400);
+}
+
+function aggiornaSelezione(scroll = false) {
   cardRefs.forEach((ref, fid) => {
-    ref.card.classList.toggle('selected', fid === id);
-    if (fid === id && scroll) {
+    ref.card.classList.toggle('selected', selectedIds.has(fid));
+    ref.card.classList.toggle('primary', fid === selectedId);
+    if (fid === selectedId && scroll) {
       ref.card.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
     }
   });
+  const hint = $('#multi-hint');
+  if (!hint || hint.classList.contains('warn')) return;
+  hint.classList.toggle('hidden', selectedIds.size < 2);
+  hint.textContent = `${selectedIds.size} fari insieme: i fader li muovono tutti`;
+}
+
+function selectFixture(id, scroll = true, aggiungi = false) {
+  const f = state.fixtures.find((x) => x.id === id);
+  if (!f) return;
+  stopAiming();   // cambiando faro il puntamento in corso decade
+  if (aggiungi && selectedIds.has(id) && selectedIds.size > 1) {
+    selectedIds.delete(id);                       // riclic: si toglie
+    if (selectedId === id) selectedId = [...selectedIds][0];
+  } else if (aggiungi && selectedIds.size && !selectedIds.has(id)) {
+    const gia = state.fixtures.find((x) => selectedIds.has(x.id));
+    if (gia && tipoFaro(gia) !== tipoFaro(f)) {
+      avvisoSelezione('Insieme si possono scegliere solo fari con gli stessi canali');
+      return;
+    }
+    selectedIds.add(id);
+    selectedId = id;
+  } else {
+    if (selectedId === id && selectedIds.size === 1) return;
+    selectedIds = new Set([id]);
+    selectedId = id;
+  }
+  aggiornaSelezione(scroll);
+}
+
+/* tiene la scelta com'è, cambiando solo il faro principale */
+function focusFixture(id) {
+  if (!selectedIds.has(id)) { selectFixture(id, false); return; }
+  selectedId = id;
+  aggiornaSelezione();
+}
+
+function deselezionaTutti() {
+  selectedId = null;
+  selectedIds = new Set();
+  aggiornaSelezione();
+}
+
+/* cambia un canale sul faro e su tutti gli altri scelti dello stesso tipo */
+function impostaCanale(f, i, v) {
+  for (const x of [f, ...compagniDi(f)]) {
+    if (i >= x.values.length) continue;
+    x.values[i] = v;
+    updateFixtureDisplays(x);
+    pushValues(x);
+  }
 }
 
 /* --------------------------------------------- impostazioni di ogni preset
@@ -1271,13 +1347,16 @@ function drawAimLine() {
 
 /* punta il faro verso un punto del palco agendo solo sul canale pan */
 function aimAt(f, px, py) {
-  const p = fixturePos(f);
-  const desiderato = (Math.atan2(px - p.x, py - p.y) * 180 / Math.PI + 360) % 360;
-  const pos = panForAngle(f, desiderato);
-  if (pos === null) return;
-  setPanPosition(f, pos);
-  updateFixtureDisplays(f);
-  pushValues(f);
+  // tutte le teste scelte guardano lo stesso punto, ognuna dal suo posto
+  for (const x of [f, ...compagniDi(f)]) {
+    const p = fixturePos(x);
+    const desiderato = (Math.atan2(px - p.x, py - p.y) * 180 / Math.PI + 360) % 360;
+    const pos = panForAngle(x, desiderato);
+    if (pos === null) continue;
+    setPanPosition(x, pos);
+    updateFixtureDisplays(x);
+    pushValues(x);
+  }
   clearActivePreset();
 }
 
@@ -1322,16 +1401,21 @@ function draw() {
   // corpi dei fari
   for (const f of state.fixtures) drawFixture(f);
 
-  // selezione + maniglia di rotazione
-  const sel = state.fixtures.find((f) => f.id === selectedId);
-  if (sel) {
-    const p = fixturePos(sel);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  // selezione: il cerchio su tutti i fari scelti, le maniglie sul principale
+  for (const f of state.fixtures) {
+    if (!selectedIds.has(f.id)) continue;
+    const p = fixturePos(f);
+    ctx.strokeStyle = f.id === selectedId
+      ? 'rgba(255,255,255,0.5)' : 'rgba(91,140,255,0.55)';
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.arc(p.x, p.y, 26, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+  const sel = state.fixtures.find((f) => f.id === selectedId);
+  if (sel) {
+    const p = fixturePos(sel);
     const hp = handlePos(sel);
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.beginPath();
@@ -1526,15 +1610,15 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   const f = fixtureAt(px, py);
   if (f) {
-    selectFixture(f.id);
+    selectFixture(f.id, true, e.shiftKey);
+    if (e.shiftKey) return;          // con Maiusc si sceglie soltanto
     dragMode = 'move';
     dragFixture = f;
     const p = fixturePos(f);
     dragOff = { x: px - p.x, y: py - p.y };
     canvas.setPointerCapture(e.pointerId);
   } else {
-    selectedId = null;
-    cardRefs.forEach((ref) => ref.card.classList.remove('selected'));
+    deselezionaTutti();
   }
 });
 
@@ -2049,8 +2133,10 @@ function applyRemoteState(s) {
   if (structureChanged || channelsChanged) {
     state.channels = s.channels;
     state.fixtures = s.fixtures;
+    selectedIds = new Set([...selectedIds].filter(
+      (id) => s.fixtures.some((f) => f.id === id)));
     if (selectedId !== null && !s.fixtures.some((f) => f.id === selectedId)) {
-      selectedId = null;
+      selectedId = [...selectedIds][0] ?? null;
     }
     renderFixtures();
     return;
