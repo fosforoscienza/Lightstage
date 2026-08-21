@@ -49,6 +49,9 @@ Daslight: solo quello che serve.
   preset lo toglie dal copione. In alto a destra ci sono **FTB** e **Blackout**
   con le loro durate, come nella Preset grid. Il PDF sta nella cartella `copioni/` (nella versione web, nel
   browser).
+- **Passaggio fra le schermate**: in fondo a ogni schermata ci sono i pulsanti
+  per andare alle altre due (Principale, Preset grid, Copione); **Esc** torna
+  sempre alla schermata principale.
 - **Scorciatoie da tastiera** (legenda sempre visibile nel piè di pagina):
   **1–9 e 0** lanciano i preset, **B** blackout, **F** fade to black,
   **N** nuovo faro, **G** griglia preset, **C** copione, **Cmd/Ctrl+C**

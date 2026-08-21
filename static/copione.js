@@ -51,6 +51,18 @@ async function nuovoCopione() {
 async function salvaCue(copione) {
   const res = await api('PUT', `/api/copioni/${copione.id}`, { cues: copione.cues });
   state.copioni = res.copioni;
+  // la risposta porta oggetti nuovi: si ridisegna, altrimenti sullo schermo
+  // resterebbero i segnaposto disegnati da quelli di prima
+  renderCues();
+}
+
+/* Lo show viene sostituito a ogni salvataggio (e quando arriva una modifica
+   da un altro dispositivo): un preset segnato va sempre ripescato per id,
+   altrimenti si finirebbe per modificare una copia ormai scollegata. */
+function cueVivo(idCopione, idCue) {
+  const c = copioneById(idCopione);
+  const cue = c && c.cues.find((q) => q.id === idCue);
+  return cue ? { c, cue } : null;
 }
 
 /* --------------------------------------------------------------- il PDF */
@@ -218,9 +230,11 @@ function renderCues() {
     del.title = 'Togli dal copione';
     del.addEventListener('click', async (e) => {
       e.stopPropagation();
-      c.cues = c.cues.filter((q) => q.id !== cue.id);
+      const vivo = cueVivo(c.id, cue.id);
+      if (!vivo) return;
+      vivo.c.cues = vivo.c.cues.filter((q) => q.id !== cue.id);
       renderCues();
-      await salvaCue(c);
+      await salvaCue(vivo.c);
     });
 
     box.append(thumb, testo, del);
@@ -356,11 +370,13 @@ async function fineTrascinamento(e) {
     syncCueUI();
     return;
   }
+  const vivo = cueVivo(t.c.id, t.cue.id);
+  if (!vivo) return;
   // vale il punto in cui si è lasciato il mouse, non l'ultimo scatto del timer
-  t.cue.pos = posDaY(e.clientY);
-  t.c.cues.sort((a, b) => a.pos - b.pos);
+  vivo.cue.pos = posDaY(e.clientY);
+  vivo.c.cues.sort((a, b) => a.pos - b.pos);
   renderCues();
-  await salvaCue(t.c);
+  await salvaCue(vivo.c);
 }
 
 /* se cambia l'altezza del copione (pagine disegnate, finestra ridimensionata)
@@ -410,10 +426,11 @@ function scegliPreset() {
 }
 
 async function aggiungiCue(pos) {
-  const c = copioneAttivo();
-  if (!c) return;
+  if (!copioneAttivo()) return;
   const slot = await scegliPreset();
   if (slot === null) return;
+  const c = copioneAttivo();   // dopo la scelta lo show può essere cambiato
+  if (!c) return;
   const id = Math.max(0, ...c.cues.map((q) => q.id)) + 1;
   c.cues.push({ id, pos, preset: slot });
   c.cues.sort((a, b) => a.pos - b.pos);

@@ -545,9 +545,20 @@ body {
 #grid-legend .dot.armed { background: var(--danger); }
 #grid-legend .dot.held { background: var(--held); }
 #grid-legend #app-version-grid {
-  margin-left: auto;
+  margin-left: 2px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.5px;
+}
+/* pulsanti per passare alle altre schermate, in fondo a destra */
+.foot-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#grid-legend .foot-nav { margin-left: auto; }
+.foot-nav .btn {
+  font-size: 11px;
+  padding: 4px 9px;
 }
 .grid-cell canvas {
   width: 100%;
@@ -975,7 +986,7 @@ body {
 .cue-box.live .lbl { color: #4cd964; }
 .cue-box.armed .lbl { color: var(--danger); }
 .cue-txt span:last-child { font-size: 12px; color: var(--text); }
-#app-version-copione { margin-left: auto; letter-spacing: 0.5px; }
+#app-version-copione { margin-left: 2px; letter-spacing: 0.5px; }
 
 /* elenco dei preset da inserire */
 #pick-list {

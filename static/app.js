@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.14';
+const APP_VERSION = '5.15';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -763,6 +763,28 @@ function closeGrid() {
 
 $('#btn-grid').addEventListener('click', openGrid);
 $('#btn-grid-close').addEventListener('click', closeGrid);
+
+/* passaggio diretto fra le tre schermate, dai pulsanti in fondo.
+   Dopo il clic il pulsante lascia il fuoco: altrimenti la barra spaziatrice
+   lo ricliccherebbe invece di mandare in onda il preset. */
+function vaiA(sel, azione) {
+  const b = $(sel);
+  if (!b) return;
+  b.addEventListener('click', () => {
+    b.blur();
+    azione();
+  });
+}
+vaiA('#btn-grid-to-main', closeGrid);
+vaiA('#btn-grid-to-copione', () => {
+  closeGrid();
+  openCopione().catch(console.error);
+});
+vaiA('#btn-copione-to-main', () => closeCopione());
+vaiA('#btn-copione-to-grid', () => {
+  closeCopione();
+  openGrid();
+});
 
 async function savePreset(slot, existing) {
   const name = prompt('Nome del preset:', existing ? existing.name : `Preset ${slot + 1}`);

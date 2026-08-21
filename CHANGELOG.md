@@ -5,6 +5,14 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.15
+
+- In fondo alla **Preset grid** e al **Copione** ci sono i pulsanti per passare
+  alle altre due schermate, senza dover chiudere e riaprire.
+- Corretto: nel Copione **il primo spostamento di un preset tornava indietro**
+  (sullo schermo restava il punto di partenza, anche se il nuovo era già
+  salvato). Ora il segnaposto si sposta al primo colpo.
+
 ## 5.14
 
 - Con **FTB o Blackout** il preset in onda non si perde più: resta segnato in
