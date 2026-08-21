@@ -400,6 +400,18 @@
       save();
       return { fixtures: db.fixtures };
     }
+    if ((match = /^\/api\/presets\/(\d+)\/copy$/.exec(url)) && m === 'POST') {
+      const slot = parseInt(match[1], 10);
+      const dest = parseInt((body || {}).to, 10);
+      if (!(dest >= 0 && dest < NUM_PRESETS)) throw new Error('spazio di destinazione non valido');
+      const p = db.presets[slot];
+      if (!p) throw new Error('preset vuoto');
+      const values = {};
+      for (const k of Object.keys(p.values)) values[k] = [...p.values[k]];
+      db.presets[dest] = { name: String((body || {}).name || p.name).slice(0, 24), values };
+      save();
+      return { presets: db.presets };
+    }
     if ((match = /^\/api\/presets\/(\d+)$/.exec(url))) {
       const slot = parseInt(match[1], 10);
       if (slot < 0 || slot >= NUM_PRESETS) throw new Error('slot non valido');

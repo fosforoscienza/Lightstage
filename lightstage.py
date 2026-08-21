@@ -524,6 +524,28 @@ def load_preset(slot):
         return jsonify({"fixtures": show["fixtures"]})
 
 
+@app.post("/api/presets/<int:slot>/copy")
+def copy_preset(slot):
+    """copia un preset in un altro spazio, con un nome nuovo"""
+    body = request.get_json(silent=True) or {}
+    try:
+        dest = int(body.get("to"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "spazio di destinazione non valido"}), 400
+    if not 0 <= dest < NUM_PRESETS:
+        return jsonify({"error": "spazio di destinazione non valido"}), 400
+    with lock:
+        if not 0 <= slot < NUM_PRESETS or show["presets"][slot] is None:
+            return jsonify({"error": "preset vuoto"}), 404
+        sorgente = show["presets"][slot]
+        show["presets"][dest] = {
+            "name": str(body.get("name") or sorgente["name"])[:24],
+            "values": {k: list(v) for k, v in sorgente["values"].items()},
+        }
+        mark_dirty()
+        return jsonify({"presets": show["presets"]})
+
+
 @app.delete("/api/presets/<int:slot>")
 def delete_preset(slot):
     if not 0 <= slot < NUM_PRESETS:

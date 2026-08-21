@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E">
 <!-- il ?v= serve a non far riusare al browser i file della versione precedente -->
-<link rel="stylesheet" href="style.css?v=5.12">
+<link rel="stylesheet" href="style.css?v=5.13">
 </head>
 <body>
 
@@ -33,7 +33,7 @@
 
 <section id="stage-panel">
   <canvas id="stage"></canvas>
-  <div id="stage-hint">trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo &middot; con <b>Maiusc</b> scatti di 15&deg;</div>
+  <div id="stage-hint">trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo (<b>Maiusc</b>: scatti di 15&deg;) &middot; <b>mirino</b>: clic e poi indica dove puntare il fascio</div>
 </section>
 
 <section id="presets-bar">
@@ -136,6 +136,25 @@
     <label class="btn ghost" for="copione-pdf" title="Carica il PDF del copione">&#128196; PDF</label>
     <input id="copione-pdf" type="file" accept="application/pdf" hidden>
     <div class="spacer"></div>
+    <div class="fade-box">
+      Preset
+      <span id="preset-fade-copione" class="fade-group"
+            title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
+        <button type="button" data-value="0.5">0,5s</button>
+        <button type="button" data-value="1" class="sel">1s</button>
+        <button type="button" data-value="1.5">1,5s</button>
+      </span>
+    </div>
+    <div class="fade-box">
+      FTB
+      <span id="ftb-time-copione" class="fade-group" title="Durata della dissolvenza FTB">
+        <button type="button" data-value="0.5">0,5s</button>
+        <button type="button" data-value="1" class="sel">1s</button>
+        <button type="button" data-value="1.5">1,5s</button>
+      </span>
+    </div>
+    <button class="btn danger-ghost js-ftb" title="Fade to black: spegne tutte le luci gradualmente (tasto F)">FTB</button>
+    <button class="btn danger-ghost js-blackout" title="Spegne tutto all'istante (tasto B)">Blackout</button>
     <button id="btn-copione-close" class="btn">Chiudi</button>
   </header>
 
@@ -165,6 +184,7 @@
     <div class="spacer"></div>
     <span class="key-item"><kbd>clic</kbd><em>sulla linea: inserisci preset</em></span>
     <span class="key-item"><kbd>clic</kbd><em>su un preset: prepara</em></span>
+    <span class="key-item"><kbd>trascina</kbd><em>sposta il preset</em></span>
     <span class="key-item"><kbd>spazio</kbd><em>manda in onda</em></span>
     <span class="key-item"><kbd>B</kbd><em>blackout</em></span>
     <span class="key-item"><kbd>F</kbd><em>fade to black</em></span>
@@ -181,6 +201,25 @@
     <div id="pick-list"></div>
     <div class="modal-actions">
       <button class="btn ghost modal-close">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- modale: duplica un preset in un altro spazio -->
+<div id="modal-dup" class="modal hidden">
+  <div class="modal-card">
+    <h2>Duplica preset</h2>
+    <p class="small" id="dup-from"></p>
+    <label>Nome della copia
+      <input id="dup-name" type="text" maxlength="24">
+    </label>
+    <label>In quale spazio
+      <input id="dup-slot" type="number" min="1" max="100">
+    </label>
+    <p class="small" id="dup-warn"></p>
+    <div class="modal-actions">
+      <button class="btn ghost modal-close">Annulla</button>
+      <button id="btn-dup-confirm" class="btn primary">Duplica</button>
     </div>
   </div>
 </div>
@@ -231,7 +270,7 @@
   </div>
 </div>
 
-<script src="app.js?v=5.12"></script>
-<script src="copione.js?v=5.12"></script>
+<script src="app.js?v=5.13"></script>
+<script src="copione.js?v=5.13"></script>
 </body>
 </html>

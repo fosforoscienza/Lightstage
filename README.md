@@ -27,16 +27,19 @@ Daslight: solo quello che serve.
   l'anteprima del palco e il suo nome, per ritrovare al volo la scena giusta.
   Nella griglia il preset **in onda** ha il bordo verde; cliccandone un altro
   lo si *prepara* (bordo rosso lampeggiante) e va in onda solo con la **barra
-  spaziatrice**, come su una console.
+  spaziatrice**, come su una console. Il pulsante **⧉** su un preset lo
+  **duplica**: si sceglie il nome della copia e in quale dei 100 spazi metterla.
 - **Copione**: il pulsante 📜 in basso a destra (o il tasto **C**) apre la
   schermata del copione. Dentro si creano più **progetti**; ognuno ha il
   **PDF del copione** a destra, sfogliabile come in Anteprima, e a sinistra una
   **timeline** alta quanto il copione, che scorre insieme alle pagine. Un clic
   sulla linea inserisce un preset nel punto voluto (quanti se ne vuole): resta
-  ancorato a quel passaggio del testo. In basso si vede l'anteprima del preset
-  **in onda** e di quello **pronto**: clic su un preset della timeline lo
-  prepara, la **barra spaziatrice** lo manda in onda. La ✕ sul preset lo toglie
-  dal copione. Il PDF sta nella cartella `copioni/` (nella versione web, nel
+  ancorato a quel passaggio del testo, con la **miniatura del palco** accanto al
+  nome, e si può **trascinare** su e giù per spostarlo. In basso si vede
+  l'anteprima del preset **in onda** e di quello **pronto**: clic su un preset
+  della timeline lo prepara, la **barra spaziatrice** lo manda in onda. La ✕ sul
+  preset lo toglie dal copione. In alto a destra ci sono **FTB** e **Blackout**
+  con le loro durate, come nella Preset grid. Il PDF sta nella cartella `copioni/` (nella versione web, nel
   browser).
 - **Scorciatoie da tastiera** (legenda sempre visibile nel piè di pagina):
   **1–9 e 0** lanciano i preset, **B** blackout, **F** fade to black,
@@ -53,6 +56,11 @@ Daslight: solo quello che serve.
   (fino a 540°, come su un wash) e il canale **focus** ne apre l'angolo da
   **10° a 60°**. Ri-orientando il faro sulla mappa lo zero si riposiziona sul
   valore di pan in quel momento.
+- **Puntamento col mirino**: seleziona un faro con il pan e sopra di esso
+  compare un mirino. Cliccalo (il puntatore diventa una croce), poi clicca il
+  punto del palco da illuminare: il fader del pan si sposta da solo verso quella
+  direzione, scegliendo il movimento più corto. Lo **zero non cambia**, quindi
+  il faro resta orientato com'era sulla mappa. **Esc** annulla il puntamento.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to

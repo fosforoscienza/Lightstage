@@ -5,6 +5,22 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.13
+
+- **Puntamento col mirino**: sul faro selezionato compare un mirino; cliccalo
+  e il puntatore diventa una croce, poi indica un punto del palco e il **pan**
+  ci si orienta da solo. Lo zero del faro non viene toccato.
+- Nel **Copione** ogni preset segnato mostra la **miniatura del palco** e si
+  può **trascinare** su e giù per spostarlo lungo il copione (avvicinandosi ai
+  bordi la pagina scorre da sola).
+- **FTB e Blackout** con le loro durate anche nell'intestazione del Copione.
+- Tolto l'FTB, torna acceso in verde il preset che era **in onda** — sia nella
+  Preset grid sia nell'anteprima in fondo al Copione, che prima restava spenta.
+- Nella **Preset grid** il pulsante **⧉** duplica un preset: si sceglie il nome
+  della copia e in quale dei 100 spazi metterla (avvisa se è già occupato).
+- I pulsanti *Copione* e *Preset grid* non escono più dal bordo dello schermo:
+  la legenda dei tasti si stringe prima di loro.
+
 ## 5.12 — *strutturale*
 
 - Nuova pagina **Copione** (pulsante accanto a Preset grid o tasto **C**):

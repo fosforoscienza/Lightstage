@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.12';
+const APP_VERSION = '5.13';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -179,6 +179,43 @@ function beamAngle(f, values) {
   const pos = panPosition(f, values);
   if (pos === null) return f.rot;
   return f.rot + (pos - (f.panzero || 0)) * PAN_RANGE;
+}
+
+/* Valore di pan (0..1) che punta il fascio verso una certa direzione, senza
+   toccare lo zero del faro. Il pan copre 540°, quindi la stessa direzione può
+   essere raggiunta da più parti: si sceglie quella più vicina a dov'è adesso,
+   così la testa fa il movimento più corto. Se la direzione è fuori portata si
+   va il più vicino possibile. */
+function panForAngle(f, desired) {
+  if (!roleIndexes(f, 'pan').length) return null;
+  const zero = f.panzero || 0;
+  const min = f.rot - zero * PAN_RANGE;      // direzione con il pan tutto a 0
+  const max = min + PAN_RANGE;               // direzione con il pan tutto a 255
+  const attuale = beamAngle(f);
+  let scelta = null;
+  let distanza = Infinity;
+  for (let giro = -2; giro <= 2; giro++) {
+    const a = desired + 360 * giro;
+    const dentro = a >= min && a <= max;
+    const d = dentro
+      ? Math.abs(a - attuale)
+      : 1e6 + Math.min(Math.abs(a - min), Math.abs(a - max));
+    if (d < distanza) { distanza = d; scelta = a; }
+  }
+  return Math.max(0, Math.min(1, zero + (scelta - f.rot) / PAN_RANGE));
+}
+
+/* scrive la posizione del pan (0..1) sui fader, canale fine compreso */
+function setPanPosition(f, pos) {
+  const idx = roleIndexes(f, 'pan');
+  if (!idx.length) return;
+  if (idx.length > 1) {
+    const raw = Math.max(0, Math.min(65535, Math.round(pos * 65535)));
+    f.values[idx[0]] = raw >> 8;
+    f.values[idx[1]] = raw & 255;
+  } else {
+    f.values[idx[0]] = Math.max(0, Math.min(255, Math.round(pos * 65535 / 256)));
+  }
 }
 
 /* apertura del fascio in gradi (metà angolo), comandata dal focus */
@@ -470,6 +507,7 @@ function updateFixtureDisplays(f) {
 
 function selectFixture(id, scroll = true) {
   if (selectedId === id) return;
+  stopAiming();   // cambiando faro il puntamento in corso decade
   selectedId = id;
   cardRefs.forEach((ref, fid) => {
     ref.card.classList.toggle('selected', fid === id);
@@ -632,6 +670,15 @@ function renderGrid() {
     });
     actions.append(save);
     if (p) {
+      const dup = document.createElement('button');
+      dup.textContent = '⧉';
+      dup.title = 'Duplica in un altro spazio';
+      dup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDuplicate(i);
+      });
+      actions.append(dup);
+
       const clear = document.createElement('button');
       clear.textContent = '✕';
       clear.title = 'Svuota preset';
@@ -719,6 +766,72 @@ async function savePreset(slot, existing) {
   renderPresets();
   if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
 }
+
+/* ------------------------------------------------------- duplica un preset
+   Si sceglie il nome della copia e in quale dei 100 spazi metterla. */
+let dupFrom = null;
+
+function primoSpazioLibero(dopo) {
+  for (let i = dopo + 1; i < state.presets.length; i++) if (!state.presets[i]) return i;
+  for (let i = 0; i < state.presets.length; i++) if (!state.presets[i]) return i;
+  return dopo;
+}
+
+function aggiornaAvvisoDuplica() {
+  const n = parseInt($('#dup-slot').value, 10);
+  const avviso = $('#dup-warn');
+  if (!(n >= 1 && n <= state.presets.length)) {
+    avviso.textContent = `Scegli un numero da 1 a ${state.presets.length}.`;
+    avviso.className = 'small warn';
+    return;
+  }
+  const occupato = state.presets[n - 1];
+  if (occupato) {
+    avviso.textContent = `Lo spazio ${n} contiene "${occupato.name}": verrà sostituito.`;
+    avviso.className = 'small warn';
+  } else {
+    avviso.textContent = `Lo spazio ${n} è libero.`;
+    avviso.className = 'small';
+  }
+}
+
+function openDuplicate(slot) {
+  const p = state.presets[slot];
+  if (!p) return;
+  dupFrom = slot;
+  $('#dup-from').textContent = `Copia di "${p.name}" (spazio ${slot + 1}).`;
+  $('#dup-name').value = `${p.name} (copia)`.slice(0, 24);
+  $('#dup-slot').max = String(state.presets.length);
+  $('#dup-slot').value = String(primoSpazioLibero(slot) + 1);
+  aggiornaAvvisoDuplica();
+  openModal('#modal-dup');
+  $('#dup-name').focus();
+  $('#dup-name').select();
+}
+
+async function confirmDuplicate() {
+  if (dupFrom === null) return;
+  const n = parseInt($('#dup-slot').value, 10);
+  if (!(n >= 1 && n <= state.presets.length)) return;
+  const dest = n - 1;
+  const occupato = state.presets[dest];
+  if (occupato && !confirm(`Lo spazio ${n} contiene "${occupato.name}". Sostituirlo?`)) return;
+  const nome = $('#dup-name').value.trim() || state.presets[dupFrom].name;
+  const res = await api('POST', `/api/presets/${dupFrom}/copy`, { to: dest, name: nome });
+  state.presets = res.presets;
+  dupFrom = null;
+  closeModals();
+  renderPresets();
+  if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
+  syncCueUI();
+}
+
+$('#dup-slot').addEventListener('input', aggiornaAvvisoDuplica);
+$('#btn-dup-confirm').addEventListener('click',
+  () => confirmDuplicate().catch((err) => alert('Duplicazione fallita: ' + err.message)));
+$('#dup-name').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('#btn-dup-confirm').click();
+});
 
 async function loadPreset(slot) {
   const p = state.presets[slot];
@@ -858,6 +971,89 @@ function handlePos(f) {
   return { x: p.x + Math.sin(th) * 40, y: p.y + Math.cos(th) * 40 };
 }
 
+/* ------------------------------------------------------------- puntamento
+   Sul faro selezionato compare un mirino: cliccandolo il puntatore diventa
+   un mirino e il clic successivo sul palco imposta il pan verso quel punto,
+   senza spostare lo zero del faro. */
+let aimFixture = null;          // faro in attesa del punto da illuminare
+let aimPointer = null;          // {x, y}: dove sta il mouse mentre si punta
+
+function canAim(f) {
+  return !!f && roleIndexes(f, 'pan').length > 0;
+}
+
+/* il mirino sta sopra il faro; se lì c'è la maniglia di rotazione, va sotto */
+function aimHandlePos(f) {
+  const p = fixturePos(f);
+  const hp = handlePos(f);
+  const sopra = { x: p.x, y: p.y - 36 };
+  if (Math.hypot(sopra.x - hp.x, sopra.y - hp.y) < 26) return { x: p.x, y: p.y + 36 };
+  return sopra;
+}
+
+function drawAimHandle(f) {
+  const a = aimHandlePos(f);
+  const attivo = aimFixture === f;
+  ctx.save();
+  ctx.fillStyle = attivo ? 'rgba(91, 140, 255, 0.95)' : 'rgba(16, 20, 27, 0.9)';
+  ctx.strokeStyle = attivo ? '#fff' : '#5b8cff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(a.x, a.y, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = attivo ? '#fff' : '#5b8cff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(a.x - 6, a.y); ctx.lineTo(a.x - 2, a.y);
+  ctx.moveTo(a.x + 2, a.y); ctx.lineTo(a.x + 6, a.y);
+  ctx.moveTo(a.x, a.y - 6); ctx.lineTo(a.x, a.y - 2);
+  ctx.moveTo(a.x, a.y + 2); ctx.lineTo(a.x, a.y + 6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(a.x, a.y, 2.2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* filo che collega il faro al punto che sta per essere illuminato */
+function drawAimLine() {
+  if (!aimFixture || !aimPointer || !state.fixtures.includes(aimFixture)) return;
+  const p = fixturePos(aimFixture);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(91, 140, 255, 0.7)';
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(aimPointer.x, aimPointer.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(aimPointer.x, aimPointer.y, 7, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* punta il faro verso un punto del palco agendo solo sul canale pan */
+function aimAt(f, px, py) {
+  const p = fixturePos(f);
+  const desiderato = (Math.atan2(px - p.x, py - p.y) * 180 / Math.PI + 360) % 360;
+  const pos = panForAngle(f, desiderato);
+  if (pos === null) return;
+  setPanPosition(f, pos);
+  updateFixtureDisplays(f);
+  pushValues(f);
+  clearActivePreset();
+}
+
+function stopAiming() {
+  if (!aimFixture) return;
+  aimFixture = null;
+  aimPointer = null;
+  canvas.style.cursor = 'default';
+}
+
 function draw() {
   ctx.clearRect(0, 0, cw, ch);
 
@@ -912,7 +1108,9 @@ function draw() {
     ctx.beginPath();
     ctx.arc(hp.x, hp.y, 6, 0, Math.PI * 2);
     ctx.fill();
+    if (canAim(sel)) drawAimHandle(sel);
   }
+  drawAimLine();
 
   const inRotazione = dragMode === 'rotate' && dragFixture
     ? dragFixture
@@ -1065,6 +1263,24 @@ canvas.addEventListener('pointerdown', (e) => {
   const px = e.clientX - rect.left;
   const py = e.clientY - rect.top;
   const sel = state.fixtures.find((f) => f.id === selectedId);
+
+  // si sta puntando: questo clic sceglie il punto da illuminare
+  if (aimFixture) {
+    const a = aimHandlePos(aimFixture);
+    // riclic sul mirino: si esce senza cambiare niente
+    if (Math.hypot(px - a.x, py - a.y) >= 14) aimAt(aimFixture, px, py);
+    stopAiming();
+    return;
+  }
+  if (canAim(sel)) {
+    const a = aimHandlePos(sel);
+    if (Math.hypot(px - a.x, py - a.y) < 14) {
+      aimFixture = sel;
+      aimPointer = { x: px, y: py };
+      canvas.style.cursor = 'crosshair';
+      return;
+    }
+  }
   if (sel) {
     const hp = handlePos(sel);
     if (Math.hypot(px - hp.x, py - hp.y) < 11) {
@@ -1089,10 +1305,25 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
+  if (aimFixture) {
+    const rect = canvas.getBoundingClientRect();
+    aimPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    canvas.style.cursor = 'crosshair';
+    return;
+  }
   if (!dragMode || !dragFixture) {
     const rect = canvas.getBoundingClientRect();
-    canvas.style.cursor =
-      fixtureAt(e.clientX - rect.left, e.clientY - rect.top) ? 'grab' : 'default';
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const sel = state.fixtures.find((f) => f.id === selectedId);
+    if (canAim(sel)) {
+      const a = aimHandlePos(sel);
+      if (Math.hypot(px - a.x, py - a.y) < 14) {
+        canvas.style.cursor = 'crosshair';
+        return;
+      }
+    }
+    canvas.style.cursor = fixtureAt(px, py) ? 'grab' : 'default';
     return;
   }
   const rect = canvas.getBoundingClientRect();
@@ -1382,6 +1613,7 @@ const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'str
 const PRESET_SNAP_ROLES = new Set(['pan', 'tilt']);
 let fadeToken = 0;        // token: una nuova dissolvenza annulla quella in corso
 let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
+let ftbPreset = null;     // preset in onda prima dell'FTB, da ripristinare dopo
 
 /* only: solo questi ruoli sfumano (gli altri restano fermi)
    skip: questi ruoli vanno subito a destinazione, gli altri sfumano */
@@ -1428,6 +1660,7 @@ function toggleFtb() {
   if (state.fixtures.length === 0) return;
   if (ftbSnapshot === null) {
     ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...f.values]]));
+    ftbPreset = activePreset;   // si riaccende quando l'FTB viene tolto
     setButtonsOn('.js-ftb', true);
     clearActivePreset();
     ftbFade(new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)])));
@@ -1436,13 +1669,20 @@ function toggleFtb() {
     ftbSnapshot = null;
     setButtonsOn('.js-ftb', false);
     ftbFade(target);
+    // le luci tornano com'erano: torna in verde anche il preset che era in onda
+    if (ftbPreset !== null && state.presets[ftbPreset]) {
+      activePreset = ftbPreset;
+      renderPresets();
+      syncCueUI();
+    }
+    ftbPreset = null;
   }
 }
 
 $$('.js-ftb').forEach((b) => b.addEventListener('click', toggleFtb));
-setupFadeGroup(['#ftb-time', '#ftb-time-grid'], 'lightstage-ftb-time');
-setupFadeGroup(['#preset-fade', '#preset-fade-grid'], 'lightstage-preset-fade',
-  { allowOff: true });
+setupFadeGroup(['#ftb-time', '#ftb-time-grid', '#ftb-time-copione'], 'lightstage-ftb-time');
+setupFadeGroup(['#preset-fade', '#preset-fade-grid', '#preset-fade-copione'],
+  'lightstage-preset-fade', { allowOff: true });
 
 /* scarica lo show come file (backup / trasferimento) */
 function exportShow() {
@@ -1466,6 +1706,7 @@ window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, select, textarea')) return;
   if (e.altKey) return;
   if (e.code === 'Escape') {
+    if (aimFixture) { stopAiming(); return; }
     if (!$('#copione').classList.contains('hidden')) { closeCopione(); return; }
     if (!$('#preset-grid').classList.contains('hidden')) { closeGrid(); return; }
   }

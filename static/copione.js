@@ -179,12 +179,17 @@ function renderCues() {
     if (cue.preset === activePreset) el.classList.add('live');
     if (cue.preset === armedPreset) el.classList.add('armed');
 
+    const thumb = document.createElement('canvas');
+    thumb.className = 'tl-thumb';
+    const testo = document.createElement('span');
+    testo.className = 'tl-txt';
     const n = document.createElement('span');
     n.className = 'n';
     n.textContent = cue.preset + 1;
     const nm = document.createElement('span');
     nm.className = 'nm';
     nm.textContent = p ? p.name : '(preset vuoto)';
+    testo.append(n, nm);
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = '✕';
@@ -196,16 +201,95 @@ function renderCues() {
       await salvaCue(c);
     });
 
-    el.append(n, nm, del);
-    el.title = p ? `Prepara "${p.name}" — poi barra spaziatrice` : 'Preset vuoto';
-    el.addEventListener('click', () => {
-      if (!p) return;
-      armedPreset = armedPreset === cue.preset ? null : cue.preset;
-      syncCueUI();
-    });
+    el.append(thumb, testo, del);
+    el.title = p
+      ? `Prepara "${p.name}" — poi barra spaziatrice. Trascina per spostarlo nel copione.`
+      : 'Preset vuoto';
+    el.addEventListener('pointerdown', (e) => avviaTrascinamento(e, el, cue, c, p));
     wrap.append(el);
+    requestAnimationFrame(() => drawPresetThumb(thumb, p));
   }
 }
+
+/* ----------------------------------------------- sposta un preset sulla linea
+   Il pointerdown non decide subito: se il puntatore si muove di qualche pixel
+   diventa un trascinamento, altrimenti al rilascio vale come clic (prepara). */
+let trascinato = null;
+let ultimaY = null;        // ultima posizione del puntatore, per lo scorrimento
+let velocitaScorrimento = 0;
+let timerScorrimento = null;
+
+function posDaY(clientY) {
+  const r = $('#copione-timeline').getBoundingClientRect();
+  return Math.max(0, Math.min(1, (clientY - r.top) / r.height));
+}
+
+function spostaSegnaposto() {
+  if (!trascinato || ultimaY === null) return;
+  trascinato.pos = posDaY(ultimaY);
+  trascinato.el.style.top = `${trascinato.pos * 100}%`;
+}
+
+/* vicino ai bordi la pagina scorre da sola, così si arriva ovunque */
+function impostaScorrimento(v) {
+  velocitaScorrimento = v;
+  if (v && !timerScorrimento) {
+    timerScorrimento = setInterval(() => {
+      $('#copione-scroll').scrollTop += velocitaScorrimento;
+      spostaSegnaposto();
+    }, 16);
+  } else if (!v && timerScorrimento) {
+    clearInterval(timerScorrimento);
+    timerScorrimento = null;
+  }
+}
+
+function avviaTrascinamento(e, el, cue, c, p) {
+  if (e.target.closest('.del') || e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  trascinato = { el, cue, c, p, partenza: e.clientY, mosso: false, pos: cue.pos };
+  ultimaY = e.clientY;
+  el.setPointerCapture(e.pointerId);
+  el.classList.add('dragging');
+}
+
+function duranteTrascinamento(e) {
+  if (!trascinato) return;
+  if (!trascinato.mosso && Math.abs(e.clientY - trascinato.partenza) < 4) return;
+  trascinato.mosso = true;
+  ultimaY = e.clientY;
+  const r = $('#copione-scroll').getBoundingClientRect();
+  if (e.clientY < r.top + 60) impostaScorrimento(-14);
+  else if (e.clientY > r.bottom - 60) impostaScorrimento(14);
+  else impostaScorrimento(0);
+  spostaSegnaposto();
+}
+
+async function fineTrascinamento(e) {
+  const t = trascinato;
+  if (!t) return;
+  trascinato = null;
+  ultimaY = null;
+  impostaScorrimento(0);
+  t.el.classList.remove('dragging');
+  if (t.el.hasPointerCapture?.(e.pointerId)) t.el.releasePointerCapture(e.pointerId);
+  if (!t.mosso) {
+    // era un clic: prepara il preset (riclic = annulla)
+    if (!t.p) return;
+    armedPreset = armedPreset === t.cue.preset ? null : t.cue.preset;
+    syncCueUI();
+    return;
+  }
+  t.cue.pos = t.pos;
+  t.c.cues.sort((a, b) => a.pos - b.pos);
+  renderCues();
+  await salvaCue(t.c);
+}
+
+document.addEventListener('pointermove', duranteTrascinamento);
+document.addEventListener('pointerup', (e) => fineTrascinamento(e).catch(console.error));
+document.addEventListener('pointercancel', (e) => fineTrascinamento(e).catch(console.error));
 
 /* elenco dei preset salvati, per scegliere cosa inserire */
 function scegliPreset() {
