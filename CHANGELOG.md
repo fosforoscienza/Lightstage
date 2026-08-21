@@ -5,6 +5,20 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.20
+
+- **Esporta e Importa anche nella versione locale**: è la strada per portare
+  fari e preset dalla versione web al computer collegato al cavo (e viceversa).
+  Si scarica un file dalla prima e lo si carica nella seconda; arrivano fari,
+  posizioni, canali, luci e preset con il loro fade. I PDF dei copioni restano
+  dove sono: i progetti passano, il testo va ricaricato.
+- **Duplica faro** dalla pagina principale: il pulsante ⧉ sulla scheda crea una
+  copia con gli stessi canali, le stesse luci e la stessa direzione, sul primo
+  indirizzo DMX libero e con il nome che avanza (Par 1 → Par 2).
+- Il movimento **a luci spente vale solo per le teste mobili**: gli altri fari
+  cambiano scena normalmente, con il loro fade, invece di spegnersi e
+  riaccendersi insieme alle teste.
+
 ## 5.19
 
 - **FTB e Blackout abbassano solo il dimmer**: colori, strobo e posizione

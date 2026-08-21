@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.19';
+const APP_VERSION = '5.20';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -440,6 +440,15 @@ function renderFixtures() {
       openChannelsModal(f);
     });
 
+    const dup = document.createElement('button');
+    dup.className = 'cfg';
+    dup.textContent = '⧉';
+    dup.title = 'Duplica questo faro (stessi canali, stesse luci)';
+    dup.addEventListener('click', (e) => {
+      e.stopPropagation();
+      duplicaFaro(f).catch((err) => alert('Duplicazione fallita: ' + err.message));
+    });
+
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = '✕';
@@ -453,7 +462,7 @@ function renderFixtures() {
       renderFixtures();
     });
 
-    head.append(swatch, picker, name, addrWrap, cfg, del);
+    head.append(swatch, picker, name, addrWrap, cfg, dup, del);
 
     const faders = document.createElement('div');
     faders.className = 'faders';
@@ -1147,20 +1156,49 @@ async function loadPreset(slot) {
   fadeValues(targets, durata, { skip: PRESET_SNAP_ROLES });
 }
 
-/* Entrata con le teste che si spostano al buio: le luci scendono, il
-   movimento (e zoom, macro...) va in posizione mentre è tutto spento, si
-   lascia il tempo alle teste di arrivare, poi le luci risalgono sul preset.
-   Con fade 0 la discesa e la risalita durano un quarto di secondo: serve un
-   minimo di buio, altrimenti lo spostamento si vedrebbe comunque. */
+/* Entrata con le teste che si spostano al buio. Riguarda solo le teste
+   mobili: gli altri fari cambiano scena come sempre, con il fade del preset,
+   mentre le teste spengono, si spostano al buio e si riaccendono arrivate in
+   posizione. Con fade 0 la discesa e la risalita durano un quarto di secondo:
+   serve un minimo di buio, altrimenti lo spostamento si vedrebbe comunque. */
 async function entraAlBuio(targets, durata) {
   const respiro = Math.max(250, durata);
-  // solo le luci vanno a zero: il movimento non si tocca finché non è buio
-  if (!await fadeValues(soloLuciAZero(), respiro, { only: ruoliSpegnimento })) return;
-
-  const token = fadeToken;
-  const attesa = attesaMovimento(targets);   // va misurata prima di spostare
+  const teste = new Map();       // le teste mobili, con la scena di arrivo
+  const altri = new Map();       // par e simili: cambiano subito, come sempre
+  const spente = new Map();      // le teste con il solo dimmer a zero
   for (const f of state.fixtures) {
     const to = targets.get(f.id);
+    if (!to) continue;
+    if (!isMovingHead(f)) { altri.set(f.id, to); continue; }
+    teste.set(f.id, to);
+    const chans = fixtureChannels(f);
+    const spenti = ruoliSpegnimento(f);
+    spente.set(f.id, f.values.map((v, i) => (spenti.has(chans[i].role) ? 0 : v)));
+  }
+
+  // gli altri fari non aspettano le teste: partono subito col loro fade
+  if (altri.size) {
+    if (durata > 0) fadeValues(altri, durata, { skip: PRESET_SNAP_ROLES });
+    else {
+      for (const f of state.fixtures) {
+        const to = altri.get(f.id);
+        if (!to) continue;
+        f.values = to;
+        updateFixtureDisplays(f);
+        pushValues(f);
+      }
+    }
+  }
+  if (!teste.size) return;
+
+  const attesa = attesaMovimento(teste);   // va misurata prima di spostare
+  if (!await fadeValues(spente, respiro, { only: ruoliSpegnimento })) return;
+
+  // al buio: movimento, zoom e macro vanno in posizione, il dimmer resta giù
+  const token = ++fadeSeq;
+  for (const id of teste.keys()) fadePadrone.set(id, token);
+  for (const f of state.fixtures) {
+    const to = teste.get(f.id);
     if (!to) continue;
     const chans = fixtureChannels(f);
     const spenti = ruoliSpegnimento(f);
@@ -1169,8 +1207,9 @@ async function entraAlBuio(targets, durata) {
     pushValues(f);
   }
   await new Promise((r) => setTimeout(r, attesa));
-  if (fadeToken !== token) return;   // nel frattempo è partito qualcos'altro
-  await fadeValues(targets, respiro, { only: ruoliSpegnimento });
+  // se nel frattempo è partito un altro comando su queste teste, ci si ferma
+  if ([...teste.keys()].some((id) => fadePadrone.get(id) !== token)) return;
+  await fadeValues(teste, respiro, { only: ruoliSpegnimento });
 }
 
 /* Bersaglio "tutto spento": i canali di luce a zero, tutto il resto com'è.
@@ -1758,6 +1797,44 @@ function newFixturePosition(n) {
   return { x: 0.12 + 0.76 * ((n % 8) / 7), y: 0.15 + 0.18 * Math.floor(n / 8) };
 }
 
+/* Nome della copia: se finisce con un numero lo si fa avanzare (Par 1 ->
+   Par 2), altrimenti si aggiunge "copia". */
+function nomeCopia(nome) {
+  const usati = new Set(state.fixtures.map((f) => f.name));
+  const m = /^(.*?)(\d+)\s*$/.exec(nome);
+  if (m) {
+    let n = parseInt(m[2], 10);
+    let scelto;
+    do { scelto = `${m[1]}${++n}`.slice(0, 24); } while (usati.has(scelto) && n < 999);
+    return scelto;
+  }
+  let scelto = `${nome} copia`.slice(0, 24);
+  let n = 2;
+  while (usati.has(scelto)) scelto = `${nome} copia ${n++}`.slice(0, 24);
+  return scelto;
+}
+
+/* Duplica un faro: stessi canali, stesse luci, stessa direzione. Cambiano
+   il nome, l'indirizzo (il primo libero) e la posizione, spostata di poco
+   per non finire esattamente sopra l'originale. */
+async function duplicaFaro(f) {
+  const n = fixtureSpan(f);
+  const res = await api('POST', '/api/fixtures', {
+    name: nomeCopia(f.name),
+    address: nextFreeAddress(n),
+    count: n,
+    channels: fixtureChannels(f).map((c) => ({ ...c })),
+    values: [...f.values],
+    x: Math.min(0.96, f.x + 0.05),
+    y: Math.min(0.96, f.y + 0.05),
+    rot: f.rot,
+    panzero: f.panzero || 0,
+  });
+  state.fixtures.push(res.fixture);
+  renderFixtures();
+  selectFixture(res.fixture.id);
+}
+
 async function addFixture(name, address, channels, count) {
   const pos = newFixturePosition(state.fixtures.length);
   const body = { name, address, x: pos.x, y: pos.y, rot: 0 };
@@ -1998,7 +2075,8 @@ function ruoliSpegnimento(f) {
 /* nel passaggio tra preset il movimento non sfuma: le teste si riposizionano
    di netto, mentre luci, colori e zoom seguono la dissolvenza */
 const PRESET_SNAP_ROLES = new Set(['pan', 'tilt']);
-let fadeToken = 0;        // token: una nuova dissolvenza annulla quella in corso
+let fadeSeq = 0;
+const fadePadrone = new Map();   // id faro -> dissolvenza che lo sta comandando
 let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 
 /* only: solo questi ruoli sfumano (gli altri restano fermi)
@@ -2006,7 +2084,11 @@ let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 /* restituisce una promessa: vera se la dissolvenza è arrivata in fondo,
    falsa se un'altra l'ha interrotta (serve al movimento al buio) */
 function fadeValues(targets, durata, { only = null, skip = null } = {}) {
-  const token = ++fadeToken;
+  // il comando dei fari toccati passa a questa dissolvenza; gli altri
+  // proseguono per conto loro
+  const token = ++fadeSeq;
+  for (const id of targets.keys()) fadePadrone.set(id, token);
+  const mio = (f) => fadePadrone.get(f.id) === token;
   // only/skip possono essere un insieme di ruoli oppure una funzione del
   // faro, perché lo spegnimento dipende da quali canali quel faro ha
   const insieme = (s, f) => (typeof s === 'function' ? s(f) : s);
@@ -2019,7 +2101,7 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
   // i canali esclusi dalla dissolvenza scattano subito
   for (const f of state.fixtures) {
     const to = targets.get(f.id);
-    if (!to) continue;
+    if (!to || !mio(f)) continue;
     const chans = fixtureChannels(f);
     const sfuma = sfumaSu(f);
     f.values = f.values.map((v, i) => (sfuma(chans[i].role) ? v : to[i]));
@@ -2039,11 +2121,12 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
   };
   return new Promise((finita) => {
     const step = () => {
-      if (token !== fadeToken) { finita(false); return; }
+      const restano = partenza.some(({ f }) => targets.has(f.id) && mio(f));
+      if (!restano) { finita(false); return; }
       const t = durata > 0 ? Math.min(1, (performance.now() - inizio) / durata) : 1;
       for (const { f, from } of partenza) {
         const to = targets.get(f.id);
-        if (!to) continue;
+        if (!to || !mio(f)) continue;
         const chans = fixtureChannels(f);
         const sfuma = sfumaSu(f);
         f.values = f.values.map((v, i) =>
@@ -2107,6 +2190,7 @@ function exportShow() {
     fixtures: state.fixtures,
     presets: state.presets,
     channels: state.channels,
+    copioni: state.copioni,
     blackout: state.blackout,
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2172,6 +2256,29 @@ window.addEventListener('keydown', (e) => {
     else closeCopione();
   }
 });
+
+/* Esporta e importa: è la strada per portare fari e preset dalla versione
+   web a questa e viceversa. Nella versione web i due pulsanti li gestisce il
+   suo backend locale, qui passano dal server. */
+if (!window.LIGHTSTAGE_STATIC) {
+  $('#btn-export').addEventListener('click', exportShow);
+  $('#import-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!confirm('Caricando il file, fari e preset di adesso vengono sostituiti. Procedere?')) return;
+    const lettore = new FileReader();
+    lettore.onload = async () => {
+      try {
+        await api('POST', '/api/import', JSON.parse(lettore.result));
+        location.reload();
+      } catch (err) {
+        alert('File non valido: ' + (err.message || err));
+      }
+    };
+    lettore.readAsText(file);
+  });
+}
 
 /* connessione DMX */
 $('#btn-connect').addEventListener('click', async () => {

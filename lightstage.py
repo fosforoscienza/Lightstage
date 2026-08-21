@@ -278,6 +278,11 @@ def load_show():
     except Exception as exc:
         print(f"Attenzione: show.json non leggibile ({exc}), riparto da zero.")
         return
+    apply_show(data)
+
+
+def apply_show(data):
+    """Sostituisce lo show con quello di un file esportato o di show.json."""
     channels = sanitize_channels(data.get("channels"))
     fixtures = []
     for f in data.get("fixtures", []):
@@ -554,6 +559,24 @@ def load_preset(slot):
         rebuild_universe()
         mark_dirty()
         return jsonify({"fixtures": show["fixtures"]})
+
+
+@app.post("/api/import")
+def import_show():
+    """Carica uno show esportato da un altro computer o dalla versione web."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or "fixtures" not in data:
+        return jsonify({"error": "file non valido: manca l'elenco dei fari"}), 400
+    with lock:
+        apply_show(data)
+        # i PDF dei copioni restano sul computer di partenza: qui i progetti
+        # ci sono ma il testo va ricaricato
+        for c in show["copioni"]:
+            if not os.path.exists(os.path.join(PDF_DIR, f"{c['id']}.pdf")):
+                c["pdf"] = False
+        rebuild_universe()
+        mark_dirty()
+        return jsonify({"ok": True})
 
 
 @app.patch("/api/presets/<int:slot>")

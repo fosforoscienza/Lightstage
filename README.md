@@ -56,7 +56,8 @@ Daslight: solo quello che serve.
   dell'anteprima nel Copione, e accanto al palco — lì valgono per il prossimo
   preset che salvi. Con le teste **al buio** le luci scendono, il movimento va
   in posizione al buio, si lascia il tempo alle teste di arrivare e poi le luci
-  risalgono sulla nuova scena.
+  risalgono sulla nuova scena. Riguarda **solo le teste mobili**: gli altri fari
+  cambiano scena normalmente, con il loro fade.
 - **Durante lo spettacolo tieni la finestra in primo piano** (versione web):
   quando la pagina finisce in secondo piano il browser rallenta di molto ciò
   che sta girando, e senza segnale DMX i fari possono ripartire con il loro
@@ -79,6 +80,15 @@ Daslight: solo quello che serve.
   connetti il cavo, **Cmd/Ctrl+S** salva lo show (nella versione web salva il
   setup online, altrimenti scarica il file), **Cmd/Ctrl+O** apre la finestra
   Online (solo versione web).
+- **Duplica un faro**: il pulsante ⧉ sulla scheda crea una copia con gli stessi
+  canali, le stesse luci e la stessa direzione, sul primo indirizzo DMX libero
+  e con il nome che avanza (Par 1 → Par 2). Nome e indirizzo si correggono poi
+  direttamente sulla scheda.
+- **Portare lo show da una versione all'altra**: **Esporta** scarica un file con
+  fari, canali, posizioni, luci e preset; **Importa** lo carica. I due pulsanti
+  ci sono in entrambe le versioni, quindi si passa dalla versione web a quella
+  con il cavo (e viceversa) in due clic. I PDF dei copioni non entrano nel file:
+  i progetti passano, il testo va ricaricato dove serve.
 - **Più fari insieme**: clic sul primo faro, poi **Maiusc**+clic sugli altri
   (sulla mappa o sulle schede dei fader). Da quel momento un fader, il
   selettore colore e il mirino agiscono su **tutti** i fari scelti; il mirino

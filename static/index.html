@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E">
 <!-- il ?v= serve a non far riusare al browser i file della versione precedente -->
-<link rel="stylesheet" href="style.css?v=5.19">
+<link rel="stylesheet" href="style.css?v=5.20">
 </head>
 <body>
 
@@ -20,6 +20,9 @@
     <span id="dmx-label" class="dmx-label">non connesso</span>
   </div>
   <div class="spacer"></div>
+  <button id="btn-export" class="btn ghost" title="Scarica fari e preset in un file da portare su un altro computer">Esporta</button>
+  <label class="btn ghost" for="import-file" title="Carica un file esportato dalla versione web o da un altro computer">Importa</label>
+  <input id="import-file" type="file" accept="application/json,.json" hidden>
   <button id="btn-network" class="btn ghost hidden" title="Usa LightStage da telefono o altri computer">&#128241; In rete</button>
   <button id="btn-add" class="btn primary">+ Aggiungi faro</button>
   <span id="ftb-time" class="fade-group" title="Durata della dissolvenza FTB">
@@ -291,7 +294,7 @@
   </div>
 </div>
 
-<script src="app.js?v=5.19"></script>
-<script src="copione.js?v=5.19"></script>
+<script src="app.js?v=5.20"></script>
+<script src="copione.js?v=5.20"></script>
 </body>
 </html>
