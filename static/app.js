@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.15';
+const APP_VERSION = '5.16';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -89,15 +89,27 @@ function fadeGroupValue(sel) {
 
 /* più gruppi possono comandare la stessa impostazione (barra preset e
    schermata griglia): restano sempre allineati fra loro */
+const gruppiFade = new Map();   // chiave di memoria -> funzione che applica
+
 function setupFadeGroup(selectors, storageKey, { allowOff = false } = {}) {
   const gruppi = [].concat(selectors).map((s) => $(s)).filter(Boolean);
   const applica = (valore) => {
+    let trovato = false;
     gruppi.forEach((g) => g.querySelectorAll('button').forEach((b) => {
-      b.classList.toggle('sel', b.dataset.value === valore);
+      const sel = b.dataset.value === valore;
+      if (sel) trovato = true;
+      b.classList.toggle('sel', sel);
     }));
+    return trovato;
   };
-  const salvato = localStorage.getItem(storageKey);
-  if (salvato !== null) applica(salvato);
+  gruppiFade.set(storageKey, applica);
+  // scelta di partenza segnata nell'HTML: ci si torna se quella memorizzata
+  // non esiste più (arriva da una versione precedente)
+  const iniziale = gruppi[0] && gruppi[0].querySelector('button.sel')
+    ? gruppi[0].querySelector('button.sel').dataset.value : null;
+  let salvato = localStorage.getItem(storageKey);
+  if (salvato === '') salvato = '0';   // prima "niente dissolvenza", ora 0s
+  if (salvato !== null && !applica(salvato) && iniziale !== null) applica(iniziale);
   gruppi.forEach((group) => group.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
@@ -105,7 +117,15 @@ function setupFadeGroup(selectors, storageKey, { allowOff = false } = {}) {
     applica(spegni ? '' : btn.dataset.value);
     localStorage.setItem(storageKey, spegni ? '' : btn.dataset.value);
     btn.blur(); // niente fuoco: la barra spaziatrice non lo ricliccherebbe
+    aggiornaControlliPreset();
   }));
+}
+
+/* imposta un gruppo di durate da fuori (dai comandi accanto al palco) */
+function impostaFade(storageKey, valore) {
+  localStorage.setItem(storageKey, String(valore));
+  const applica = gruppiFade.get(storageKey);
+  if (applica) applica(String(valore));
 }
 
 async function api(method, url, body) {
@@ -517,6 +537,110 @@ function selectFixture(id, scroll = true) {
   });
 }
 
+/* --------------------------------------------- impostazioni di ogni preset
+   Ogni preset porta con sé la durata della dissolvenza con cui entra e se le
+   teste mobili devono spostarsi accese o al buio. I comandi qui sotto sono
+   gli stessi ovunque: nella griglia e nel copione modificano quel preset,
+   accanto al palco valgono per il prossimo preset che si salva. */
+const FADE_STEPS = [0, 0.5, 1, 1.5];
+const FADE_LABELS = ['0', '0,5', '1', '1,5'];
+const ATTESA_BUIO = 600;   // tempo lasciato alle teste per arrivare, al buio
+
+function presetFade(p) {
+  const v = p && typeof p.fade === 'number' ? p.fade : fadeGroupValue('#preset-fade');
+  return FADE_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+}
+
+function presetDark(p) {
+  return p && typeof p.dark === 'boolean' ? p.dark : defaultDark();
+}
+
+function defaultDark() {
+  return localStorage.getItem('lightstage-preset-dark') === '1';
+}
+
+function setDefaultDark(on) {
+  localStorage.setItem('lightstage-preset-dark', on ? '1' : '');
+  aggiornaControlliPreset();
+}
+
+const controlliPreset = [];   // {el, aggiorna}: si aggiornano tutti insieme
+function aggiornaControlliPreset() {
+  // i comandi di celle non più a schermo (griglia ridisegnata) si scartano
+  for (let i = controlliPreset.length - 1; i >= 0; i--) {
+    if (controlliPreset[i].el.isConnected) controlliPreset[i].aggiorna();
+    else controlliPreset.splice(i, 1);
+  }
+}
+
+const ICONA_TESTA = '<svg viewBox="0 0 20 20" aria-hidden="true">'
+  + '<path class="raggio" d="M7.2 5 L3 0 H17 L12.8 5 Z"/>'
+  + '<rect class="corpo" x="6" y="4.2" width="8" height="7.2" rx="1.6"/>'
+  + '<path class="forcella" d="M5 14.5 V9 M15 14.5 V9"/>'
+  + '<rect class="base" x="3.6" y="14.5" width="12.8" height="3" rx="1.4"/></svg>';
+
+/* leggi() -> {fade, dark}; scrivi(patch) applica la modifica */
+function costruisciControlliPreset(leggi, scrivi, { orizzontale = false } = {}) {
+  const box = document.createElement('div');
+  box.className = 'preset-ctl' + (orizzontale ? ' oriz' : '');
+  const gruppo = document.createElement('div');
+  gruppo.className = 'pc-fade';
+  const bottoni = FADE_STEPS.map((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = FADE_LABELS[i];
+    b.title = s === 0
+      ? 'Entra di netto, senza dissolvenza'
+      : `Entra in dissolvenza di ${FADE_LABELS[i]} secondi`;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      b.blur();   // il fuoco resta libero per la barra spaziatrice
+      scrivi({ fade: s });
+    });
+    gruppo.append(b);
+    return b;
+  });
+  const testa = document.createElement('button');
+  testa.type = 'button';
+  testa.className = 'pc-head';
+  testa.innerHTML = ICONA_TESTA;
+  testa.addEventListener('click', (e) => {
+    e.stopPropagation();
+    testa.blur();
+    scrivi({ dark: !leggi().dark });
+  });
+  box.append(gruppo, testa);
+  // solo i pulsanti fermano l'evento: sullo sfondo del riquadro il preset
+  // resta afferrabile come prima (trascinamento nel copione, clic nella griglia)
+  const soloPulsanti = (e) => { if (e.target.closest('button')) e.stopPropagation(); };
+  box.addEventListener('pointerdown', soloPulsanti);
+  box.addEventListener('click', soloPulsanti);
+
+  const aggiorna = () => {
+    const { fade, dark } = leggi();
+    bottoni.forEach((b, i) => b.classList.toggle('sel', FADE_STEPS[i] === fade));
+    testa.classList.toggle('on', !dark);
+    testa.title = dark
+      ? 'Le teste mobili si spostano al buio, poi le luci risalgono (clic per spostarle accese)'
+      : 'Le teste mobili si spostano accese (clic per spostarle al buio)';
+  };
+  aggiorna();
+  const voce = { el: box, aggiorna };
+  controlliPreset.push(voce);
+  return voce;
+}
+
+/* cambia solo le impostazioni di un preset, senza toccare le luci salvate */
+async function patchPreset(slot, patch) {
+  const p = state.presets[slot];
+  if (!p) return;
+  Object.assign(p, patch);          // subito a schermo, poi si conferma
+  aggiornaControlliPreset();
+  const res = await api('PATCH', `/api/presets/${slot}`, patch);
+  state.presets = res.presets;
+  aggiornaControlliPreset();
+}
+
 /* ---------------------------------------------------------------- preset */
 function renderPresets() {
   const bar = $('#presets-slots');
@@ -648,6 +772,15 @@ function renderGrid() {
     badge.className = 'cell-badge';
     cell.append(badge);
 
+    if (p) {
+      // fade e movimento delle teste di questo preset, sul lato sinistro
+      const ctl = costruisciControlliPreset(
+        () => ({ fade: presetFade(state.presets[i]), dark: presetDark(state.presets[i]) }),
+        (patch) => patchPreset(i, patch).catch(console.error));
+      ctl.el.classList.add('cell-side');
+      cell.append(ctl.el);
+    }
+
     const foot = document.createElement('div');
     foot.className = 'cell-foot';
     const num = document.createElement('span');
@@ -713,6 +846,7 @@ function renderGrid() {
     gridCells.set(i, { cell, canvas, nameEl, badge });
   });
   updateGridSelection();
+  aggiornaControlliPreset();
   // le miniature si disegnano dopo il layout, così hanno le misure giuste
   requestAnimationFrame(() => {
     gridCells.forEach((ref, slot) => drawPresetThumb(ref.canvas, state.presets[slot]));
@@ -789,11 +923,17 @@ vaiA('#btn-copione-to-grid', () => {
 async function savePreset(slot, existing) {
   const name = prompt('Nome del preset:', existing ? existing.name : `Preset ${slot + 1}`);
   if (name === null) return;
-  const res = await api('POST', `/api/presets/${slot}`, { name: name.trim() || `Preset ${slot + 1}` });
+  // il preset nasce con il fade e il movimento scelti accanto al palco
+  const res = await api('POST', `/api/presets/${slot}`, {
+    name: name.trim() || `Preset ${slot + 1}`,
+    fade: existing ? presetFade(existing) : fadeGroupValue('#preset-fade'),
+    dark: existing ? presetDark(existing) : defaultDark(),
+  });
   state.presets = res.presets;
   activePreset = slot;
   renderPresets();
   if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
+  syncCueUI();
 }
 
 /* ------------------------------------------------------- duplica un preset
@@ -868,7 +1008,7 @@ async function loadPreset(slot) {
   activePreset = slot;
   renderPresets();
   syncCueUI();
-  const durata = fadeGroupValue('#preset-fade') * 1000;
+  const durata = presetFade(p) * 1000;
   const targets = new Map();
   for (const f of state.fixtures) {
     const saved = p.values[String(f.id)];
@@ -894,6 +1034,11 @@ async function loadPreset(slot) {
     }
     return;
   }
+  // teste al buio: si spegne, si sposta, si riaccende sulla nuova posizione
+  if (presetDark(p) && state.fixtures.some(isMovingHead)) {
+    await entraAlBuio(targets, durata);
+    return;
+  }
   if (durata <= 0) {
     for (const f of state.fixtures) {
       const to = targets.get(f.id);
@@ -906,6 +1051,30 @@ async function loadPreset(slot) {
   }
   // sfuma tutto tranne il movimento: pan e tilt vanno subito in posizione
   fadeValues(targets, durata, { skip: PRESET_SNAP_ROLES });
+}
+
+/* Entrata con le teste che si spostano al buio: le luci scendono, il
+   movimento (e zoom, macro...) va in posizione mentre è tutto spento, si
+   lascia il tempo alle teste di arrivare, poi le luci risalgono sul preset.
+   Con fade 0 la discesa e la risalita durano un quarto di secondo: serve un
+   minimo di buio, altrimenti lo spostamento si vedrebbe comunque. */
+async function entraAlBuio(targets, durata) {
+  const respiro = Math.max(250, durata);
+  const zeri = new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)]));
+  if (!await fadeValues(zeri, respiro, { only: FTB_ROLES })) return;
+
+  const token = fadeToken;
+  for (const f of state.fixtures) {
+    const to = targets.get(f.id);
+    if (!to) continue;
+    const chans = fixtureChannels(f);
+    f.values = f.values.map((v, i) => (FTB_ROLES.has(chans[i].role) ? v : to[i]));
+    updateFixtureDisplays(f);
+    pushValues(f);
+  }
+  await new Promise((r) => setTimeout(r, ATTESA_BUIO));
+  if (fadeToken !== token) return;   // nel frattempo è partito qualcos'altro
+  await fadeValues(targets, respiro, { only: FTB_ROLES });
 }
 
 /* ------------------------------------------------------------------- DMX */
@@ -1683,6 +1852,8 @@ let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
 
 /* only: solo questi ruoli sfumano (gli altri restano fermi)
    skip: questi ruoli vanno subito a destinazione, gli altri sfumano */
+/* restituisce una promessa: vera se la dissolvenza è arrivata in fondo,
+   falsa se un'altra l'ha interrotta (serve al movimento al buio) */
 function fadeValues(targets, durata, { only = null, skip = null } = {}) {
   const token = ++fadeToken;
   const sfuma = (ruolo) => (only ? only.has(ruolo) : !(skip && skip.has(ruolo)));
@@ -1699,27 +1870,30 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
 
   const inizio = performance.now();
   const partenza = state.fixtures.map((f) => ({ f, from: [...f.values] }));
-  const step = () => {
-    if (token !== fadeToken) return;
-    const t = Math.min(1, (performance.now() - inizio) / durata);
-    for (const { f, from } of partenza) {
-      const to = targets.get(f.id);
-      if (!to) continue;
-      const chans = fixtureChannels(f);
-      f.values = f.values.map((v, i) =>
-        sfuma(chans[i].role)
-          ? Math.round(from[i] + (to[i] - from[i]) * t)
-          : v);
-      updateFixtureDisplays(f);
-      pushValues(f);
-    }
-    if (t < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
+  return new Promise((finita) => {
+    const step = () => {
+      if (token !== fadeToken) { finita(false); return; }
+      const t = durata > 0 ? Math.min(1, (performance.now() - inizio) / durata) : 1;
+      for (const { f, from } of partenza) {
+        const to = targets.get(f.id);
+        if (!to) continue;
+        const chans = fixtureChannels(f);
+        f.values = f.values.map((v, i) =>
+          sfuma(chans[i].role)
+            ? Math.round(from[i] + (to[i] - from[i]) * t)
+            : v);
+        updateFixtureDisplays(f);
+        pushValues(f);
+      }
+      if (t < 1) requestAnimationFrame(step);
+      else finita(true);
+    };
+    requestAnimationFrame(step);
+  });
 }
 
 function ftbFade(target) {
-  fadeValues(target, (fadeGroupValue('#ftb-time') || 1) * 1000, { only: FTB_ROLES });
+  return fadeValues(target, fadeGroupValue('#ftb-time') * 1000, { only: FTB_ROLES });
 }
 
 function toggleFtb() {
@@ -1743,7 +1917,21 @@ function toggleFtb() {
 $$('.js-ftb').forEach((b) => b.addEventListener('click', toggleFtb));
 setupFadeGroup(['#ftb-time', '#ftb-time-grid', '#ftb-time-copione'], 'lightstage-ftb-time');
 setupFadeGroup(['#preset-fade', '#preset-fade-grid', '#preset-fade-copione'],
-  'lightstage-preset-fade', { allowOff: true });
+  'lightstage-preset-fade');
+
+/* comandi accanto al palco: valgono per il prossimo preset che si salva */
+(function controlliNuovoPreset() {
+  const box = $('#stage-ctl');
+  if (!box) return;
+  const ctl = costruisciControlliPreset(
+    () => ({ fade: fadeGroupValue('#preset-fade'), dark: defaultDark() }),
+    (patch) => {
+      if ('fade' in patch) impostaFade('lightstage-preset-fade', patch.fade);
+      if ('dark' in patch) setDefaultDark(patch.dark);
+      aggiornaControlliPreset();
+    });
+  box.append(ctl.el);
+}());
 
 /* scarica lo show come file (backup / trasferimento) */
 function exportShow() {

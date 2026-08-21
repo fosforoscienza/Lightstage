@@ -20,6 +20,15 @@
   const ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white',
     'strobe', 'pan', 'tilt', 'focus', 'return', 'other']);
 
+  const FADE_STEPS = [0, 0.5, 1, 1.5];
+
+  /* durata di dissolvenza del preset: uno dei tempi previsti, 0 = netto */
+  function sanitizeFade(raw) {
+    const v = parseFloat(raw);
+    if (isNaN(v)) return 1;
+    return FADE_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+  }
+
   function sanitizeValues(raw, n = NUM_CHANNELS) {
     const vals = new Array(n).fill(0);
     if (Array.isArray(raw)) {
@@ -95,7 +104,12 @@
       if (p && typeof p === 'object' && p.values) {
         const values = {};
         for (const [k, v] of Object.entries(p.values)) values[k] = sanitizeValues(v, 16);
-        db.presets[i] = { name: String(p.name || `Preset ${i + 1}`).slice(0, 24), values };
+        db.presets[i] = {
+          name: String(p.name || `Preset ${i + 1}`).slice(0, 24),
+          fade: sanitizeFade(p.fade),
+          dark: !!p.dark,
+          values,
+        };
       }
     });
     for (const c of data.copioni || []) {
@@ -400,6 +414,17 @@
       save();
       return { fixtures: db.fixtures };
     }
+    if ((match = /^\/api\/presets\/(\d+)$/.exec(url)) && m === 'PATCH') {
+      const slot = parseInt(match[1], 10);
+      const p = db.presets[slot];
+      if (!p) throw new Error('preset vuoto');
+      const b = body || {};
+      if ('name' in b) p.name = String(b.name || p.name).slice(0, 24);
+      if ('fade' in b) p.fade = sanitizeFade(b.fade);
+      if ('dark' in b) p.dark = !!b.dark;
+      save();
+      return { presets: db.presets };
+    }
     if ((match = /^\/api\/presets\/(\d+)\/copy$/.exec(url)) && m === 'POST') {
       const slot = parseInt(match[1], 10);
       const dest = parseInt((body || {}).to, 10);
@@ -408,7 +433,12 @@
       if (!p) throw new Error('preset vuoto');
       const values = {};
       for (const k of Object.keys(p.values)) values[k] = [...p.values[k]];
-      db.presets[dest] = { name: String((body || {}).name || p.name).slice(0, 24), values };
+      db.presets[dest] = {
+        name: String((body || {}).name || p.name).slice(0, 24),
+        fade: sanitizeFade(p.fade),
+        dark: !!p.dark,
+        values,
+      };
       save();
       return { presets: db.presets };
     }
@@ -420,6 +450,8 @@
         for (const f of db.fixtures) values[String(f.id)] = [...f.values];
         db.presets[slot] = {
           name: String((body || {}).name || `Preset ${slot + 1}`).slice(0, 24),
+          fade: sanitizeFade((body || {}).fade),
+          dark: !!(body || {}).dark,
           values,
         };
         save();

@@ -49,6 +49,14 @@ Daslight: solo quello che serve.
   preset lo toglie dal copione. In alto a destra ci sono **FTB** e **Blackout**
   con le loro durate, come nella Preset grid. Il PDF sta nella cartella `copioni/` (nella versione web, nel
   browser).
+- **Come entra un preset**: ogni preset porta con sé la **durata della
+  dissolvenza** con cui entra (0 / 0,5 / 1 / 1,5 s; 0 = cambio netto) e se le
+  **teste mobili si spostano accese o al buio**. I comandi sono gli stessi
+  ovunque: a sinistra di ogni anteprima nella Preset grid, sul bordo
+  dell'anteprima nel Copione, e accanto al palco — lì valgono per il prossimo
+  preset che salvi. Con le teste **al buio** le luci scendono, il movimento va
+  in posizione al buio, si lascia il tempo alle teste di arrivare e poi le luci
+  risalgono sulla nuova scena.
 - **Passaggio fra le schermate**: in fondo a ogni schermata ci sono i pulsanti
   per andare alle altre due (Principale, Preset grid, Copione); **Esc** torna
   sempre alla schermata principale.

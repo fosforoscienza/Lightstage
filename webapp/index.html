@@ -7,7 +7,7 @@
 <meta http-equiv="cache-control" content="no-cache">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E">
 <!-- il ?v= serve a non far riusare al browser i file della versione precedente -->
-<link rel="stylesheet" href="../static/style.css?v=5.15">
+<link rel="stylesheet" href="../static/style.css?v=5.16">
 </head>
 <body>
 
@@ -29,7 +29,8 @@
   <button id="btn-network" class="btn ghost hidden">&#128241; In rete</button>
   <button id="btn-add" class="btn primary">+ Aggiungi faro</button>
   <span id="ftb-time" class="fade-group" title="Durata della dissolvenza FTB">
-    <button type="button" data-value="0.5">0,5s</button>
+    <button type="button" data-value="0">0s</button>
+        <button type="button" data-value="0.5">0,5s</button>
     <button type="button" data-value="1" class="sel">1s</button>
     <button type="button" data-value="1.5">1,5s</button>
   </span>
@@ -39,6 +40,9 @@
 
 <section id="stage-panel">
   <canvas id="stage"></canvas>
+  <div id="stage-ctl" title="Impostazioni del prossimo preset che salvi">
+    <span class="pc-lbl">nuovo<br>preset</span>
+  </div>
   <div id="stage-hint">trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo (<b>Maiusc</b>: scatti di 15&deg;) &middot; <b>mirino</b>: clic e poi indica dove puntare il fascio</div>
 </section>
 
@@ -47,7 +51,8 @@
     Fade
     <span id="preset-fade" class="fade-group"
           title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
-      <button type="button" data-value="0.5">0,5s</button>
+      <button type="button" data-value="0">0s</button>
+        <button type="button" data-value="0.5">0,5s</button>
       <button type="button" data-value="1" class="sel">1s</button>
       <button type="button" data-value="1.5">1,5s</button>
     </span>
@@ -99,6 +104,7 @@
       Preset
       <span id="preset-fade-grid" class="fade-group"
             title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
+        <button type="button" data-value="0">0s</button>
         <button type="button" data-value="0.5">0,5s</button>
         <button type="button" data-value="1" class="sel">1s</button>
         <button type="button" data-value="1.5">1,5s</button>
@@ -107,7 +113,8 @@
     <div class="fade-box">
       FTB
       <span id="ftb-time-grid" class="fade-group" title="Durata della dissolvenza FTB">
-      <button type="button" data-value="0.5">0,5s</button>
+      <button type="button" data-value="0">0s</button>
+        <button type="button" data-value="0.5">0,5s</button>
       <button type="button" data-value="1" class="sel">1s</button>
         <button type="button" data-value="1.5">1,5s</button>
       </span>
@@ -132,8 +139,8 @@
     <span class="foot-nav">
       <button id="btn-grid-to-main" class="btn ghost" title="Torna ai fader e all'anteprima del palco">&#8592; Principale</button>
       <button id="btn-grid-to-copione" class="btn ghost" title="Copione con PDF e timeline (tasto C)">&#128220; Copione</button>
+      <span id="app-version-grid"></span>
     </span>
-    <span id="app-version-grid"></span>
   </footer>
 </section>
 
@@ -152,6 +159,7 @@
       Preset
       <span id="preset-fade-copione" class="fade-group"
             title="Dissolvenza tra un preset e l'altro (riclicca per toglierla)">
+        <button type="button" data-value="0">0s</button>
         <button type="button" data-value="0.5">0,5s</button>
         <button type="button" data-value="1" class="sel">1s</button>
         <button type="button" data-value="1.5">1,5s</button>
@@ -160,6 +168,7 @@
     <div class="fade-box">
       FTB
       <span id="ftb-time-copione" class="fade-group" title="Durata della dissolvenza FTB">
+        <button type="button" data-value="0">0s</button>
         <button type="button" data-value="0.5">0,5s</button>
         <button type="button" data-value="1" class="sel">1s</button>
         <button type="button" data-value="1.5">1,5s</button>
@@ -204,8 +213,8 @@
     <span class="foot-nav">
       <button id="btn-copione-to-main" class="btn ghost" title="Torna ai fader e all'anteprima del palco">&#8592; Principale</button>
       <button id="btn-copione-to-grid" class="btn ghost" title="Tutti i 100 preset con anteprima (tasto G)">&#9638; Preset grid</button>
+      <span id="app-version-copione"></span>
     </span>
-    <span id="app-version-copione"></span>
   </footer>
 </section>
 
@@ -318,8 +327,8 @@
   </div>
 </div>
 
-<script src="local-backend.js?v=5.15"></script>
-<script src="../static/app.js?v=5.15"></script>
-<script src="../static/copione.js?v=5.15"></script>
+<script src="local-backend.js?v=5.16"></script>
+<script src="../static/app.js?v=5.16"></script>
+<script src="../static/copione.js?v=5.16"></script>
 </body>
 </html>

@@ -526,7 +526,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  gap: 16px;
   padding: 7px 16px;
   border-top: 1px solid var(--border);
   background: var(--panel);
@@ -560,6 +562,8 @@ body {
   font-size: 11px;
   padding: 4px 9px;
 }
+.foot-nav > span { margin-left: 4px; letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums; }
 .grid-cell canvas {
   width: 100%;
   aspect-ratio: 16 / 7;
@@ -610,12 +614,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
+/* anche le voci con il pallino colorato restano su una riga sola */
+#grid-legend > span,
+#copione-foot > span { white-space: nowrap; }
 .key-item em {
   font-style: normal;
   color: var(--text-dim);
 }
-#credits kbd {
+#credits kbd,
+#grid-legend kbd,
+#copione-foot kbd {
   display: inline-block;
   min-width: 20px;
   text-align: center;
@@ -629,7 +639,91 @@ body {
   font-weight: 600;
   color: #e8ecf3;
 }
-#credits kbd.mod { letter-spacing: 0.5px; }
+#credits kbd.mod,
+#grid-legend kbd.mod,
+#copione-foot kbd.mod { letter-spacing: 0.5px; }
+/* ------------------------------- fade e movimento delle teste di un preset
+   Stessi comandi ovunque: accanto al palco valgono per il prossimo preset,
+   nella griglia e nel copione per quel preset lì. */
+.preset-ctl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 7px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(58, 67, 86, 0.7);
+}
+.preset-ctl.oriz { flex-direction: row; }
+.preset-ctl .pc-fade {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.preset-ctl.oriz .pc-fade { flex-direction: row; }
+.preset-ctl .pc-fade button {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 22px;
+}
+.preset-ctl .pc-fade button:hover { background: #232a37; color: var(--text); }
+.preset-ctl .pc-fade button.sel { background: var(--accent); color: #fff; }
+.preset-ctl .pc-head {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  line-height: 0;
+  border-radius: 4px;
+}
+.preset-ctl .pc-head:hover { background: #232a37; }
+.preset-ctl .pc-head svg { width: 15px; height: 15px; display: block; }
+.preset-ctl .pc-head .corpo,
+.preset-ctl .pc-head .base { fill: #566074; }
+.preset-ctl .pc-head .forcella { stroke: #566074; stroke-width: 1.6; fill: none; }
+.preset-ctl .pc-head .raggio { fill: none; }
+/* accesa: la testa si muove illuminata */
+.preset-ctl .pc-head.on .corpo,
+.preset-ctl .pc-head.on .base { fill: #b9c2d4; }
+.preset-ctl .pc-head.on .forcella { stroke: #b9c2d4; }
+.preset-ctl .pc-head.on .raggio { fill: rgba(230, 200, 90, 0.85); }
+
+/* accanto al palco */
+#stage-ctl {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+#stage-ctl .pc-lbl {
+  font-size: 8px;
+  line-height: 1.15;
+  letter-spacing: 0.5px;
+  text-align: center;
+  color: #566074;
+  text-transform: uppercase;
+}
+
+/* sulla miniatura di un preset nella griglia */
+.grid-cell .cell-side {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  z-index: 2;
+}
 
 /* ---------------------------------------------------------------- modali */
 .modal {
@@ -868,6 +962,7 @@ body {
   opacity: 0.95;
   z-index: 3;
 }
+.tl-cue .tl-thumb-box { position: relative; }
 .tl-cue .tl-thumb {
   display: block;
   width: 100%;
@@ -876,6 +971,15 @@ body {
   background: #0a0c10;
   border: 1px solid #232a37;
 }
+/* fade e movimento delle teste, sul bordo superiore dell'anteprima */
+.tl-cue .tl-ctl {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  justify-content: space-between;
+}
+.tl-cue .tl-ctl .pc-fade { flex: 0 1 auto; }
 .tl-cue .tl-txt {
   display: flex;
   align-items: center;
@@ -946,6 +1050,8 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  row-gap: 6px;
   gap: 14px;
   padding: 8px 16px;
   border-top: 1px solid var(--border);

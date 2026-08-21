@@ -199,6 +199,18 @@ def rebuild_universe():
 
 
 # -------------------------------------------------------------- persistenza
+FADE_STEPS = (0.0, 0.5, 1.0, 1.5)
+
+
+def sanitize_fade(raw):
+    """durata di dissolvenza del preset: uno dei tempi previsti, 0 = netto"""
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return 1.0
+    return min(FADE_STEPS, key=lambda s: abs(s - v))
+
+
 def sanitize_values(raw, n=NUM_CHANNELS):
     vals = [0] * n
     if isinstance(raw, list):
@@ -274,6 +286,8 @@ def load_show():
         if isinstance(p, dict) and "values" in p:
             presets[i] = {
                 "name": str(p.get("name", f"Preset {i + 1}"))[:24],
+                "fade": sanitize_fade(p.get("fade")),
+                "dark": bool(p.get("dark")),
                 "values": {
                     str(k): sanitize_values(v, n=16)
                     for k, v in dict(p["values"]).items()
@@ -503,6 +517,8 @@ def save_preset(slot):
     with lock:
         show["presets"][slot] = {
             "name": str(body.get("name") or f"Preset {slot + 1}")[:24],
+            "fade": sanitize_fade(body.get("fade")),
+            "dark": bool(body.get("dark")),
             "values": {str(f["id"]): list(f["values"]) for f in show["fixtures"]},
         }
         mark_dirty()
@@ -524,6 +540,24 @@ def load_preset(slot):
         return jsonify({"fixtures": show["fixtures"]})
 
 
+@app.patch("/api/presets/<int:slot>")
+def update_preset(slot):
+    """cambia solo le impostazioni del preset, non le luci memorizzate"""
+    body = request.get_json(silent=True) or {}
+    with lock:
+        if not 0 <= slot < NUM_PRESETS or show["presets"][slot] is None:
+            return jsonify({"error": "preset vuoto"}), 404
+        p = show["presets"][slot]
+        if "name" in body:
+            p["name"] = str(body.get("name") or p["name"])[:24]
+        if "fade" in body:
+            p["fade"] = sanitize_fade(body.get("fade"))
+        if "dark" in body:
+            p["dark"] = bool(body.get("dark"))
+        mark_dirty()
+        return jsonify({"presets": show["presets"]})
+
+
 @app.post("/api/presets/<int:slot>/copy")
 def copy_preset(slot):
     """copia un preset in un altro spazio, con un nome nuovo"""
@@ -540,6 +574,8 @@ def copy_preset(slot):
         sorgente = show["presets"][slot]
         show["presets"][dest] = {
             "name": str(body.get("name") or sorgente["name"])[:24],
+            "fade": sanitize_fade(sorgente.get("fade")),
+            "dark": bool(sorgente.get("dark")),
             "values": {k: list(v) for k, v in sorgente["values"].items()},
         }
         mark_dirty()

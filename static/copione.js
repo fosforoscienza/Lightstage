@@ -215,6 +215,19 @@ function renderCues() {
 
     const thumb = document.createElement('canvas');
     thumb.className = 'tl-thumb';
+    const cornice = document.createElement('div');
+    cornice.className = 'tl-thumb-box';
+    cornice.append(thumb);
+    if (p) {
+      // fade e movimento delle teste di questo preset, sul bordo superiore
+      const ctl = costruisciControlliPreset(
+        () => ({ fade: presetFade(state.presets[cue.preset]),
+                 dark: presetDark(state.presets[cue.preset]) }),
+        (patch) => patchPreset(cue.preset, patch).catch(console.error),
+        { orizzontale: true });
+      ctl.el.classList.add('tl-ctl');
+      cornice.append(ctl.el);
+    }
     const testo = document.createElement('div');
     testo.className = 'tl-txt';
     const n = document.createElement('span');
@@ -237,7 +250,7 @@ function renderCues() {
       await salvaCue(vivo.c);
     });
 
-    box.append(thumb, testo, del);
+    box.append(cornice, testo, del);
     box.title = p
       ? `Prepara "${p.name}" — poi barra spaziatrice. Trascina per spostarlo nel copione.`
       : 'Preset vuoto';

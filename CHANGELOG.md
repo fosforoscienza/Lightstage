@@ -5,6 +5,22 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.16
+
+- Ogni preset ha **il suo tempo di entrata** e decide se le **teste mobili si
+  spostano accese o al buio**. I comandi stanno a sinistra di ogni anteprima
+  nella Preset grid, sul bordo dell'anteprima nel Copione e accanto al palco
+  (dove valgono per il prossimo preset che salvi).
+- Con le teste **al buio** le luci scendono, il movimento va in posizione
+  mentre è tutto spento, si lascia il tempo alle teste di arrivare e poi le
+  luci risalgono sulla nuova scena.
+- Tutte le durate hanno ora anche lo **0 secondi**: cambio netto, senza
+  dissolvenza.
+- Nella Preset grid e nel Copione la legenda ha i **tasti disegnati** come nel
+  piè di pagina principale.
+- I preset già salvati partono con dissolvenza di 1 secondo e teste accese:
+  si cambiano con un clic dalla griglia.
+
 ## 5.15
 
 - In fondo alla **Preset grid** e al **Copione** ci sono i pulsanti per passare
