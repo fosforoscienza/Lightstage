@@ -459,7 +459,9 @@ function updateCopioneCues() {
   const box = $('#copione-live-box');
   box.classList.toggle('held', !!live && giu);
   box.classList.toggle('live', !!live && !giu);
-  $('#copione-live-label').textContent = live && giu ? 'AL BUIO' : 'IN ONDA';
+  box.classList.toggle('dirty', !!live && presetModificato);
+  $('#copione-live-label').textContent = live && presetModificato ? 'MODIFICATO'
+    : (live && giu ? 'AL BUIO' : 'IN ONDA');
   $('#copione-live-name').textContent = live ? live.name : '—';
   drawPresetThumb($('#copione-live-thumb'), live);
   const armed = armedPreset !== null ? state.presets[armedPreset] : null;

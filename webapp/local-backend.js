@@ -324,15 +324,26 @@
     },
   };
 
+  /* Con il blackout va a zero il dimmer: colori, strobo e posizione restano
+     dove sono, così togliendolo la scena torna identica. I fari senza canale
+     dimmer non avrebbero modo di spegnersi: per quelli si azzerano i colori. */
+  const DIMMER_ROLES = new Set(['dimmer']);
+  const LIGHT_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
+
+  function blackoutRoles(f) {
+    return f.channels.some((c) => c.role === 'dimmer') ? DIMMER_ROLES : LIGHT_ROLES;
+  }
+
   function rebuildFrame() {
     const frame = new Uint8Array(513);
-    if (!db.blackout) {
-      for (const f of db.fixtures) {
-        f.values.forEach((v, i) => {
-          const ch = f.address + i;
-          if (ch >= 1 && ch <= 512) frame[ch] = Math.max(frame[ch], v);
-        });
-      }
+    for (const f of db.fixtures) {
+      const spenti = db.blackout ? blackoutRoles(f) : null;
+      f.values.forEach((v, i) => {
+        const ch = f.address + i;
+        if (ch < 1 || ch > 512) return;
+        const ruolo = f.channels[i] ? f.channels[i].role : 'other';
+        frame[ch] = Math.max(frame[ch], spenti && spenti.has(ruolo) ? 0 : v);
+      });
     }
     dmxOut.frame = frame;
   }

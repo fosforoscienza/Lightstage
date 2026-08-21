@@ -65,6 +65,11 @@ Daslight: solo quello che serve.
   alto se il browser lo sta frenando comunque. La versione Python non ha
   questo problema: l'invio DMX gira nel programma, non nel browser, quindi puoi
   ridurre a icona la finestra — basta non chiudere quella del lanciatore.
+- **Su tablet e telefono** non c'è la barra spaziatrice: in fondo alla Preset
+  grid e al Copione compare un pulsante verde **GO**, che manda in onda il
+  preset preparato. Sui computer resta nascosto.
+- Il preset su cui stai lavorando resta evidenziato anche mentre ne cambi le
+  luci: la targhetta diventa *MODIFICATO* finché non lo salvi con 💾.
 - **Passaggio fra le schermate**: in fondo a ogni schermata ci sono i pulsanti
   per andare alle altre due (Principale, Preset grid, Copione); **Esc** torna
   sempre alla schermata principale.
@@ -100,9 +105,12 @@ Daslight: solo quello che serve.
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to
   black*, tasto **F** — che funziona da interruttore: al primo clic spegne
-  gradualmente i canali di luce (0,5 / 1 / 1,5 secondi a scelta) e resta
-  **rosso lampeggiante**; al secondo clic riaccende le luci com'erano, in
-  dissolvenza. Pan/Tilt/Focus delle teste mobili non si muovono mai.
+  gradualmente (0 / 0,5 / 1 / 1,5 secondi a scelta) e resta **rosso
+  lampeggiante**; al secondo clic riaccende le luci com'erano, in dissolvenza.
+  Sia FTB sia Blackout agiscono **solo sul dimmer**: colori, strobo e posizione
+  restano dove sono, così alla riaccensione la scena è identica. I fari senza
+  canale dimmer, che altrimenti resterebbero accesi, spengono i colori.
+  Pan/Tilt/Focus delle teste mobili non si muovono mai.
 - **Salvataggio automatico**: fari, posizioni, preset e configurazione canali
   vengono salvati da soli nel file `show.json`.
 

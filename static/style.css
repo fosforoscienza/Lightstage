@@ -526,10 +526,16 @@ body {
 @keyframes heldBlink { 50% { border-color: #4a3c17; box-shadow: none; } }
 .grid-cell.held canvas { filter: brightness(0.22) saturate(0.6); }
 .grid-cell.held .cell-badge { background: var(--held); color: #221a05; }
+/* stesso preset, ma la scena è stata ritoccata a mano: c'è da salvare */
+.grid-cell.dirty { border-style: dashed; }
+.grid-cell.dirty .cell-badge { background: #7a8496; color: #fff; }
+.preset.dirty { border-style: dashed; }
+.cue-box.dirty { border-style: dashed; }
+.cue-box.dirty .lbl { color: #aab3c4; }
 .grid-cell .cell-badge {
   position: absolute;
   top: 8px;
-  left: 8px;
+  left: 42px;   /* a destra dei comandi del fade */
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -580,6 +586,24 @@ body {
 .foot-nav .btn {
   font-size: 11px;
   padding: 4px 9px;
+}
+/* Su tablet e telefono non c'è la barra spaziatrice: al suo posto un
+   pulsante GO, che sui computer resta nascosto. */
+.go-touch { display: none; }
+@media (pointer: coarse) {
+  .go-touch {
+    display: inline-block;
+    background: #2f7d3f;
+    border-color: #43a758;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 9px 22px;
+  }
+  .go-touch:hover { background: #38914a; }
+  .go-touch:disabled { opacity: 0.35; }
+  .key-item.key-space { display: none; }   /* la barra spaziatrice qui non serve */
 }
 .foot-nav > span { margin-left: 4px; letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums; }

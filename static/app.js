@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.18';
+const APP_VERSION = '5.19';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -13,6 +13,7 @@ const state = {
   blackout: false,
 };
 let dmx = { available: false, connected: false, port: null, ports: [], error: null };
+let presetModificato = false;   // il preset in onda è stato ritoccato a mano
 let selectedId = null;          // faro principale (maniglie e mirino)
 let selectedIds = new Set();    // tutti i fari scelti insieme
 let activePreset = null;
@@ -360,13 +361,17 @@ function applyColorToFixture(f, hexColor) {
   clearActivePreset();
 }
 
+/* Toccando i fader, il colore o il mirino la scena non è più identica al
+   preset caricato, ma quel preset resta evidenziato: serve a sapere su cosa
+   si sta lavorando. Viene però segnato come modificato, così si vede che
+   c'è qualcosa da salvare. */
 function clearActivePreset() {
-  if (activePreset !== null) {
-    activePreset = null;
-    renderPresets();
-    syncCueUI();
-  }
+  if (activePreset === null || presetModificato) return;
+  presetModificato = true;
+  renderPresets();
+  syncCueUI();
 }
+
 
 function renderFixtures() {
   const row = $('#fixtures-row');
@@ -727,7 +732,10 @@ function renderPresets() {
   state.presets.forEach((p, i) => {
     const slot = document.createElement('div');
     slot.className = 'preset ' + (p ? 'used' : 'empty');
-    if (i === activePreset) slot.classList.add(luciGiu() ? 'held' : 'active');
+    if (i === activePreset) {
+      slot.classList.add(luciGiu() ? 'held' : 'active');
+      if (presetModificato) slot.classList.add('dirty');
+    }
 
     const num = document.createElement('span');
     num.className = 'num';
@@ -935,6 +943,8 @@ function renderGrid() {
 /* preset in onda e preparato vanno mostrati uguali su tutte le schermate */
 function syncCueUI() {
   updateGridSelection();
+  // su tablet il GO si preme col dito: si accende solo se c'è un preset pronto
+  $$('.js-go').forEach((b) => { b.disabled = armedPreset === null; });
   if (typeof updateCopioneCues === 'function') updateCopioneCues();
 }
 
@@ -952,7 +962,9 @@ function updateGridSelection() {
     ref.cell.classList.toggle('live', !!live && !armed && !giu);
     ref.cell.classList.toggle('held', !!live && !armed && giu);
     ref.cell.classList.toggle('armed', armed);
-    ref.badge.textContent = armed ? 'PRONTO' : (live ? (giu ? 'AL BUIO' : 'IN ONDA') : '');
+    ref.cell.classList.toggle('dirty', !!live && !armed && presetModificato);
+    ref.badge.textContent = armed ? 'PRONTO'
+      : (live ? (presetModificato ? 'MODIFICATO' : (giu ? 'AL BUIO' : 'IN ONDA')) : '');
   });
 }
 
@@ -1010,6 +1022,7 @@ async function savePreset(slot, existing) {
   });
   state.presets = res.presets;
   activePreset = slot;
+  presetModificato = false;
   renderPresets();
   if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
   syncCueUI();
@@ -1085,6 +1098,7 @@ async function loadPreset(slot) {
   const p = state.presets[slot];
   if (!p) return;
   activePreset = slot;
+  presetModificato = false;
   renderPresets();
   syncCueUI();
   const durata = presetFade(p) * 1000;
@@ -1107,7 +1121,8 @@ async function loadPreset(slot) {
       if (!to) continue;
       ftbSnapshot.set(f.id, [...to]);
       const chans = fixtureChannels(f);
-      f.values = f.values.map((v, i) => (FTB_ROLES.has(chans[i].role) ? v : to[i]));
+      const spenti = ruoliSpegnimento(f);
+      f.values = f.values.map((v, i) => (spenti.has(chans[i].role) ? v : to[i]));
       updateFixtureDisplays(f);
       pushValues(f);
     }
@@ -1140,7 +1155,7 @@ async function loadPreset(slot) {
 async function entraAlBuio(targets, durata) {
   const respiro = Math.max(250, durata);
   // solo le luci vanno a zero: il movimento non si tocca finché non è buio
-  if (!await fadeValues(soloLuciAZero(), respiro, { only: FTB_ROLES })) return;
+  if (!await fadeValues(soloLuciAZero(), respiro, { only: ruoliSpegnimento })) return;
 
   const token = fadeToken;
   const attesa = attesaMovimento(targets);   // va misurata prima di spostare
@@ -1148,13 +1163,14 @@ async function entraAlBuio(targets, durata) {
     const to = targets.get(f.id);
     if (!to) continue;
     const chans = fixtureChannels(f);
-    f.values = f.values.map((v, i) => (FTB_ROLES.has(chans[i].role) ? v : to[i]));
+    const spenti = ruoliSpegnimento(f);
+    f.values = f.values.map((v, i) => (spenti.has(chans[i].role) ? v : to[i]));
     updateFixtureDisplays(f);
     pushValues(f);
   }
   await new Promise((r) => setTimeout(r, attesa));
   if (fadeToken !== token) return;   // nel frattempo è partito qualcos'altro
-  await fadeValues(targets, respiro, { only: FTB_ROLES });
+  await fadeValues(targets, respiro, { only: ruoliSpegnimento });
 }
 
 /* Bersaglio "tutto spento": i canali di luce a zero, tutto il resto com'è.
@@ -1163,7 +1179,7 @@ async function entraAlBuio(targets, durata) {
 function soloLuciAZero() {
   return new Map(state.fixtures.map((f) => {
     const chans = fixtureChannels(f);
-    return [f.id, f.values.map((v, i) => (FTB_ROLES.has(chans[i].role) ? 0 : v))];
+    return [f.id, f.values.map((v, i) => (ruoliSpegnimento(f).has(chans[i].role) ? 0 : v))];
   }));
 }
 
@@ -1957,12 +1973,28 @@ async function toggleBlackout() {
 }
 $$('.js-blackout').forEach((b) =>
   b.addEventListener('click', () => toggleBlackout().catch(console.error)));
+$$('.js-go').forEach((b) => {
+  b.disabled = true;   // si accende quando c'è un preset pronto
+  b.addEventListener('click', () => {
+    b.blur();
+    fireArmedPreset().catch(console.error);
+  });
+});
 
 /* FTB: interruttore di dissolvenza a nero. Primo clic: memorizza le luci
    e le spegne gradualmente, il pulsante lampeggia rosso. Secondo clic:
    riporta tutto com'era prima, sempre in dissolvenza. Pan/Tilt/Focus/
    Return e i canali "Altro" (macro, velocità...) non vengono mai toccati. */
-const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
+/* Con FTB e Blackout va a zero il dimmer: colori, strobo e posizione
+   restano dove sono, così al ritorno la scena è identica. I fari senza
+   canale dimmer non avrebbero modo di spegnersi: per quelli si abbassano
+   i colori. */
+const DIMMER_ROLES = new Set(['dimmer']);
+const LUCI_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'strobe']);
+
+function ruoliSpegnimento(f) {
+  return roleIndexes(f, 'dimmer').length ? DIMMER_ROLES : LUCI_ROLES;
+}
 /* nel passaggio tra preset il movimento non sfuma: le teste si riposizionano
    di netto, mentre luci, colori e zoom seguono la dissolvenza */
 const PRESET_SNAP_ROLES = new Set(['pan', 'tilt']);
@@ -1975,13 +2007,21 @@ let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
    falsa se un'altra l'ha interrotta (serve al movimento al buio) */
 function fadeValues(targets, durata, { only = null, skip = null } = {}) {
   const token = ++fadeToken;
-  const sfuma = (ruolo) => (only ? only.has(ruolo) : !(skip && skip.has(ruolo)));
+  // only/skip possono essere un insieme di ruoli oppure una funzione del
+  // faro, perché lo spegnimento dipende da quali canali quel faro ha
+  const insieme = (s, f) => (typeof s === 'function' ? s(f) : s);
+  const sfumaSu = (f) => {
+    const soli = only && insieme(only, f);
+    const salta = skip && insieme(skip, f);
+    return (ruolo) => (soli ? soli.has(ruolo) : !(salta && salta.has(ruolo)));
+  };
 
   // i canali esclusi dalla dissolvenza scattano subito
   for (const f of state.fixtures) {
     const to = targets.get(f.id);
     if (!to) continue;
     const chans = fixtureChannels(f);
+    const sfuma = sfumaSu(f);
     f.values = f.values.map((v, i) => (sfuma(chans[i].role) ? v : to[i]));
     updateFixtureDisplays(f);
     pushValues(f);
@@ -2005,6 +2045,7 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
         const to = targets.get(f.id);
         if (!to) continue;
         const chans = fixtureChannels(f);
+        const sfuma = sfumaSu(f);
         f.values = f.values.map((v, i) =>
           sfuma(chans[i].role)
             ? Math.round(from[i] + (to[i] - from[i]) * t)
@@ -2020,7 +2061,7 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
 }
 
 function ftbFade(target) {
-  return fadeValues(target, fadeGroupValue('#ftb-time') * 1000, { only: FTB_ROLES });
+  return fadeValues(target, fadeGroupValue('#ftb-time') * 1000, { only: ruoliSpegnimento });
 }
 
 function toggleFtb() {

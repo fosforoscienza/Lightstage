@@ -186,15 +186,31 @@ class DmxSender(threading.Thread):
 dmx = DmxSender()
 
 
+# Con il blackout va a zero il dimmer: colori, strobo e posizione restano
+# dove sono, così togliendolo la scena torna identica. I fari senza canale
+# dimmer non avrebbero modo di spegnersi: per quelli si azzerano i colori.
+DIMMER_ROLES = ("dimmer",)
+LIGHT_ROLES = ("dimmer", "red", "green", "blue", "uv", "white", "strobe")
+
+
+def blackout_roles(f):
+    canali = f.get("channels") or show["channels"]
+    ha_dimmer = any(c.get("role") == "dimmer" for c in canali)
+    return DIMMER_ROLES if ha_dimmer else LIGHT_ROLES
+
+
 def rebuild_universe():
     """Ricostruisce il frame DMX dai valori dei fari (merge HTP se sovrapposti)."""
     frame = bytearray(513)
-    if not show["blackout"]:
-        for f in show["fixtures"]:
-            for i, v in enumerate(f["values"]):
-                ch = f["address"] + i
-                if 1 <= ch <= 512:
-                    frame[ch] = max(frame[ch], v)
+    for f in show["fixtures"]:
+        canali = f.get("channels") or show["channels"]
+        spenti = blackout_roles(f) if show["blackout"] else ()
+        for i, v in enumerate(f["values"]):
+            ch = f["address"] + i
+            if not 1 <= ch <= 512:
+                continue
+            ruolo = canali[i].get("role") if i < len(canali) else "other"
+            frame[ch] = max(frame[ch], 0 if ruolo in spenti else v)
     dmx.set_frame(frame)
 
 

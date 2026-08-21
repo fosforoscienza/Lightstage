@@ -5,6 +5,19 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.19
+
+- **FTB e Blackout abbassano solo il dimmer**: colori, strobo e posizione
+  restano dove sono, così quando si riaccende la scena è identica. I fari che
+  non hanno un canale dimmer non avrebbero modo di spegnersi: per quelli si
+  abbassano i colori.
+- Il preset su cui stai lavorando **resta evidenziato** anche quando muovi un
+  fader, cambi colore o usi il mirino: prima spariva. La targhetta diventa
+  *MODIFICATO* e il bordo tratteggiato, per ricordarti che c'è da salvare.
+- Su **tablet e telefono** compare in fondo un pulsante verde **GO** al posto
+  della barra spaziatrice, nella Preset grid e nel Copione. Sui computer resta
+  nascosto.
+
 ## 5.18
 
 - Corretto il **movimento delle teste al buio**: prima pan e tilt venivano
