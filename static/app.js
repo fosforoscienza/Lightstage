@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.17';
+const APP_VERSION = '5.18';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -620,7 +620,10 @@ function impostaCanale(f, i, v) {
    accanto al palco valgono per il prossimo preset che si salva. */
 const FADE_STEPS = [0, 0.5, 1, 1.5];
 const FADE_LABELS = ['0', '0,5', '1', '1,5'];
-const ATTESA_BUIO = 600;   // tempo lasciato alle teste per arrivare, al buio
+/* tempo lasciato alle teste per arrivare, al buio: da un minimo per uno
+   spostamento piccolo a un massimo per un giro completo */
+const ATTESA_MIN = 350;
+const ATTESA_MAX = 2500;
 
 function presetFade(p) {
   const v = p && typeof p.fade === 'number' ? p.fade : fadeGroupValue('#preset-fade');
@@ -1136,10 +1139,11 @@ async function loadPreset(slot) {
    minimo di buio, altrimenti lo spostamento si vedrebbe comunque. */
 async function entraAlBuio(targets, durata) {
   const respiro = Math.max(250, durata);
-  const zeri = new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)]));
-  if (!await fadeValues(zeri, respiro, { only: FTB_ROLES })) return;
+  // solo le luci vanno a zero: il movimento non si tocca finché non è buio
+  if (!await fadeValues(soloLuciAZero(), respiro, { only: FTB_ROLES })) return;
 
   const token = fadeToken;
+  const attesa = attesaMovimento(targets);   // va misurata prima di spostare
   for (const f of state.fixtures) {
     const to = targets.get(f.id);
     if (!to) continue;
@@ -1148,9 +1152,34 @@ async function entraAlBuio(targets, durata) {
     updateFixtureDisplays(f);
     pushValues(f);
   }
-  await new Promise((r) => setTimeout(r, ATTESA_BUIO));
+  await new Promise((r) => setTimeout(r, attesa));
   if (fadeToken !== token) return;   // nel frattempo è partito qualcos'altro
   await fadeValues(targets, respiro, { only: FTB_ROLES });
+}
+
+/* Bersaglio "tutto spento": i canali di luce a zero, tutto il resto com'è.
+   Azzerare anche pan e tilt farebbe partire le teste verso la posizione
+   zero appena si preme, invece di lasciarle ferme fino al buio. */
+function soloLuciAZero() {
+  return new Map(state.fixtures.map((f) => {
+    const chans = fixtureChannels(f);
+    return [f.id, f.values.map((v, i) => (FTB_ROLES.has(chans[i].role) ? 0 : v))];
+  }));
+}
+
+/* Quanto aspettare al buio: una testa impiega circa due secondi e mezzo per
+   un giro intero, quindi il tempo segue l'ampiezza dello spostamento. */
+function attesaMovimento(targets) {
+  let massimo = 0;
+  for (const f of state.fixtures) {
+    const to = targets.get(f.id);
+    if (!to) continue;
+    fixtureChannels(f).forEach((c, i) => {
+      if (c.role !== 'pan' && c.role !== 'tilt') return;
+      massimo = Math.max(massimo, Math.abs((to[i] || 0) - (f.values[i] || 0)) / 255);
+    });
+  }
+  return Math.round(ATTESA_MIN + massimo * (ATTESA_MAX - ATTESA_MIN));
 }
 
 /* ------------------------------------------------------------------- DMX */
@@ -1165,8 +1194,14 @@ function renderDmx() {
     const btn = $('#btn-connect');
     dot.className = 'status-dot';
     if (dmx.connected) {
-      dot.classList.add('ok');
-      label.textContent = 'connesso al cavo USB-DMX';
+      dot.classList.add(dmx.slow ? 'err' : 'ok');
+      label.textContent = dmx.slow
+        ? 'invio rallentato: tieni la finestra in primo piano'
+        : 'connesso al cavo USB-DMX';
+      label.title = dmx.slow
+        ? 'Il browser sta frenando la pagina perché è in secondo piano: '
+          + 'i fari possono perdere il segnale.'
+        : '';
       btn.textContent = 'Disconnetti';
     } else if (dmx.error) {
       dot.classList.add('err');
@@ -1954,6 +1989,14 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
 
   const inizio = performance.now();
   const partenza = state.fixtures.map((f) => ({ f, from: [...f.values] }));
+  // con la finestra nascosta requestAnimationFrame non scatta: senza una
+  // rete di sicurezza la dissolvenza resterebbe congelata a metà
+  const prossimo = (fn) => {
+    let fatto = false;
+    const unaVolta = () => { if (!fatto) { fatto = true; fn(); } };
+    requestAnimationFrame(unaVolta);
+    setTimeout(unaVolta, 250);
+  };
   return new Promise((finita) => {
     const step = () => {
       if (token !== fadeToken) { finita(false); return; }
@@ -1969,10 +2012,10 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
         updateFixtureDisplays(f);
         pushValues(f);
       }
-      if (t < 1) requestAnimationFrame(step);
+      if (t < 1) prossimo(step);
       else finita(true);
     };
-    requestAnimationFrame(step);
+    prossimo(step);
   });
 }
 
@@ -1985,7 +2028,7 @@ function toggleFtb() {
   if (ftbSnapshot === null) {
     ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...f.values]]));
     setButtonsOn('.js-ftb', true);
-    ftbFade(new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)])));
+    ftbFade(soloLuciAZero());   // il movimento resta dov'è
   } else {
     const target = ftbSnapshot;
     ftbSnapshot = null;

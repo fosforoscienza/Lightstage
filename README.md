@@ -57,6 +57,14 @@ Daslight: solo quello che serve.
   preset che salvi. Con le teste **al buio** le luci scendono, il movimento va
   in posizione al buio, si lascia il tempo alle teste di arrivare e poi le luci
   risalgono sulla nuova scena.
+- **Durante lo spettacolo tieni la finestra in primo piano** (versione web):
+  quando la pagina finisce in secondo piano il browser rallenta di molto ciò
+  che sta girando, e senza segnale DMX i fari possono ripartire con il loro
+  programma interno. LightStage si difende (i tempi dell'invio li scandisce un
+  worker e la pagina resta "sveglia" finché il cavo è collegato) e avvisa in
+  alto se il browser lo sta frenando comunque. La versione Python non ha
+  questo problema: l'invio DMX gira nel programma, non nel browser, quindi puoi
+  ridurre a icona la finestra — basta non chiudere quella del lanciatore.
 - **Passaggio fra le schermate**: in fondo a ogni schermata ci sono i pulsanti
   per andare alle altre due (Principale, Preset grid, Copione); **Esc** torna
   sempre alla schermata principale.

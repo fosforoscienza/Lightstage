@@ -188,12 +188,64 @@
     return pdfRequest('readwrite', (s2) => s2.delete(String(id)));
   }
 
-  /* ------------------------------------------- uscita DMX via Web Serial */
+  /* ------------------------------------------- uscita DMX via Web Serial
+     Con la finestra in secondo piano il browser rallenta i timer a un colpo
+     al secondo: l'invio DMX si fermerebbe e le teste, rimaste senza segnale,
+     ripartirebbero con il loro programma interno muovendosi da sole. Per
+     evitarlo i tempi li scandisce un piccolo worker, che non viene frenato,
+     e finché il cavo è collegato la pagina tiene aperto un suono muto: le
+     pagine che stanno "suonando" non vengono rallentate. */
+  function creaAttesa() {
+    try {
+      const src = 'onmessage=e=>{setTimeout(()=>postMessage(e.data.id),e.data.ms)}';
+      const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      const w = new Worker(url);
+      const attese = new Map();
+      let seq = 0;
+      w.onmessage = (e) => {
+        const pronto = attese.get(e.data);
+        if (pronto) { attese.delete(e.data); pronto(); }
+      };
+      return (ms) => new Promise((r) => {
+        const id = ++seq;
+        attese.set(id, r);
+        w.postMessage({ id, ms });
+      });
+    } catch (err) {
+      return (ms) => new Promise((r) => setTimeout(r, ms));
+    }
+  }
+  const attendi = creaAttesa();
+
+  let suonoMuto = null;
+  function tieniSveglia(on) {
+    try {
+      if (on && !suonoMuto) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const vol = ctx.createGain();
+        vol.gain.value = 0;              // muto: serve solo a restare svegli
+        osc.connect(vol);
+        vol.connect(ctx.destination);
+        osc.start();
+        if (ctx.state === 'suspended') ctx.resume();
+        suonoMuto = { ctx, osc };
+      } else if (!on && suonoMuto) {
+        suonoMuto.osc.stop();
+        suonoMuto.ctx.close();
+        suonoMuto = null;
+      }
+    } catch (err) { /* senza audio si va avanti lo stesso */ }
+  }
+
   const dmxOut = {
     port: null,
     writer: null,
     running: false,
     error: null,
+    slow: false,      // il browser sta frenando l'invio (finestra nascosta)
     frame: new Uint8Array(513), // byte 0 = start code
 
     get connected() { return !!this.port; },
@@ -219,6 +271,8 @@
         this.writer = port.writable.getWriter();
         this.error = null;
         this.running = true;
+        this.slow = false;
+        tieniSveglia(true);
         this.loop();
         return true;
       } catch (err) {
@@ -234,6 +288,8 @@
 
     async disconnect() {
       this.running = false;
+      this.slow = false;
+      tieniSveglia(false);
       const writer = this.writer;
       const port = this.port;
       this.writer = null;
@@ -243,13 +299,14 @@
     },
 
     async loop() {
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      let ultimo = performance.now();
+      let lenti = 0;
       while (this.running && this.port) {
         const port = this.port;
         const writer = this.writer;
         try {
           await port.setSignals({ break: true });   // break (minimo 88 µs)
-          await sleep(2);
+          await attendi(2);
           await port.setSignals({ break: false });
           await writer.write(this.frame);
         } catch (err) {
@@ -257,7 +314,12 @@
           await this.disconnect();
           break;
         }
-        await sleep(25); // ~25-30 frame al secondo
+        // se il browser ci sta rallentando comunque, meglio dirlo
+        const ora = performance.now();
+        lenti = ora - ultimo > 250 ? lenti + 1 : 0;
+        this.slow = lenti > 4;
+        ultimo = ora;
+        await attendi(25); // ~25-30 frame al secondo
       }
     },
   };
@@ -281,6 +343,7 @@
       connected: dmxOut.connected,
       port: dmxOut.connected ? 'cavo USB-DMX' : null,
       error: dmxOut.error,
+      slow: dmxOut.slow,
       ports: [],
     };
   }

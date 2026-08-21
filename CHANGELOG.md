@@ -5,6 +5,24 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.18
+
+- Corretto il **movimento delle teste al buio**: prima pan e tilt venivano
+  azzerati appena si premeva, quindi la testa partiva subito, ancora accesa.
+  Ora resta ferma finché le luci non sono giù, si sposta al buio e le luci
+  risalgono solo dopo.
+- L'attesa al buio segue l'**ampiezza dello spostamento**: da un terzo di
+  secondo per un ritocco fino a due secondi e mezzo per un giro completo.
+- Stesso difetto corretto sull'**FTB**: le teste non si muovono più quando si
+  spegne.
+- **Fari che si muovevano da soli con la finestra in secondo piano**: nella
+  versione web il browser rallentava l'invio DMX a un colpo al secondo e i
+  fari, rimasti senza segnale, ripartivano con il loro programma interno. Ora
+  i tempi li scandisce un piccolo worker e la pagina resta "sveglia" finché il
+  cavo è collegato; se il browser frena lo stesso, l'indicatore in alto lo
+  dice invece di lasciare nel dubbio.
+- Le dissolvenze non restano più congelate a metà se si cambia finestra.
+
 ## 5.17
 
 - **Più fari insieme**: si sceglie il primo e con **Maiusc**+clic si aggiungono
