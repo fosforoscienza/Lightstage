@@ -9,6 +9,7 @@ let copioneCorrente = null;   // id del progetto aperto
 let pdfUrlCorrente = null;    // indirizzo temporaneo del PDF in uso
 let renderToken = 0;          // annulla un rendering ancora in corso
 let pdfLib = null;            // PDF.js, caricato solo alla prima apertura
+let osservatore = null;       // disegna le pagine solo quando servono
 
 const copioneEl = () => $('#copione');
 const copioneAperto = () => !copioneEl().classList.contains('hidden');
@@ -90,10 +91,14 @@ async function inviaPdf(id, file) {
   state.copioni = out.copioni;
 }
 
-/* disegna tutte le pagine una dopo l'altra, senza bloccare l'interfaccia */
+/* Prepara subito tutte le pagine con la misura giusta (così la timeline è
+   alta quanto il copione), ma le disegna solo quando stanno per entrare in
+   vista e le libera quando si allontanano: un copione di cento pagine non
+   riempie la memoria del browser. */
 async function mostraPdf(url) {
   const token = ++renderToken;
   const pagine = $('#copione-pages');
+  if (osservatore) { osservatore.disconnect(); osservatore = null; }
   pagine.innerHTML = '<div id="copione-vuoto" class="small">Apertura del PDF…</div>';
   if (!url) {
     pagine.innerHTML = '<div id="copione-vuoto" class="small">Nessun PDF caricato. '
@@ -108,21 +113,53 @@ async function mostraPdf(url) {
     // come Anteprima: la pagina riempie la colonna ma non oltre una misura
     // comoda da leggere, e resta centrata
     const larghezza = Math.max(320, Math.min(900, pagine.clientWidth - 40));
+    const nitidezza = Math.min(2, window.devicePixelRatio || 1);
+
+    // una pagina alla volta: serve la misura, il disegno viene dopo
+    const tele = [];
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n);
       if (token !== renderToken) return;
       const base = page.getViewport({ scale: 1 });
       const scala = larghezza / base.width;
-      const vp = page.getViewport({ scale: scala * (window.devicePixelRatio || 1) });
       const canvas = document.createElement('canvas');
-      canvas.width = vp.width;
-      canvas.height = vp.height;
+      canvas.width = 0;    // finché non è disegnata non occupa memoria
+      canvas.height = 0;
       canvas.style.width = `${larghezza}px`;
       canvas.style.height = `${base.height * scala}px`;
       pagine.append(canvas);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      if (token !== renderToken) return;
+      tele.push({ canvas, page, vp: page.getViewport({ scale: scala * nitidezza }) });
     }
+
+    const disegna = async (t) => {
+      if (t.fatto || t.inCorso) return;
+      t.inCorso = true;
+      t.canvas.width = t.vp.width;
+      t.canvas.height = t.vp.height;
+      try {
+        await t.page.render({ canvasContext: t.canvas.getContext('2d'), viewport: t.vp }).promise;
+        if (token === renderToken) t.fatto = true;
+      } finally {
+        t.inCorso = false;
+      }
+    };
+    const libera = (t) => {
+      if (!t.fatto) return;
+      t.canvas.width = 0;    // la misura in CSS resta, il contenuto si libera
+      t.canvas.height = 0;
+      t.fatto = false;
+    };
+
+    osservatore = new IntersectionObserver((voci) => {
+      if (token !== renderToken) return;
+      for (const v of voci) {
+        const t = tele.find((x) => x.canvas === v.target);
+        if (!t) continue;
+        if (v.isIntersecting) disegna(t).catch(console.error);
+        else libera(t);
+      }
+    }, { root: $('#copione-scroll'), rootMargin: '1200px 0px' });
+    tele.forEach((t) => osservatore.observe(t.canvas));
   } catch (err) {
     pagine.innerHTML = `<div id="copione-vuoto" class="small">PDF non leggibile: ${err.message}</div>`;
   }
@@ -264,6 +301,7 @@ async function openCopione() {
 function closeCopione() {
   copioneEl().classList.add('hidden');
   renderToken++;   // ferma un eventuale rendering in corso
+  if (osservatore) { osservatore.disconnect(); osservatore = null; }
 }
 
 /* --------------------------------------------------------------- eventi */
