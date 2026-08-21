@@ -2,5 +2,6 @@ __pycache__/
 *.pyc
 show.json
 show.json.tmp
+copioni/
 .venv/
 venv/

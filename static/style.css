@@ -593,7 +593,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 120;   /* sopra le schermate a tutto schermo (griglia e copione) */
 }
 .modal-card {
   background: var(--panel);
@@ -695,4 +695,210 @@ body {
   font-size: 13px;
   z-index: 90;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* ------------------------------------------------------------- copione */
+#copione {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+#copione header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex: 0 0 auto;
+}
+#copione header h2 { font-size: 16px; }
+#copione-select {
+  background: #0d1016;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  max-width: 260px;
+}
+
+#copione-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0a0c10;
+}
+#copione-inner {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-height: 100%;
+}
+
+/* colonna sinistra: la timeline dello spettacolo */
+#copione-timeline {
+  position: relative;
+  flex: 0 0 190px;
+  cursor: crosshair;
+  border-right: 1px solid var(--border);
+  background: var(--panel-2);
+}
+#copione-timeline .tl-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 26px;
+  width: 2px;
+  background: linear-gradient(#2a3140, #3a4356);
+}
+.tl-cue {
+  position: absolute;
+  right: 20px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 170px;
+  padding: 4px 7px;
+  background: #1b2029;
+  border: 1px solid #2a3140;
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tl-cue::after {              /* pallino sulla linea */
+  content: '';
+  position: absolute;
+  right: -12px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #566074;
+  border: 2px solid var(--panel-2);
+}
+.tl-cue:hover { background: #232a37; border-color: var(--accent); }
+.tl-cue .n {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: #10141b;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.tl-cue .nm { overflow: hidden; text-overflow: ellipsis; }
+.tl-cue .del {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  display: none;
+}
+.tl-cue:hover .del { display: inline; }
+.tl-cue .del:hover { color: var(--danger); }
+.tl-cue.live {
+  border-color: #4cd964;
+  box-shadow: 0 0 0 1px #4cd964;
+}
+.tl-cue.live::after { background: #4cd964; }
+.tl-cue.armed {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+  animation: armedBlink 0.9s steps(2, end) infinite;
+}
+.tl-cue.armed::after { background: var(--danger); }
+
+/* colonna destra: le pagine del PDF */
+#copione-pages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 30px;
+  min-width: 0;
+}
+#copione-pages canvas {
+  max-width: 100%;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.55);
+}
+#copione-vuoto { padding: 40px 10px; text-align: center; }
+
+/* barra inferiore con il preset in onda */
+#copione-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.cue-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.cue-box.live { border-color: #4cd964; }
+.cue-box.armed { border-color: var(--danger); }
+.cue-thumb {
+  width: 86px;
+  height: 38px;
+  background: #0a0c10;
+  border-radius: 5px;
+  display: block;
+}
+.cue-txt { display: flex; flex-direction: column; gap: 2px; }
+.cue-txt .lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.cue-box.live .lbl { color: #4cd964; }
+.cue-box.armed .lbl { color: var(--danger); }
+.cue-txt span:last-child { font-size: 12px; color: var(--text); }
+#app-version-copione { margin-left: auto; letter-spacing: 0.5px; }
+
+/* elenco dei preset da inserire */
+#pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.pick-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  background: #1b2029;
+  border: 1px solid #2a3140;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.pick-item:hover { background: #232a37; border-color: var(--accent); }
+.pick-item canvas {
+  width: 64px;
+  height: 28px;
+  background: #0a0c10;
+  border-radius: 4px;
+  flex: 0 0 auto;
 }

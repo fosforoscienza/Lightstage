@@ -5,6 +5,16 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.12 — *strutturale*
+
+- Nuova pagina **Copione** (pulsante accanto a Preset grid o tasto **C**):
+  si creano più progetti, ognuno con il **PDF del copione** sfogliabile a
+  destra e una **timeline** a sinistra che scorre insieme alle pagine.
+- Sulla timeline si appuntano i preset luci con un clic nel punto voluto,
+  quanti se ne vuole; restano ancorati a quel punto del copione.
+- In basso l'anteprima del preset **in onda** e di quello **pronto**: come
+  nella Preset grid un clic prepara e la **barra spaziatrice** manda in onda.
+
 ## 5.11
 
 - Nell'anteprima le **teste mobili hanno un disegno diverso dai par**: base

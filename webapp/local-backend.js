@@ -69,6 +69,8 @@
       fixtures: [],
       presets: new Array(NUM_PRESETS).fill(null),
       channels: DEFAULT_CHANNELS.map((c) => ({ ...c })),
+      copioni: [],
+      next_copione: 1,
       blackout: false,
     };
     if (!data || typeof data !== 'object') return db;
@@ -96,6 +98,30 @@
         db.presets[i] = { name: String(p.name || `Preset ${i + 1}`).slice(0, 24), values };
       }
     });
+    for (const c of data.copioni || []) {
+      const id = parseInt(c.id, 10);
+      if (isNaN(id)) continue;
+      const cues = [];
+      for (const q of c.cues || []) {
+        const qid = parseInt(q.id, 10);
+        const preset = parseInt(q.preset, 10);
+        const pos = parseFloat(q.pos);
+        if (isNaN(qid) || isNaN(preset) || isNaN(pos)) continue;
+        cues.push({
+          id: qid,
+          pos: Math.max(0, Math.min(1, pos)),
+          preset: Math.max(0, Math.min(NUM_PRESETS - 1, preset)),
+        });
+      }
+      cues.sort((a, b) => a.pos - b.pos);
+      db.copioni.push({
+        id,
+        name: String(c.name || 'Copione').slice(0, 40),
+        cues,
+        pdf: !!c.pdf,
+      });
+    }
+    db.next_copione = Math.max(0, ...db.copioni.map((c) => c.id)) + 1;
     db.blackout = !!data.blackout;
     db.next_id = Math.max(0, ...db.fixtures.map((f) => f.id)) + 1;
     return db;
@@ -117,6 +143,35 @@
     } catch (err) {
       console.error('salvataggio non riuscito:', err);
     }
+  }
+
+  /* ---------------------------- archivio dei PDF dei copioni nel browser
+     I PDF sono troppo grandi per il localStorage: vanno in IndexedDB. */
+  const PDF_DB = 'lightstage-pdf';
+  function withPdfStore(modo) {
+    return new Promise((risolvi, rifiuta) => {
+      const req = indexedDB.open(PDF_DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('pdf');
+      req.onerror = () => rifiuta(req.error);
+      req.onsuccess = () => {
+        const tx = req.result.transaction('pdf', modo);
+        risolvi({ store: tx.objectStore('pdf'), db: req.result });
+      };
+    });
+  }
+  function pdfRequest(modo, azione) {
+    return withPdfStore(modo).then(({ store, db: idb }) => new Promise((risolvi, rifiuta) => {
+      const r = azione(store);
+      r.onsuccess = () => { risolvi(r.result); idb.close(); };
+      r.onerror = () => { rifiuta(r.error); idb.close(); };
+    }));
+  }
+  window.LIGHTSTAGE_PDF = {
+    salva: (id, blob) => pdfRequest('readwrite', (s2) => s2.put(blob, String(id))),
+    leggi: (id) => pdfRequest('readonly', (s2) => s2.get(String(id))),
+  };
+  function deletePdf(id) {
+    return pdfRequest('readwrite', (s2) => s2.delete(String(id)));
   }
 
   /* ------------------------------------------- uscita DMX via Web Serial */
@@ -238,6 +293,7 @@
         fixtures: db.fixtures,
         presets: db.presets,
         channels: db.channels,
+        copioni: db.copioni,
         blackout: db.blackout,
         dmx: dmxState(),
         lan_url: null,
@@ -362,6 +418,49 @@
         save();
         return { presets: db.presets };
       }
+    }
+    if (m === 'POST' && url === '/api/copioni') {
+      const copione = {
+        id: db.next_copione++,
+        name: String((body || {}).name || `Copione ${db.next_copione - 1}`).slice(0, 40),
+        cues: [],
+        pdf: false,
+      };
+      db.copioni.push(copione);
+      save();
+      return { copione, copioni: db.copioni };
+    }
+    if ((match = /^\/api\/copioni\/(\d+)$/.exec(url))) {
+      const id = parseInt(match[1], 10);
+      const c = db.copioni.find((x) => x.id === id);
+      if (!c) throw new Error('copione non trovato');
+      if (m === 'PUT') {
+        const b = body || {};
+        if ('name' in b) c.name = String(b.name).slice(0, 40) || c.name;
+        if (Array.isArray(b.cues)) {
+          c.cues = b.cues
+            .map((q) => ({
+              id: parseInt(q.id, 10),
+              pos: Math.max(0, Math.min(1, parseFloat(q.pos))),
+              preset: Math.max(0, Math.min(NUM_PRESETS - 1, parseInt(q.preset, 10))),
+            }))
+            .filter((q) => !isNaN(q.id) && !isNaN(q.pos) && !isNaN(q.preset))
+            .sort((a, b2) => a.pos - b2.pos);
+        }
+        save();
+        return { copione: c, copioni: db.copioni };
+      }
+      if (m === 'DELETE') {
+        db.copioni = db.copioni.filter((x) => x.id !== id);
+        save();
+        deletePdf(id).catch(() => {});
+        return { copioni: db.copioni };
+      }
+    }
+    if ((match = /^\/api\/copioni\/(\d+)\/pdf$/.exec(url)) && m === 'PUT') {
+      const c = db.copioni.find((x) => x.id === parseInt(match[1], 10));
+      if (c) { c.pdf = true; save(); }
+      return { copioni: db.copioni };
     }
     if (m === 'PUT' && url === '/api/blackout') {
       db.blackout = !!(body || {}).on;

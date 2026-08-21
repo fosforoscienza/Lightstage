@@ -2,13 +2,14 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.11';
+const APP_VERSION = '5.12';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
   fixtures: [],
   presets: [],
   channels: [],
+  copioni: [],
   blackout: false,
 };
 let dmx = { available: false, connected: false, port: null, ports: [], error: null };
@@ -303,7 +304,7 @@ function clearActivePreset() {
   if (activePreset !== null) {
     activePreset = null;
     renderPresets();
-    updateGridSelection();
+    syncCueUI();
   }
 }
 
@@ -658,7 +659,7 @@ function renderGrid() {
       }
       // clic = prepara (rosso lampeggiante); riclic sul preparato = annulla
       armedPreset = armedPreset === i ? null : i;
-      updateGridSelection();
+      syncCueUI();
     });
 
     wrap.append(cell);
@@ -669,6 +670,12 @@ function renderGrid() {
   requestAnimationFrame(() => {
     gridCells.forEach((ref, slot) => drawPresetThumb(ref.canvas, state.presets[slot]));
   });
+}
+
+/* preset in onda e preparato vanno mostrati uguali su tutte le schermate */
+function syncCueUI() {
+  updateGridSelection();
+  if (typeof updateCopioneCues === 'function') updateCopioneCues();
 }
 
 /* aggiorna solo i bordi, senza ridisegnare le 100 miniature */
@@ -688,7 +695,7 @@ async function fireArmedPreset() {
   const slot = armedPreset;
   armedPreset = null;
   await loadPreset(slot);
-  updateGridSelection();
+  syncCueUI();
 }
 
 function openGrid() {
@@ -718,7 +725,7 @@ async function loadPreset(slot) {
   if (!p) return;
   activePreset = slot;
   renderPresets();
-  updateGridSelection();
+  syncCueUI();
   const durata = fadeGroupValue('#preset-fade') * 1000;
   const targets = new Map();
   for (const f of state.fixtures) {
@@ -1458,9 +1465,9 @@ function exportShow() {
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, select, textarea')) return;
   if (e.altKey) return;
-  if (e.code === 'Escape' && !$('#preset-grid').classList.contains('hidden')) {
-    closeGrid();
-    return;
+  if (e.code === 'Escape') {
+    if (!$('#copione').classList.contains('hidden')) { closeCopione(); return; }
+    if (!$('#preset-grid').classList.contains('hidden')) { closeGrid(); return; }
   }
   if (e.code === 'Space') {
     e.preventDefault(); // niente scorrimento della pagina
@@ -1502,6 +1509,9 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyG') {
     if ($('#preset-grid').classList.contains('hidden')) openGrid();
     else closeGrid();
+  } else if (e.code === 'KeyC') {
+    if ($('#copione').classList.contains('hidden')) openCopione().catch(console.error);
+    else closeCopione();
   }
 });
 
@@ -1531,6 +1541,11 @@ function applyRemoteState(s) {
   const structureChanged = structure(state.fixtures) !== structure(s.fixtures);
   const channelsChanged = JSON.stringify(state.channels) !== JSON.stringify(s.channels);
 
+  if (JSON.stringify(state.copioni) !== JSON.stringify(s.copioni || [])) {
+    state.copioni = s.copioni || [];
+    if (typeof renderCopioneSelect === 'function') renderCopioneSelect();
+    if (typeof updateCopioneCues === 'function') updateCopioneCues();
+  }
   if (JSON.stringify(state.presets) !== JSON.stringify(s.presets)) {
     state.presets = s.presets;
     renderPresets();
@@ -1653,6 +1668,7 @@ async function init() {
   state.fixtures = s.fixtures;
   state.presets = s.presets;
   state.channels = s.channels;
+  state.copioni = s.copioni || [];
   state.blackout = s.blackout;
   dmx = s.dmx;
   lanUrl = s.lan_url;

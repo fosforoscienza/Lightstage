@@ -25,11 +25,25 @@ Daslight: solo quello che serve.
 - **Preset grid**: il pulsante in basso a destra (o il tasto **G**) apre la
   schermata con tutti i 100 preset in griglia da 5 colonne, ognuno con
   l'anteprima del palco e il suo nome, per ritrovare al volo la scena giusta.
+  Nella griglia il preset **in onda** ha il bordo verde; cliccandone un altro
+  lo si *prepara* (bordo rosso lampeggiante) e va in onda solo con la **barra
+  spaziatrice**, come su una console.
+- **Copione**: il pulsante 📜 in basso a destra (o il tasto **C**) apre la
+  schermata del copione. Dentro si creano più **progetti**; ognuno ha il
+  **PDF del copione** a destra, sfogliabile come in Anteprima, e a sinistra una
+  **timeline** alta quanto il copione, che scorre insieme alle pagine. Un clic
+  sulla linea inserisce un preset nel punto voluto (quanti se ne vuole): resta
+  ancorato a quel passaggio del testo. In basso si vede l'anteprima del preset
+  **in onda** e di quello **pronto**: clic su un preset della timeline lo
+  prepara, la **barra spaziatrice** lo manda in onda. La ✕ sul preset lo toglie
+  dal copione. Il PDF sta nella cartella `copioni/` (nella versione web, nel
+  browser).
 - **Scorciatoie da tastiera** (legenda sempre visibile nel piè di pagina):
   **1–9 e 0** lanciano i preset, **B** blackout, **F** fade to black,
-  **N** nuovo faro, **Cmd/Ctrl+C** connetti il cavo, **Cmd/Ctrl+S** salva lo
-  show (nella versione web salva il setup online, altrimenti scarica il file),
-  **Cmd/Ctrl+O** apre la finestra Online (solo versione web).
+  **N** nuovo faro, **G** griglia preset, **C** copione, **Cmd/Ctrl+C**
+  connetti il cavo, **Cmd/Ctrl+S** salva lo show (nella versione web salva il
+  setup online, altrimenti scarica il file), **Cmd/Ctrl+O** apre la finestra
+  Online (solo versione web).
 - **Anteprima palco**: vista dall'alto del palco. Trascina i fari per
   posizionarli, ruotali con la maniglia bianca (o con la rotellina del mouse)
   per orientare il fascio. Il colore e l'intensità del fascio seguono i fader
@@ -230,9 +244,10 @@ non è quello dell'ultima versione, il browser sta usando la copia vecchia —
 ricarica con **Ctrl+F5** (Cmd+Shift+R su Mac). Se usi la versione Python,
 ricordati di aggiornare la cartella con `git pull` e riavviare il programma.
 
-Per rilasciare una versione nuova: cambia `APP_VERSION` in `static/app.js` e
-il `?v=` nei due file `index.html` (serve a non far riusare al browser i file
-della versione precedente).
+Per rilasciare una versione nuova: cambia `APP_VERSION` in `static/app.js`,
+il `?v=` in `static/index.html`, `webapp/index.html` e `index.html` (serve a
+non far riusare al browser i file della versione precedente) e il numero in
+`webapp/version.json` (è quello che fa comparire l'avviso di aggiornamento).
 
 ## Limitazioni
 

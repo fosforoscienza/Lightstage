@@ -19,7 +19,7 @@ import threading
 import time
 import webbrowser
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, request, send_file
 
 try:
     import serial
@@ -30,6 +30,8 @@ except ImportError:  # pyserial assente: solo anteprima
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHOW_FILE = os.path.join(BASE_DIR, "show.json")
+PDF_DIR = os.path.join(BASE_DIR, "copioni")
+MAX_PDF = 40 * 1024 * 1024      # 40 MB per copione
 HOST = "0.0.0.0"  # raggiungibile anche da telefoni/PC sulla stessa rete
 PORT = 8123
 NUM_PRESETS = 100
@@ -60,6 +62,8 @@ show = {
     "fixtures": [],  # {id, name, address, values[8], x, y, rot}
     "presets": [None] * NUM_PRESETS,  # {name, values: {id: [8]}}
     "channels": [dict(c) for c in DEFAULT_CHANNELS],
+    "copioni": [],   # {id, name, cues: [{id, pos, preset}]}
+    "next_copione": 1,
     "blackout": False,
 }
 _dirty = threading.Event()
@@ -275,6 +279,26 @@ def load_show():
                     for k, v in dict(p["values"]).items()
                 },
             }
+    copioni = []
+    for c in data.get("copioni", []):
+        try:
+            cues = []
+            for q in c.get("cues", []):
+                cues.append({
+                    "id": int(q["id"]),
+                    "pos": max(0.0, min(1.0, float(q.get("pos", 0)))),
+                    "preset": max(0, min(NUM_PRESETS - 1, int(q.get("preset", 0)))),
+                })
+            copioni.append({
+                "id": int(c["id"]),
+                "name": str(c.get("name", "Copione"))[:40],
+                "cues": sorted(cues, key=lambda q: q["pos"]),
+                "pdf": bool(c.get("pdf")),
+            })
+        except (KeyError, TypeError, ValueError):
+            continue
+    show["copioni"] = copioni
+    show["next_copione"] = max([c["id"] for c in copioni], default=0) + 1
     show["fixtures"] = fixtures
     show["presets"] = presets
     show["channels"] = channels
@@ -375,6 +399,7 @@ def get_state():
             "fixtures": show["fixtures"],
             "presets": show["presets"],
             "channels": show["channels"],
+            "copioni": show["copioni"],
             "blackout": show["blackout"],
             "dmx": dmx_state(),
             "lan_url": lan_url(),
@@ -542,6 +567,102 @@ def set_blackout():
         rebuild_universe()
         mark_dirty()
         return jsonify({"blackout": show["blackout"]})
+
+
+@app.post("/api/copioni")
+def add_copione():
+    body = request.get_json(silent=True) or {}
+    with lock:
+        cid = show["next_copione"]
+        show["next_copione"] += 1
+        copione = {
+            "id": cid,
+            "name": str(body.get("name") or f"Copione {cid}")[:40],
+            "cues": [],
+            "pdf": False,
+        }
+        show["copioni"].append(copione)
+        mark_dirty()
+        return jsonify({"copione": copione, "copioni": show["copioni"]})
+
+
+def find_copione(cid):
+    for c in show["copioni"]:
+        if c["id"] == cid:
+            return c
+    return None
+
+
+@app.put("/api/copioni/<int:cid>")
+def update_copione(cid):
+    body = request.get_json(silent=True) or {}
+    with lock:
+        c = find_copione(cid)
+        if c is None:
+            return jsonify({"error": "copione non trovato"}), 404
+        if "name" in body:
+            c["name"] = str(body["name"])[:40] or c["name"]
+        if isinstance(body.get("cues"), list):
+            cues = []
+            for q in body["cues"]:
+                try:
+                    cues.append({
+                        "id": int(q["id"]),
+                        "pos": max(0.0, min(1.0, float(q["pos"]))),
+                        "preset": max(0, min(NUM_PRESETS - 1, int(q["preset"]))),
+                    })
+                except (KeyError, TypeError, ValueError):
+                    continue
+            c["cues"] = sorted(cues, key=lambda q: q["pos"])
+        mark_dirty()
+        return jsonify({"copione": c, "copioni": show["copioni"]})
+
+
+@app.delete("/api/copioni/<int:cid>")
+def delete_copione(cid):
+    with lock:
+        c = find_copione(cid)
+        if c is None:
+            return jsonify({"error": "copione non trovato"}), 404
+        show["copioni"].remove(c)
+        mark_dirty()
+    percorso = os.path.join(PDF_DIR, f"{cid}.pdf")
+    if os.path.exists(percorso):
+        try:
+            os.remove(percorso)
+        except OSError:
+            pass
+    return jsonify({"copioni": show["copioni"]})
+
+
+@app.post("/api/copioni/<int:cid>/pdf")
+def upload_pdf(cid):
+    """Riceve il PDF del copione (corpo grezzo della richiesta)."""
+    with lock:
+        if find_copione(cid) is None:
+            return jsonify({"error": "copione non trovato"}), 404
+    dati = request.get_data()
+    if not dati:
+        return jsonify({"error": "file vuoto"}), 400
+    if len(dati) > MAX_PDF:
+        return jsonify({"error": "PDF troppo grande (massimo 40 MB)"}), 413
+    os.makedirs(PDF_DIR, exist_ok=True)
+    with open(os.path.join(PDF_DIR, f"{cid}.pdf"), "wb") as fh:
+        fh.write(dati)
+    with lock:
+        c = find_copione(cid)
+        if c is not None:
+            c["pdf"] = True
+        mark_dirty()
+        return jsonify({"copioni": show["copioni"]})
+
+
+@app.get("/api/copioni/<int:cid>/pdf")
+def get_pdf(cid):
+    percorso = os.path.join(PDF_DIR, f"{cid}.pdf")
+    if not os.path.exists(percorso):
+        return jsonify({"error": "nessun PDF caricato"}), 404
+    return send_file(percorso, mimetype="application/pdf")
 
 
 @app.get("/api/events")
