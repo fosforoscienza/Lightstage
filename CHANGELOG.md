@@ -14,6 +14,8 @@ aggiunte e ritocchi.
   quanti se ne vuole; restano ancorati a quel punto del copione.
 - In basso l'anteprima del preset **in onda** e di quello **pronto**: come
   nella Preset grid un clic prepara e la **barra spaziatrice** manda in onda.
+- Regge i copioni lunghi: le pagine si disegnano man mano che si scorre,
+  quindi anche un testo da cento pagine non appesantisce il browser.
 
 ## 5.11
 
