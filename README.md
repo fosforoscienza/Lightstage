@@ -29,13 +29,21 @@ Daslight: solo quello che serve.
   lo si *prepara* (bordo rosso lampeggiante) e va in onda solo con la **barra
   spaziatrice**, come su una console. Il pulsante **⧉** su un preset lo
   **duplica**: si sceglie il nome della copia e in quale dei 100 spazi metterla.
+  Con **FTB** o **Blackout** attivi il preset in onda diventa **giallo
+  lampeggiante** (targhetta *AL BUIO*) con l'anteprima quasi spenta: si vede
+  sempre qual è la scena caricata. Al buio si può anche cambiare scena — clic
+  e barra spaziatrice — senza interrompere l'FTB: le teste si riposizionano
+  subito e le luci salgono su quella scena quando si toglie l'FTB.
 - **Copione**: il pulsante 📜 in basso a destra (o il tasto **C**) apre la
   schermata del copione. Dentro si creano più **progetti**; ognuno ha il
   **PDF del copione** a destra, sfogliabile come in Anteprima, e a sinistra una
   **timeline** alta quanto il copione, che scorre insieme alle pagine. Un clic
   sulla linea inserisce un preset nel punto voluto (quanti se ne vuole): resta
-  ancorato a quel passaggio del testo, con la **miniatura del palco** accanto al
-  nome, e si può **trascinare** su e giù per spostarlo. In basso si vede
+  ancorato a quel passaggio del testo, con una **miniatura del palco** grande
+  quanto la colonna e il nome sotto, e si può **trascinare** su e giù per
+  spostarlo. Il pallino resta sempre nel punto esatto scelto: se due preset
+  sono troppo vicini l'anteprima scivola sopra o sotto ed è collegata al suo
+  pallino da una linea di richiamo. In basso si vede
   l'anteprima del preset **in onda** e di quello **pronto**: clic su un preset
   della timeline lo prepara, la **barra spaziatrice** lo manda in onda. La ✕ sul
   preset lo toglie dal copione. In alto a destra ci sono **FTB** e **Blackout**
@@ -56,8 +64,9 @@ Daslight: solo quello che serve.
   (fino a 540°, come su un wash) e il canale **focus** ne apre l'angolo da
   **10° a 60°**. Ri-orientando il faro sulla mappa lo zero si riposiziona sul
   valore di pan in quel momento.
-- **Puntamento col mirino**: seleziona un faro con il pan e sopra di esso
-  compare un mirino. Cliccalo (il puntatore diventa una croce), poi clicca il
+- **Puntamento col mirino**: seleziona un faro con il pan e accanto a esso
+  compare un mirino, sempre dalla parte opposta al fascio (così la luce non lo
+  copre mai). Cliccalo (il puntatore diventa una croce), poi clicca il
   punto del palco da illuminare: il fader del pan si sposta da solo verso quella
   direzione, scegliendo il movimento più corto. Lo **zero non cambia**, quindi
   il faro resta orientato com'era sulla mappa. **Esc** annulla il puntamento.

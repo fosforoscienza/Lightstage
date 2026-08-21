@@ -5,6 +5,23 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.14
+
+- Con **FTB o Blackout** il preset in onda non si perde più: resta segnato in
+  **giallo lampeggiante**, con l'anteprima quasi spenta e la targhetta *AL
+  BUIO* (nella Preset grid, nella barra dei preset e nel Copione).
+- Si può **cambiare scena al buio**: clic su un altro preset (rosso), barra
+  spaziatrice e diventa lui il preset in onda — sempre giallo, l'FTB **non si
+  interrompe**. Le teste si riposizionano subito; le luci salgono su quella
+  scena solo quando si toglie l'FTB.
+- Nel **Copione** l'anteprima del preset è grande quanto la colonna, con il
+  nome sotto.
+- I preset segnati restano **esattamente** dove li si lascia, in qualsiasi
+  punto del copione. Se due sono troppo vicini il pallino resta al suo posto e
+  l'anteprima scivola sopra o sotto, collegata da una **linea di richiamo**.
+- Il **mirino** si mette sempre dalla parte opposta al fascio: non finisce più
+  sotto la luce quando il faro punta verso l'alto, e resta dentro il palco.
+
 ## 5.13
 
 - **Puntamento col mirino**: sul faro selezionato compare un mirino; cliccalo

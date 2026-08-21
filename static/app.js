@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.13';
+const APP_VERSION = '5.14';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -524,7 +524,7 @@ function renderPresets() {
   state.presets.forEach((p, i) => {
     const slot = document.createElement('div');
     slot.className = 'preset ' + (p ? 'used' : 'empty');
-    if (i === activePreset) slot.classList.add('active');
+    if (i === activePreset) slot.classList.add(luciGiu() ? 'held' : 'active');
 
     const num = document.createElement('span');
     num.className = 'num';
@@ -725,14 +725,21 @@ function syncCueUI() {
   if (typeof updateCopioneCues === 'function') updateCopioneCues();
 }
 
+/* le luci sono abbassate: FTB in corso oppure blackout */
+function luciGiu() {
+  return ftbSnapshot !== null || state.blackout;
+}
+
 /* aggiorna solo i bordi, senza ridisegnare le 100 miniature */
 function updateGridSelection() {
+  const giu = luciGiu();
   gridCells.forEach((ref, slot) => {
     const live = slot === activePreset && state.presets[slot];
     const armed = slot === armedPreset;
-    ref.cell.classList.toggle('live', !!live && !armed);
+    ref.cell.classList.toggle('live', !!live && !armed && !giu);
+    ref.cell.classList.toggle('held', !!live && !armed && giu);
     ref.cell.classList.toggle('armed', armed);
-    ref.badge.textContent = armed ? 'PRONTO' : (live ? 'IN ONDA' : '');
+    ref.badge.textContent = armed ? 'PRONTO' : (live ? (giu ? 'AL BUIO' : 'IN ONDA') : '');
   });
 }
 
@@ -849,6 +856,21 @@ async function loadPreset(slot) {
       const v = parseInt(saved[i], 10);
       return isNaN(v) ? 0 : Math.max(0, Math.min(255, v));
     }));
+  }
+  // Con l'FTB attivo il preset non riaccende le luci: diventa quello che
+  // tornerà in scena quando si toglie l'FTB. Movimento, zoom e macro si
+  // spostano subito, così le teste si preparano al buio.
+  if (ftbSnapshot !== null) {
+    for (const f of state.fixtures) {
+      const to = targets.get(f.id);
+      if (!to) continue;
+      ftbSnapshot.set(f.id, [...to]);
+      const chans = fixtureChannels(f);
+      f.values = f.values.map((v, i) => (FTB_ROLES.has(chans[i].role) ? v : to[i]));
+      updateFixtureDisplays(f);
+      pushValues(f);
+    }
+    return;
   }
   if (durata <= 0) {
     for (const f of state.fixtures) {
@@ -982,13 +1004,34 @@ function canAim(f) {
   return !!f && roleIndexes(f, 'pan').length > 0;
 }
 
-/* il mirino sta sopra il faro; se lì c'è la maniglia di rotazione, va sotto */
+/* Il mirino sta dalla parte opposta al fascio: così la luce non lo copre mai
+   e non finisce sulla maniglia di rotazione, che sta invece sul fascio. Se
+   quel punto cadrebbe fuori dal palco si prova di lato, sempre lontano dal
+   fascio, e in ultimo si rientra dentro il bordo. */
+const AIM_MARGIN = 13;
+/* di quanto stare lontani dal fascio: il cono è al massimo 60°, quindi anche
+   il ripiego più stretto (65°) resta fuori dalla luce */
+const AIM_ANGLES = [180, 150, -150, 120, -120, 95, -95, 65, -65];
+const AIM_RADII = [38, 27];
+
 function aimHandlePos(f) {
   const p = fixturePos(f);
-  const hp = handlePos(f);
-  const sopra = { x: p.x, y: p.y - 36 };
-  if (Math.hypot(sopra.x - hp.x, sopra.y - hp.y) < 26) return { x: p.x, y: p.y + 36 };
-  return sopra;
+  const punto = (scarto, raggio) => {
+    const th = (beamAngle(f) + scarto) * Math.PI / 180;
+    return { x: p.x + Math.sin(th) * raggio, y: p.y + Math.cos(th) * raggio };
+  };
+  for (const raggio of AIM_RADII) {
+    for (const scarto of AIM_ANGLES) {
+      const a = punto(scarto, raggio);
+      if (a.x > AIM_MARGIN && a.x < cw - AIM_MARGIN
+          && a.y > AIM_MARGIN && a.y < ch - AIM_MARGIN) return a;
+    }
+  }
+  const a = punto(180, AIM_RADII[0]);
+  return {
+    x: Math.max(AIM_MARGIN, Math.min(cw - AIM_MARGIN, a.x)),
+    y: Math.max(AIM_MARGIN, Math.min(ch - AIM_MARGIN, a.y)),
+  };
 }
 
 function drawAimHandle(f) {
@@ -1599,6 +1642,8 @@ async function toggleBlackout() {
   state.blackout = res.blackout;
   setButtonsOn('.js-blackout', state.blackout);
   state.fixtures.forEach(updateSwatch);
+  renderPresets();
+  syncCueUI();   // il preset in onda passa al giallo (e viceversa)
 }
 $$('.js-blackout').forEach((b) =>
   b.addEventListener('click', () => toggleBlackout().catch(console.error)));
@@ -1613,7 +1658,6 @@ const FTB_ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white', 'str
 const PRESET_SNAP_ROLES = new Set(['pan', 'tilt']);
 let fadeToken = 0;        // token: una nuova dissolvenza annulla quella in corso
 let ftbSnapshot = null;   // valori prima dell'FTB (null = FTB non attivo)
-let ftbPreset = null;     // preset in onda prima dell'FTB, da ripristinare dopo
 
 /* only: solo questi ruoli sfumano (gli altri restano fermi)
    skip: questi ruoli vanno subito a destinazione, gli altri sfumano */
@@ -1660,23 +1704,18 @@ function toggleFtb() {
   if (state.fixtures.length === 0) return;
   if (ftbSnapshot === null) {
     ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...f.values]]));
-    ftbPreset = activePreset;   // si riaccende quando l'FTB viene tolto
     setButtonsOn('.js-ftb', true);
-    clearActivePreset();
     ftbFade(new Map(state.fixtures.map((f) => [f.id, f.values.map(() => 0)])));
   } else {
     const target = ftbSnapshot;
     ftbSnapshot = null;
     setButtonsOn('.js-ftb', false);
     ftbFade(target);
-    // le luci tornano com'erano: torna in verde anche il preset che era in onda
-    if (ftbPreset !== null && state.presets[ftbPreset]) {
-      activePreset = ftbPreset;
-      renderPresets();
-      syncCueUI();
-    }
-    ftbPreset = null;
   }
+  // il preset in onda resta segnato: giallo lampeggiante mentre le luci
+  // sono giù, verde quando tornano su
+  renderPresets();
+  syncCueUI();
 }
 
 $$('.js-ftb').forEach((b) => b.addEventListener('click', toggleFtb));

@@ -160,28 +160,50 @@ async function mostraPdf(url) {
       }
     }, { root: $('#copione-scroll'), rootMargin: '1200px 0px' });
     tele.forEach((t) => osservatore.observe(t.canvas));
+    disponiCue();   // la timeline è cresciuta con le pagine: si ricolloca tutto
   } catch (err) {
     pagine.innerHTML = `<div id="copione-vuoto" class="small">PDF non leggibile: ${err.message}</div>`;
   }
 }
 
-/* ------------------------------------------------------------- timeline */
+/* ------------------------------------------------------------- timeline
+   Il pallino resta esattamente nel punto scelto del copione; l'anteprima,
+   che è grande, può scivolare più su o più giù per non accavallarsi con le
+   vicine, e una linea di richiamo la collega al suo pallino. */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const CUE_GAP = 8;          // spazio minimo fra due anteprime
+let vociCue = [];           // {cue, box, dot, linea, ancora}
+
 function renderCues() {
   const wrap = $('#copione-cues');
   wrap.innerHTML = '';
+  vociCue = [];
   const c = copioneAttivo();
   if (!c) return;
+
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'tl-links');
+  wrap.append(svg);
+
   for (const cue of c.cues) {
     const p = state.presets[cue.preset];
-    const el = document.createElement('div');
-    el.className = 'tl-cue';
-    el.style.top = `${cue.pos * 100}%`;
-    if (cue.preset === activePreset) el.classList.add('live');
-    if (cue.preset === armedPreset) el.classList.add('armed');
+    const stato = cue.preset === armedPreset ? 'armed'
+      : (cue.preset === activePreset ? (luciGiu() ? 'held' : 'live') : '');
+
+    const linea = document.createElementNS(SVG_NS, 'path');
+    linea.setAttribute('class', `tl-link ${stato}`);
+    svg.append(linea);
+
+    const dot = document.createElement('div');
+    dot.className = `tl-dot ${stato}`;
+    dot.style.top = `${cue.pos * 100}%`;
+
+    const box = document.createElement('div');
+    box.className = `tl-cue ${stato}`;
 
     const thumb = document.createElement('canvas');
     thumb.className = 'tl-thumb';
-    const testo = document.createElement('span');
+    const testo = document.createElement('div');
     testo.className = 'tl-txt';
     const n = document.createElement('span');
     n.className = 'n';
@@ -201,13 +223,56 @@ function renderCues() {
       await salvaCue(c);
     });
 
-    el.append(thumb, testo, del);
-    el.title = p
+    box.append(thumb, testo, del);
+    box.title = p
       ? `Prepara "${p.name}" — poi barra spaziatrice. Trascina per spostarlo nel copione.`
       : 'Preset vuoto';
-    el.addEventListener('pointerdown', (e) => avviaTrascinamento(e, el, cue, c, p));
-    wrap.append(el);
+    box.addEventListener('pointerdown', (e) => avviaTrascinamento(e, box, cue, c, p));
+    wrap.append(box, dot);
+    vociCue.push({ cue, box, dot, linea });
     requestAnimationFrame(() => drawPresetThumb(thumb, p));
+  }
+  disponiCue();
+}
+
+/* colloca le anteprime senza sovrapposizioni e traccia le linee di richiamo */
+function disponiCue() {
+  if (!vociCue.length) return;
+  const tl = $('#copione-timeline');
+  const H = tl.offsetHeight;
+  if (!H) return;
+  const voci = vociCue
+    .map((v) => ({ ...v, ancora: v.cue.pos * H, h: v.box.offsetHeight || 150 }))
+    .sort((a, b) => a.ancora - b.ancora);
+
+  const serve = voci.reduce((s, v) => s + v.h + CUE_GAP, -CUE_GAP);
+  if (serve > H) {
+    // troppe anteprime per l'altezza disponibile: si spartiscono lo spazio
+    const passo = voci.length > 1 ? (H - voci[0].h) / (voci.length - 1) : 0;
+    voci.forEach((v, i) => { v.top = i * passo; });
+  } else {
+    let sotto = 0;                       // prima passata: si scende
+    for (const v of voci) {
+      v.top = Math.max(sotto, v.ancora - v.h / 2);
+      sotto = v.top + v.h + CUE_GAP;
+    }
+    let sopra = H;                       // seconda: chi sborda rientra
+    for (let i = voci.length - 1; i >= 0; i--) {
+      voci[i].top = Math.max(0, Math.min(voci[i].top, sopra - voci[i].h));
+      sopra = voci[i].top - CUE_GAP;
+    }
+  }
+
+  const larghezza = tl.clientWidth;
+  for (const v of voci) {
+    v.box.style.top = `${v.top}px`;
+    const centro = v.top + v.h / 2;
+    const x1 = larghezza - 27;           // il pallino, sulla linea
+    const x2 = larghezza - 47;           // il bordo destro dell'anteprima
+    // dritta quando l'anteprima è al suo posto, a gomito quando è scivolata
+    v.linea.setAttribute('d', Math.abs(centro - v.ancora) < 1.5
+      ? `M ${x1} ${v.ancora} L ${x2} ${v.ancora}`
+      : `M ${x1} ${v.ancora} C ${x1 - 12} ${v.ancora}, ${x2 + 12} ${centro}, ${x2} ${centro}`);
   }
 }
 
@@ -224,10 +289,18 @@ function posDaY(clientY) {
   return Math.max(0, Math.min(1, (clientY - r.top) / r.height));
 }
 
+/* mentre si trascina, pallino e anteprima seguono il puntatore */
 function spostaSegnaposto() {
   if (!trascinato || ultimaY === null) return;
   trascinato.pos = posDaY(ultimaY);
-  trascinato.el.style.top = `${trascinato.pos * 100}%`;
+  const H = $('#copione-timeline').offsetHeight;
+  const y = trascinato.pos * H;
+  trascinato.el.style.top = `${y - trascinato.el.offsetHeight / 2}px`;
+  if (trascinato.dot) trascinato.dot.style.top = `${trascinato.pos * 100}%`;
+  if (trascinato.linea) {
+    const x = $('#copione-timeline').clientWidth;
+    trascinato.linea.setAttribute('d', `M ${x - 27} ${y} L ${x - 47} ${y}`);
+  }
 }
 
 /* vicino ai bordi la pagina scorre da sola, così si arriva ovunque */
@@ -248,7 +321,9 @@ function avviaTrascinamento(e, el, cue, c, p) {
   if (e.target.closest('.del') || e.button !== 0) return;
   e.preventDefault();
   e.stopPropagation();
-  trascinato = { el, cue, c, p, partenza: e.clientY, mosso: false, pos: cue.pos };
+  const v = vociCue.find((x) => x.cue === cue);
+  trascinato = { el, cue, c, p, partenza: e.clientY, mosso: false, pos: cue.pos,
+                 dot: v && v.dot, linea: v && v.linea };
   ultimaY = e.clientY;
   el.setPointerCapture(e.pointerId);
   el.classList.add('dragging');
@@ -271,7 +346,7 @@ async function fineTrascinamento(e) {
   if (!t) return;
   trascinato = null;
   ultimaY = null;
-  impostaScorrimento(0);
+  impostaScorrimento(0);   // prima di leggere la posizione: niente scatti finali
   t.el.classList.remove('dragging');
   if (t.el.hasPointerCapture?.(e.pointerId)) t.el.releasePointerCapture(e.pointerId);
   if (!t.mosso) {
@@ -281,10 +356,18 @@ async function fineTrascinamento(e) {
     syncCueUI();
     return;
   }
-  t.cue.pos = t.pos;
+  // vale il punto in cui si è lasciato il mouse, non l'ultimo scatto del timer
+  t.cue.pos = posDaY(e.clientY);
   t.c.cues.sort((a, b) => a.pos - b.pos);
   renderCues();
   await salvaCue(t.c);
+}
+
+/* se cambia l'altezza del copione (pagine disegnate, finestra ridimensionata)
+   le anteprime vanno ricollocate */
+if (window.ResizeObserver) {
+  new ResizeObserver(() => { if (!trascinato) disponiCue(); })
+    .observe($('#copione-timeline'));
 }
 
 document.addEventListener('pointermove', duranteTrascinamento);
@@ -341,7 +424,12 @@ async function aggiungiCue(pos) {
 /* ------------------------------------------------- preset in onda/pronto */
 function updateCopioneCues() {
   renderCues();
+  const giu = luciGiu();
   const live = activePreset !== null ? state.presets[activePreset] : null;
+  const box = $('#copione-live-box');
+  box.classList.toggle('held', !!live && giu);
+  box.classList.toggle('live', !!live && !giu);
+  $('#copione-live-label').textContent = live && giu ? 'AL BUIO' : 'IN ONDA';
   $('#copione-live-name').textContent = live ? live.name : '—';
   drawPresetThumb($('#copione-live-thumb'), live);
   const armed = armedPreset !== null ? state.presets[armedPreset] : null;

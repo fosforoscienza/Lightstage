@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E">
 <!-- il ?v= serve a non far riusare al browser i file della versione precedente -->
-<link rel="stylesheet" href="style.css?v=5.13">
+<link rel="stylesheet" href="style.css?v=5.14">
 </head>
 <body>
 
@@ -113,6 +113,7 @@
   <footer id="grid-legend">
     <span><i class="dot live"></i>in onda</span>
     <span><i class="dot armed"></i>preparato</span>
+    <span><i class="dot held"></i>in onda, luci gi&ugrave;</span>
     <span class="key-item"><kbd>clic</kbd><em>prepara il preset</em></span>
     <span class="key-item"><kbd>spazio</kbd><em>manda in onda</em></span>
     <span class="key-item"><kbd>clic</kbd><em>su uno vuoto: salva le luci attuali</em></span>
@@ -173,9 +174,9 @@
   </div>
 
   <footer id="copione-foot">
-    <div class="cue-box live">
+    <div class="cue-box live" id="copione-live-box">
       <canvas class="cue-thumb" id="copione-live-thumb"></canvas>
-      <div class="cue-txt"><span class="lbl">IN ONDA</span><span id="copione-live-name">&mdash;</span></div>
+      <div class="cue-txt"><span class="lbl" id="copione-live-label">IN ONDA</span><span id="copione-live-name">&mdash;</span></div>
     </div>
     <div class="cue-box armed hidden" id="copione-armed-box">
       <canvas class="cue-thumb" id="copione-armed-thumb"></canvas>
@@ -270,7 +271,7 @@
   </div>
 </div>
 
-<script src="app.js?v=5.13"></script>
-<script src="copione.js?v=5.13"></script>
+<script src="app.js?v=5.14"></script>
+<script src="copione.js?v=5.14"></script>
 </body>
 </html>
