@@ -5,6 +5,25 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.22
+
+- **Taratura sui quattro angoli**: il pulsante *Tara le teste* (in basso a
+  sinistra sulla mappa) fa fare un giro guidato. Si puntano a mano tutte le
+  teste sull'angolo del pavimento indicato, si preme *Segna l'angolo*, e così
+  per i quattro angoli. Da quelle misure LightStage ricava da sé, per ogni
+  testa, **dove sta sul palco, quanto è alta, i suoi due zeri e da che parte
+  gira** pan e tilt: non c'è più niente da impostare a mano.
+- Alla fine mostra, testa per testa, **quanto sbaglierebbe il fascio** ai
+  quattro angoli con i valori trovati. Sotto i 30 cm la taratura è buona e
+  viene proposta; sopra è segnata in giallo e lasciata da parte, perché quasi
+  sempre vuol dire che quella testa non era puntata proprio sull'angolo.
+- Le teste **appese a testa in giù** ora sono gestite: pan e tilt che girano al
+  contrario non sono più un problema, la taratura se ne accorge da sola.
+- Le misure grezze restano salvate: se poi si correggono le dimensioni del
+  palco, **il conto si rifà da solo** senza rifare il giro.
+- Corretto: la risposta del server **riscriveva il campo** delle misure del
+  palco mentre lo si stava ancora compilando, e la seconda misura andava persa.
+
 ## 5.21
 
 - **Il mirino punta anche il tilt**, non solo il pan: clicchi un punto del

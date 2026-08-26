@@ -121,11 +121,27 @@ Daslight: solo quello che serve.
   altezza)`. Sulla mappa il fascio non è più un cono lungo a caso: si vede la
   **pozza di luce** dove la luce tocca davvero il pavimento, allungata come
   nella realtà quando il fascio arriva di sbieco.
-- **Taratura del mirino** (pulsante ⌖ sulla scheda di una testa): il programma
-  ha bisogno di sapere qual è il tilt che punta a piombo. Invece di cercarlo a
-  numeri, punta la testa a mano dove vuoi, premi ⌖ e clicca sulla mappa il
-  punto che sta illuminando: da quel solo punto LightStage ricava sia lo zero
-  del pan sia quello del tilt. Da lì in poi il mirino va a colpo sicuro.
+- **Taratura sui quattro angoli** (pulsante *Tara le teste*, in basso a
+  sinistra sulla mappa): il modo completo di far imparare il palco al
+  programma. Parte un giro guidato: punti a mano tutte le teste sull'angolo del
+  pavimento che ti indica (sulla mappa lampeggia quello giusto), premi *Segna
+  l'angolo*, e così per i quattro angoli. Da quelle otto misure per testa
+  LightStage ricava da sé **dove sta ogni testa, quanto è alta, i suoi due zeri
+  e da che parte gira** pan e tilt — comprese le teste appese a testa in giù,
+  che girano al contrario. È lo stesso conto che in topografia si chiama
+  *resezione*: si conoscono i punti guardati e con che angoli li si guarda, si
+  cerca da dove li si guarda.
+  Alla fine ti dice, testa per testa, di quanto sbaglierebbe il fascio ai
+  quattro angoli con i valori trovati: **sotto i 30 cm** la taratura è buona e
+  te la propone, sopra la segna in giallo e la lascia da parte (quasi sempre
+  vuol dire che quella testa non era puntata proprio sull'angolo: basta rifare
+  il giro per lei). Le misure restano salvate, così se poi correggi le
+  dimensioni del palco il conto si rifà da solo.
+- **Taratura veloce di una sola testa** (pulsante ⌖ sulla sua scheda): se ne hai
+  urtata una e devi solo rimetterle gli zeri, punta la testa a mano dove vuoi,
+  premi ⌖ e clicca sulla mappa il punto che sta illuminando. Da quel solo punto
+  ricava lo zero del pan e quello del tilt, dando per buone posizione e altezza
+  che già conosce.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to

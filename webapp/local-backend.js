@@ -92,6 +92,30 @@
     return isNaN(v) ? DEFAULT_HEIGHT : Math.max(0, Math.min(30, v));
   }
 
+  /* Zero di un movimento: non è un valore DMX ma un riferimento. Una testa
+     che non arriva a puntare a piombo ha lo zero del tilt fuori da 0..1. */
+  function sanitizeZero(raw, difetto) {
+    const v = parseFloat(raw);
+    return isNaN(v) ? difetto : Math.max(-3, Math.min(3, v));
+  }
+
+  /* le quattro misure della taratura: com'era messa la testa (pan e tilt in
+     0..1) mentre puntava ciascun angolo del palco */
+  function sanitizeTaratura(raw) {
+    if (!Array.isArray(raw) || raw.length !== 4) return null;
+    const misure = [];
+    for (const m of raw) {
+      const pan = parseFloat((m || {}).pan);
+      const tilt = parseFloat((m || {}).tilt);
+      if (isNaN(pan) || isNaN(tilt)) return null;
+      misure.push({
+        pan: Math.max(0, Math.min(1, pan)),
+        tilt: Math.max(0, Math.min(1, tilt)),
+      });
+    }
+    return misure;
+  }
+
   function sanitizeShow(data) {
     const db = {
       next_id: 1,
@@ -121,8 +145,10 @@
         rot: ((parseFloat(f.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(f.panzero) || 0)),
         h: sanitizeHeight(f.h),
-        tiltzero: f.tiltzero === undefined
-          ? 0.5 : Math.max(0, Math.min(1, parseFloat(f.tiltzero) || 0)),
+        tiltzero: sanitizeZero(f.tiltzero, 0.5),
+        panflip: !!f.panflip,
+        tiltflip: !!f.tiltflip,
+        taratura: sanitizeTaratura(f.taratura),
       });
     }
     (data.presets || []).slice(0, NUM_PRESETS).forEach((p, i) => {
@@ -441,8 +467,10 @@
         rot: ((parseFloat(b.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(b.panzero) || 0)),
         h: sanitizeHeight(b.h),
-        tiltzero: b.tiltzero === undefined
-          ? 0.5 : Math.max(0, Math.min(1, parseFloat(b.tiltzero) || 0)),
+        tiltzero: sanitizeZero(b.tiltzero, 0.5),
+        panflip: !!b.panflip,
+        tiltflip: !!b.tiltflip,
+        taratura: sanitizeTaratura(b.taratura),
       };
       db.fixtures.push(fixture);
       rebuildFrame();
@@ -488,13 +516,16 @@
           const a = parseInt(b.address, 10);
           if (!isNaN(a)) f.address = Math.max(1, Math.min(512 - fixtureCount(f) + 1, a));
         }
-        for (const k of ['x', 'y', 'panzero', 'tiltzero']) {
+        for (const k of ['x', 'y', 'panzero']) {
           if (k in b) {
             const v = parseFloat(b[k]);
             if (!isNaN(v)) f[k] = Math.max(0, Math.min(1, v));
           }
         }
+        if ('tiltzero' in b) f.tiltzero = sanitizeZero(b.tiltzero, f.tiltzero);
         if ('h' in b) f.h = sanitizeHeight(b.h);
+        for (const k of ['panflip', 'tiltflip']) if (k in b) f[k] = !!b[k];
+        if ('taratura' in b) f.taratura = sanitizeTaratura(b.taratura);
         if ('rot' in b) {
           const r = parseFloat(b.rot);
           if (!isNaN(r)) f.rot = ((r % 360) + 360) % 360;

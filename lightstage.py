@@ -253,6 +253,33 @@ def sanitize_height(raw):
         return DEFAULT_HEIGHT
 
 
+def sanitize_zero(raw, default=0.5):
+    """Zero di un movimento. Non è un valore DMX ma un riferimento: una testa
+    che non arriva a puntare a piombo ha lo zero del tilt fuori da 0..1."""
+    try:
+        return max(-3.0, min(3.0, float(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
+def sanitize_taratura(raw):
+    """Le quattro misure della taratura di una testa: com'era messa pan e tilt
+    (0..1) mentre puntava ciascun angolo del palco. Serve a rifare il conto se
+    poi cambiano le misure del palco."""
+    if not isinstance(raw, list) or len(raw) != 4:
+        return None
+    misure = []
+    for m in raw:
+        try:
+            misure.append({
+                "pan": max(0.0, min(1.0, float(m["pan"]))),
+                "tilt": max(0.0, min(1.0, float(m["tilt"]))),
+            })
+        except (KeyError, TypeError, ValueError):
+            return None
+    return misure
+
+
 def sanitize_values(raw, n=NUM_CHANNELS):
     vals = [0] * n
     if isinstance(raw, list):
@@ -326,7 +353,10 @@ def apply_show(data):
                 "rot": float(f.get("rot", 0)) % 360,
                 "panzero": max(0.0, min(1.0, float(f.get("panzero", 0)))),
                 "h": sanitize_height(f.get("h", DEFAULT_HEIGHT)),
-                "tiltzero": max(0.0, min(1.0, float(f.get("tiltzero", 0.5)))),
+                "tiltzero": sanitize_zero(f.get("tiltzero"), 0.5),
+                "panflip": bool(f.get("panflip")),
+                "tiltflip": bool(f.get("tiltflip")),
+                "taratura": sanitize_taratura(f.get("taratura")),
             })
         except (KeyError, TypeError, ValueError):
             continue
@@ -505,7 +535,10 @@ def add_fixture():
             "rot": float(body.get("rot", 0)) % 360,
             "panzero": max(0.0, min(1.0, float(body.get("panzero", 0)))),
             "h": sanitize_height(body.get("h", DEFAULT_HEIGHT)),
-            "tiltzero": max(0.0, min(1.0, float(body.get("tiltzero", 0.5)))),
+            "tiltzero": sanitize_zero(body.get("tiltzero"), 0.5),
+            "panflip": bool(body.get("panflip")),
+            "tiltflip": bool(body.get("tiltflip")),
+            "taratura": sanitize_taratura(body.get("taratura")),
         }
         show["fixtures"].append(fixture)
         rebuild_universe()
@@ -528,14 +561,21 @@ def update_fixture(fid):
                 f["address"] = max(1, min(max_addr, int(body["address"])))
             except (TypeError, ValueError):
                 pass
-        for key in ("x", "y", "panzero", "tiltzero"):
+        for key in ("x", "y", "panzero"):
             if key in body:
                 try:
                     f[key] = max(0.0, min(1.0, float(body[key])))
                 except (TypeError, ValueError):
                     pass
+        if "tiltzero" in body:
+            f["tiltzero"] = sanitize_zero(body["tiltzero"], f.get("tiltzero", 0.5))
         if "h" in body:
             f["h"] = sanitize_height(body["h"])
+        for key in ("panflip", "tiltflip"):
+            if key in body:
+                f[key] = bool(body[key])
+        if "taratura" in body:
+            f["taratura"] = sanitize_taratura(body["taratura"])
         if "rot" in body:
             try:
                 f["rot"] = float(body["rot"]) % 360

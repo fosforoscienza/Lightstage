@@ -160,6 +160,50 @@ body {
   font-size: 11px;
 }
 #stage-geo input { width: 42px; }
+#stage-geo button {
+  background: #0d1016;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+#stage-geo button:hover { border-color: var(--accent); color: var(--text); }
+
+/* la guida passo passo mentre si tarano le teste sui quattro angoli */
+#tara-bar {
+  position: absolute;
+  left: 50%; top: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: rgba(16, 20, 27, 0.95);
+  border: 1px solid var(--held);
+  color: #cfd8ea;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 5;
+}
+#tara-bar .btn { padding: 5px 10px; font-size: 12px; }
+#tara-bar.hidden { display: none; }
+
+.modal-card.wide { width: 520px; }
+.tara-riga {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tara-riga input { margin-top: 2px; flex: 0 0 auto; }
+.tara-riga.male { color: var(--held); }
 #stage-geo input::-webkit-outer-spin-button,
 #stage-geo input::-webkit-inner-spin-button { margin-left: 0; }
 

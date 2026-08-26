@@ -50,6 +50,13 @@
         <option value="1.6">sui volti</option>
       </select>
     </label>
+    <button id="btn-tara" type="button" title="Taratura: punta le teste sui quattro angoli del palco e LightStage impara da sola dove sono, quanto sono alte e come girano">&#9678; Tara le teste</button>
+  </div>
+  <div id="tara-bar" class="hidden">
+    <span id="tara-testo"></span>
+    <button id="tara-salva" class="btn primary" type="button">Segna l&rsquo;angolo</button>
+    <button id="tara-indietro" class="btn ghost hidden" type="button">Rifai il precedente</button>
+    <button id="tara-esci" class="btn ghost" type="button">Annulla</button>
   </div>
   <div id="multi-hint" class="hidden"></div>
   <div id="stage-hint"><b>Maiusc</b>+clic sceglie pi&ugrave; fari insieme &middot; trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo (<b>Maiusc</b>: scatti di 15&deg;) &middot; <b>mirino</b>: clic e poi indica dove mandare il fascio (pan e tilt)</div>
@@ -241,6 +248,20 @@
 </div>
 
 <!-- modale: duplica un preset in un altro spazio -->
+<!-- modale: esito della taratura sui quattro angoli -->
+<div id="modal-tara" class="modal hidden">
+  <div class="modal-card wide">
+    <h2>Taratura del palco</h2>
+    <p class="small" id="tara-intro"></p>
+    <div id="tara-esiti"></div>
+    <div class="modal-actions">
+      <button class="btn ghost modal-close" type="button">Annulla</button>
+      <button id="tara-rifai" class="btn ghost" type="button">Rifai la taratura</button>
+      <button id="tara-applica" class="btn primary" type="button">Applica</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-dup" class="modal hidden">
   <div class="modal-card">
     <h2>Duplica preset</h2>

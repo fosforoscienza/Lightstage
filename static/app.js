@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.21';
+const APP_VERSION = '5.22';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -203,11 +203,17 @@ function panPosition(f, values) {
   return movePosition(f, 'pan', values);
 }
 
+/* Da che parte gira il movimento quando il valore DMX cresce. Una testa
+   appesa a testa in giù gira al contrario di una appoggiata per terra: la
+   taratura se ne accorge da sola. */
+function versoPan(f) { return f.panflip ? -1 : 1; }
+function versoTilt(f) { return f.tiltflip ? -1 : 1; }
+
 /* direzione del fascio: zero della mappa più lo spostamento del pan */
 function beamAngle(f, values) {
   const pos = panPosition(f, values);
   if (pos === null) return f.rot;
-  return f.rot + (pos - (f.panzero || 0)) * PAN_RANGE;
+  return f.rot + versoPan(f) * (pos - (f.panzero || 0)) * PAN_RANGE;
 }
 
 /* Valore di pan (0..1) che punta il fascio verso una certa direzione, senza
@@ -218,8 +224,11 @@ function beamAngle(f, values) {
 function panForAngle(f, desired) {
   if (!roleIndexes(f, 'pan').length) return null;
   const zero = f.panzero || 0;
-  const min = f.rot - zero * PAN_RANGE;      // direzione con il pan tutto a 0
-  const max = min + PAN_RANGE;               // direzione con il pan tutto a 255
+  const verso = versoPan(f);
+  const a0 = f.rot + verso * (0 - zero) * PAN_RANGE;   // pan tutto a 0
+  const a1 = f.rot + verso * (1 - zero) * PAN_RANGE;   // pan tutto a 255
+  const min = Math.min(a0, a1);
+  const max = Math.max(a0, a1);
   const attuale = beamAngle(f);
   let scelta = null;
   let distanza = Infinity;
@@ -231,7 +240,7 @@ function panForAngle(f, desired) {
       : 1e6 + Math.min(Math.abs(a - min), Math.abs(a - max));
     if (d < distanza) { distanza = d; scelta = a; }
   }
-  return Math.max(0, Math.min(1, zero + (scelta - f.rot) / PAN_RANGE));
+  return Math.max(0, Math.min(1, zero + verso * (scelta - f.rot) / PAN_RANGE));
 }
 
 /* scrive la posizione di un movimento (0..1) sui fader, canale fine compreso */
@@ -318,14 +327,14 @@ function tiltZero(f) {
 function tiltAngle(f, values) {
   const pos = movePosition(f, 'tilt', values);
   if (pos === null) return null;
-  return (pos - tiltZero(f)) * TILT_RANGE;
+  return versoTilt(f) * (pos - tiltZero(f)) * TILT_RANGE;
 }
 
 /* valore di tilt (0..1) che dà una certa inclinazione; fuori portata si
    arriva il più vicino possibile */
 function tiltForAngle(f, gradi) {
   if (!roleIndexes(f, 'tilt').length) return null;
-  return Math.max(0, Math.min(1, tiltZero(f) + gradi / TILT_RANGE));
+  return Math.max(0, Math.min(1, tiltZero(f) + versoTilt(f) * gradi / TILT_RANGE));
 }
 
 /* Dove il fascio tocca il pavimento, guardando dall'alto: distanza in metri
@@ -1713,10 +1722,182 @@ function calibraFaro(f, px, py) {
   const tilt = movePosition(f, 'tilt');
   if (tilt !== null) {
     const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaUtile(f)) * 180 / Math.PI;
-    f.tiltzero = Math.max(0, Math.min(1, tilt - inclinazione / TILT_RANGE));
+    f.tiltzero = tilt - versoTilt(f) * inclinazione / TILT_RANGE;
     patch.tiltzero = f.tiltzero;
   }
-  if (Object.keys(patch).length) pushFixturePatch(f.id, patch);
+  if (!Object.keys(patch).length) return;
+  // ritoccando gli zeri a mano, le misure del giro dei quattro angoli non
+  // descrivono più com'è messa questa testa: si buttano
+  if (f.taratura) { f.taratura = null; patch.taratura = null; }
+  pushFixturePatch(f.id, patch);
+}
+
+/* ---------------------------------------- taratura sui quattro angoli
+   Si puntano a mano tutte le teste su un angolo del pavimento e si segna;
+   poi gli altri tre. Da quelle otto misure per testa si ricava tutto: dove
+   sta, quanto è alta, i suoi due zeri e da che parte gira il movimento.
+
+   È il conto che in topografia si chiama resezione: si conoscono i punti
+   guardati e con che angoli li si guarda, si cerca da dove li si guarda.
+   Prima il pan, che dà posizione e zero del pan; sapendo dov'è la testa le
+   distanze sono note, e allora il tilt dà altezza e zero del tilt.          */
+function angoliPalco() {
+  const g = stageGeo();
+  return [
+    { x: 0, y: 0, nome: 'in fondo a sinistra' },
+    { x: g.w, y: 0, nome: 'in fondo a destra' },
+    { x: g.w, y: g.d, nome: 'davanti a destra' },
+    { x: 0, y: g.d, nome: 'davanti a sinistra' },
+  ];
+}
+
+function testeDaTarare() {
+  return state.fixtures.filter(
+    (f) => roleIndexes(f, 'pan').length && roleIndexes(f, 'tilt').length);
+}
+
+/* il punto che sta più vicino possibile a tutte le rette di mira */
+function incrocioRette(punti, direzioni) {
+  let a = 0, b = 0, d = 0, e = 0, g = 0;
+  for (let i = 0; i < punti.length; i++) {
+    const nx = direzioni[i].y;      // normale alla retta di mira
+    const ny = -direzioni[i].x;
+    const k = nx * punti[i].x + ny * punti[i].y;
+    a += nx * nx; b += nx * ny; d += ny * ny;
+    e += nx * k; g += ny * k;
+  }
+  const det = a * d - b * b;
+  if (Math.abs(det) < 1e-9) return null;   // mire tutte parallele: niente da fare
+  return { x: (e * d - b * g) / det, y: (a * g - b * e) / det };
+}
+
+/* cerca il minimo di una funzione su un intervallo, prima a passi grossi e
+   poi stringendo attorno al migliore */
+function cercaMinimo(da, a, passo, valuta) {
+  let migliore = null;
+  const giro = (d1, a1, p1) => {
+    for (let v = d1; v <= a1 + 1e-9; v += p1) {
+      const c = valuta(v);
+      if (c && (!migliore || c.res < migliore.res)) migliore = c;
+    }
+  };
+  giro(da, a, passo);
+  for (let p = passo / 4; p > passo / 400; p /= 4) {
+    if (!migliore) return null;
+    giro(migliore.v - p * 4, migliore.v + p * 4, p);
+  }
+  return migliore;
+}
+
+/* posizione e zero del pan, provando un verso di rotazione */
+function risolviAzimut(misure, angoli, verso) {
+  return cercaMinimo(0, 359, 1, (fi0) => {
+    const dir = misure.map((m) => {
+      const b = (fi0 + verso * PAN_RANGE * m.pan) * Math.PI / 180;
+      return { x: Math.sin(b), y: Math.cos(b) };
+    });
+    const P = incrocioRette(angoli, dir);
+    if (!P) return null;
+    let res = 0;
+    for (let i = 0; i < angoli.length; i++) {
+      // la retta di mira è la stessa anche guardando dall'altra parte: si
+      // tiene solo la soluzione in cui l'angolo sta davanti al faro, non
+      // dietro, altrimenti esce una posizione specchiata di 180°
+      if ((angoli[i].x - P.x) * dir[i].x
+          + (angoli[i].y - P.y) * dir[i].y <= 0) return null;
+      const s = dir[i].y * (P.x - angoli[i].x) - dir[i].x * (P.y - angoli[i].y);
+      res += s * s;
+    }
+    return { v: fi0, fi0, P, res };
+  });
+}
+
+/* altezza e zero del tilt, note le distanze dai quattro angoli */
+function risolviAltezza(misure, distanze, verso) {
+  return cercaMinimo(0.3, 20, 0.05, (h) => {
+    const scarti = misure.map((m, i) =>
+      Math.atan2(distanze[i], h) * 180 / Math.PI - verso * TILT_RANGE * m.tilt);
+    const t0 = scarti.reduce((s, x) => s + x, 0) / scarti.length;
+    const res = scarti.reduce((s, x) => s + (x - t0) * (x - t0), 0);
+    return { v: h, h, t0, res };
+  });
+}
+
+/* Quanto sbaglia, in metri: con i valori trovati si ricalcola dove sarebbe
+   finito il fascio a ogni angolo e si misura quanto è lontano dall'angolo
+   vero. È il numero da mostrare, l'unico che si capisce a occhio. */
+function scartoTaratura(r, misure, angoli) {
+  let somma = 0;
+  for (let i = 0; i < angoli.length; i++) {
+    const az = (r.fi0 + r.vp * PAN_RANGE * misure[i].pan) * Math.PI / 180;
+    const inc = (r.t0 + r.vt * TILT_RANGE * misure[i].tilt) * Math.PI / 180;
+    if (!(inc > 0.01) || inc > 1.53) { somma += 99; continue; }   // fascio piatto
+    const d = r.h * Math.tan(inc);
+    somma += Math.hypot(r.P.x + Math.sin(az) * d - angoli[i].x,
+                        r.P.y + Math.cos(az) * d - angoli[i].y);
+  }
+  return somma / angoli.length;
+}
+
+/* la taratura di una testa: prova i due versi di pan e i due di tilt e
+   tiene la combinazione che sbaglia meno */
+function risolviTaratura(misure, angoli = angoliPalco()) {
+  let migliore = null;
+  for (const vp of [1, -1]) {
+    const az = risolviAzimut(misure, angoli, vp);
+    if (!az) continue;
+    const dist = angoli.map((c) => Math.hypot(c.x - az.P.x, c.y - az.P.y));
+    for (const vt of [1, -1]) {
+      const alt = risolviAltezza(misure, dist, vt);
+      if (!alt) continue;
+      const r = { vp, vt, fi0: az.fi0, P: az.P, h: alt.h, t0: alt.t0 };
+      r.scarto = scartoTaratura(r, misure, angoli);
+      if (!migliore || r.scarto < migliore.scarto) migliore = r;
+    }
+  }
+  return migliore;
+}
+
+/* i numeri trovati diventano le impostazioni del faro */
+function patchDaTaratura(r, misure) {
+  const g = stageGeo();
+  return {
+    x: Math.max(0.02, Math.min(0.98, r.P.x / g.w)),
+    y: Math.max(0.02, Math.min(0.98, r.P.y / g.d)),
+    h: Math.max(0, Math.min(30, r.h)),
+    rot: ((r.fi0 % 360) + 360) % 360,
+    panzero: 0,
+    tiltzero: -r.t0 / (r.vt * TILT_RANGE),
+    panflip: r.vp < 0,
+    tiltflip: r.vt < 0,
+    taratura: misure,
+  };
+}
+
+/* fuori dal palco il faro non ci sta sulla mappa: si mette sul bordo */
+function fuoriDalPalco(r) {
+  const g = stageGeo();
+  return r.P.x < -0.02 || r.P.y < -0.02 || r.P.x > g.w + 0.02 || r.P.y > g.d + 0.02;
+}
+
+async function applicaTaratura(f, r, misure) {
+  const patch = patchDaTaratura(r, misure);
+  Object.assign(f, patch);
+  updateFixtureDisplays(f);
+  await api('PUT', `/api/fixtures/${f.id}`, patch);
+}
+
+/* Cambiando le misure del palco cambiano anche gli angoli puntati, quindi i
+   conti vanno rifatti: le misure grezze restano salvate apposta. */
+async function ricalcolaTarature() {
+  const teste = state.fixtures.filter((f) => f.taratura);
+  if (!teste.length) return;
+  for (const f of teste) {
+    const r = risolviTaratura(f.taratura);
+    if (r) await applicaTaratura(f, r, f.taratura);
+  }
+  renderFixtures();
+  avvisoSelezione(`Taratura rifatta sulle nuove misure del palco (${teste.length} teste)`);
 }
 
 function iniziaCalibrazione(f) {
@@ -1741,9 +1922,15 @@ function stopAiming() {
    bersaglio a che quota si vuole la luce: a terra o all'altezza dei volti. */
 function renderGeo() {
   const g = stageGeo();
-  $('#geo-w').value = g.w;
-  $('#geo-d').value = g.d;
-  $('#geo-target').value = String(g.target);
+  // il campo su cui si sta scrivendo non si tocca: la risposta del server
+  // arriva mentre si sta ancora battendo l'altra misura
+  const scrivi = (sel, v) => {
+    const el = $(sel);
+    if (el && el !== document.activeElement) el.value = v;
+  };
+  scrivi('#geo-w', g.w);
+  scrivi('#geo-d', g.d);
+  scrivi('#geo-target', String(g.target));
 }
 
 function salvaGeo() {
@@ -1757,11 +1944,162 @@ function salvaGeo() {
   api('PUT', '/api/stage', g).then((r) => {
     if (r && r.stage) state.stage = r.stage;
     renderGeo();
+    // gli angoli del palco sono cambiati: la taratura va rifatta sui nuovi
+    return ricalcolaTarature();
   }).catch(console.error);
 }
 
 ['#geo-w', '#geo-d', '#geo-target'].forEach(
   (sel) => $(sel).addEventListener('change', salvaGeo));
+
+/* ------------------------------------------- il giro dei quattro angoli
+   Una tappa alla volta: si punta, si segna, si passa all'angolo dopo. Le
+   misure restano in memoria finché non si applicano, così si può rifare
+   un angolo venuto male senza ricominciare. */
+let taraStato = null;   // {passo, misure: Map(id -> [{pan, tilt}]), esiti}
+const TARA_BUONA = 0.30;   // sotto i 30 cm di scarto la taratura è da tenere
+
+function iniziaTaratura() {
+  const teste = testeDaTarare();
+  if (!teste.length) {
+    alert('Non ci sono teste mobili con pan e tilt da tarare.');
+    return;
+  }
+  stopAiming();
+  taraStato = { passo: 0, misure: new Map(teste.map((f) => [f.id, []])) };
+  aggiornaBarraTara();
+}
+
+function fineTaratura() {
+  taraStato = null;
+  $('#tara-bar').classList.add('hidden');
+}
+
+function aggiornaBarraTara() {
+  const bar = $('#tara-bar');
+  if (!taraStato) { bar.classList.add('hidden'); return; }
+  const angolo = angoliPalco()[taraStato.passo];
+  const quante = taraStato.misure.size;
+  bar.classList.remove('hidden');
+  $('#tara-testo').innerHTML = `<b>Angolo ${taraStato.passo + 1} di 4</b> · punta `
+    + `${quante === 1 ? 'la testa' : `tutte e ${quante} le teste`} sull'angolo del `
+    + `pavimento <b>${angolo.nome}</b>, poi segna`;
+  $('#tara-indietro').classList.toggle('hidden', taraStato.passo === 0);
+}
+
+function segnaAngolo() {
+  if (!taraStato) return;
+  for (const [id, misure] of taraStato.misure) {
+    const f = state.fixtures.find((x) => x.id === id);
+    if (!f) continue;
+    misure[taraStato.passo] = {
+      pan: panPosition(f) ?? 0,
+      tilt: movePosition(f, 'tilt') ?? 0,
+    };
+  }
+  taraStato.passo++;
+  if (taraStato.passo < 4) aggiornaBarraTara();
+  else mostraEsitiTaratura();
+}
+
+function mostraEsitiTaratura() {
+  const esiti = [];
+  for (const [id, misure] of taraStato.misure) {
+    const f = state.fixtures.find((x) => x.id === id);
+    if (f) esiti.push({ f, misure, r: risolviTaratura(misure) });
+  }
+  taraStato.esiti = esiti;
+
+  const box = $('#tara-esiti');
+  box.innerHTML = '';
+  for (const e of esiti) {
+    const riga = document.createElement('label');
+    riga.className = 'tara-riga';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!e.r && e.r.scarto < TARA_BUONA;
+    e.chk = chk;
+    const testo = document.createElement('span');
+    if (!e.r) {
+      riga.classList.add('male');
+      testo.innerHTML = `<b>${e.f.name}</b> — non riesco a ricavarne la posizione`;
+    } else {
+      const cm = Math.round(e.r.scarto * 100);
+      const buona = e.r.scarto < TARA_BUONA;
+      riga.classList.toggle('male', !buona);
+      const versi = (e.r.vp < 0 ? ', pan invertito' : '')
+        + (e.r.vt < 0 ? ', tilt invertito' : '');
+      const bordo = fuoriDalPalco(e.r)
+        ? ' · risulta fuori dal palco, la metto sul bordo' : '';
+      testo.innerHTML = `<b>${e.f.name}</b> — posizione ${e.r.P.x.toFixed(1)} × `
+        + `${e.r.P.y.toFixed(1)} m, altezza ${e.r.h.toFixed(1)} m${versi}`
+        + ` · scarto ${cm} cm ${buona ? '✓' : '⚠'}${bordo}`;
+    }
+    riga.append(chk, testo);
+    box.append(riga);
+  }
+  const male = esiti.filter((e) => !e.r || e.r.scarto >= TARA_BUONA).length;
+  $('#tara-intro').textContent = male
+    ? (male === 1 ? 'Una testa' : `${male} teste`)
+      + ` su ${esiti.length} non torna${male === 1 ? '' : 'no'}: forse non era `
+      + "puntata proprio sull'angolo, oppure ha un'escursione di pan/tilt diversa "
+      + 'dal solito. Lascia la spunta solo a quelle giuste e rifai il giro per le altre.'
+    : 'Lo scarto è quanto sbaglierebbe il fascio ai quattro angoli con questi '
+      + 'valori: sotto i 30 cm la taratura è buona.';
+  openModal('#modal-tara');
+}
+
+$('#btn-tara').addEventListener('click', iniziaTaratura);
+$('#tara-salva').addEventListener('click', segnaAngolo);
+$('#tara-esci').addEventListener('click', fineTaratura);
+$('#tara-indietro').addEventListener('click', () => {
+  if (!taraStato || !taraStato.passo) return;
+  taraStato.passo--;
+  aggiornaBarraTara();
+});
+$('#tara-rifai').addEventListener('click', () => {
+  closeModals();
+  if (!taraStato) return;
+  taraStato.passo = 0;
+  taraStato.esiti = null;
+  aggiornaBarraTara();
+});
+$('#tara-applica').addEventListener('click', async () => {
+  if (!taraStato || !taraStato.esiti) return;
+  const scelti = taraStato.esiti.filter((e) => e.r && e.chk.checked);
+  for (const e of scelti) {
+    await applicaTaratura(e.f, e.r, e.misure).catch(console.error);
+  }
+  closeModals();
+  fineTaratura();
+  renderFixtures();
+  if (scelti.length) {
+    avvisoSelezione(`Tarate ${scelti.length} teste: posizione, altezza e zeri aggiornati`);
+  }
+});
+
+/* il bersaglio da puntare, lampeggiante sull'angolo giusto della mappa */
+function drawAngoloTara() {
+  if (!taraStato || taraStato.passo > 3) return;
+  const g = stageGeo();
+  const a = angoliPalco()[taraStato.passo];
+  const x = Math.max(20, Math.min(cw - 20, a.x / g.w * cw));
+  const y = Math.max(20, Math.min(ch - 20, a.y / g.d * ch));
+  const r = 15 + Math.sin(performance.now() / 300) * 4;
+  ctx.save();
+  ctx.strokeStyle = '#f5d76e';
+  ctx.fillStyle = 'rgba(245, 215, 110, 0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - r - 6, y); ctx.lineTo(x + r + 6, y);
+  ctx.moveTo(x, y - r - 6); ctx.lineTo(x, y + r + 6);
+  ctx.stroke();
+  ctx.restore();
+}
 
 function draw() {
   ctx.clearRect(0, 0, cw, ch);
@@ -1825,6 +2163,7 @@ function draw() {
     if (canAim(sel)) drawAimHandle(sel);
   }
   drawAimLine();
+  drawAngoloTara();
 
   const inRotazione = dragMode === 'rotate' && dragFixture
     ? dragFixture
@@ -2165,6 +2504,9 @@ async function duplicaFaro(f) {
     panzero: f.panzero || 0,
     h: altezzaFaro(f),
     tiltzero: tiltZero(f),
+    panflip: !!f.panflip,
+    tiltflip: !!f.tiltflip,
+    // la taratura no: la copia è un altro faro, appeso da un'altra parte
   });
   state.fixtures.push(res.fixture);
   renderFixtures();
@@ -2545,6 +2887,10 @@ window.addEventListener('keydown', (e) => {
   if (e.altKey) return;
   if (e.code === 'Escape') {
     if (aimFixture) { stopAiming(); return; }
+    if (taraStato && $('#modal-tara').classList.contains('hidden')) {
+      fineTaratura();
+      return;
+    }
     if (!$('#copione').classList.contains('hidden')) { closeCopione(); return; }
     if (!$('#preset-grid').classList.contains('hidden')) { closeGrid(); return; }
   }
@@ -2677,7 +3023,8 @@ function applyRemoteState(s) {
     const f = state.fixtures.find((x) => x.id === nf.id);
     if (!f) continue;
     f.x = nf.x; f.y = nf.y; f.rot = nf.rot; f.panzero = nf.panzero;
-    f.h = nf.h; f.tiltzero = nf.tiltzero;
+    f.h = nf.h; f.tiltzero = nf.tiltzero; f.taratura = nf.taratura;
+    f.panflip = nf.panflip; f.tiltflip = nf.tiltflip;
     if (JSON.stringify(f.values) !== JSON.stringify(nf.values)) {
       f.values = nf.values;
       updateFixtureDisplays(f);
