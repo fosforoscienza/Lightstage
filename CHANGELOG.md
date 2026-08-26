@@ -5,6 +5,27 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.21
+
+- **Il mirino punta anche il tilt**, non solo il pan: clicchi un punto del
+  palco e la testa ci arriva davvero, direzione e inclinazione insieme.
+- Per farlo LightStage ha imparato **quanto è grande il palco**: in basso a
+  sinistra sulla mappa ci sono larghezza e profondità in metri e la scelta tra
+  luce **a terra** o **sui volti** (1,6 m); sulla scheda di ogni testa mobile
+  c'è la sua **altezza da terra** (campo `H`). Non serve altro: sapendo quanto
+  è lontano il bersaglio e quanto è alta la testa, l'inclinazione è decisa.
+- **Taratura in un clic** (pulsante ⌖ sulla scheda di una testa): punti la
+  testa a mano, premi ⌖ e clicchi sulla mappa il punto che sta illuminando. Da
+  quel punto il programma ricava sia lo zero del pan sia quello del tilt, che
+  altrimenti dovresti indovinare a numeri.
+- Sulla mappa si vede la **pozza di luce** dove il fascio tocca il pavimento,
+  invece di un cono sempre lungo uguale: si allunga quando la luce arriva di
+  sbieco e si stringe quando cade a piombo. Lo stesso nelle miniature dei
+  preset e del copione.
+- Le direzioni ora sono quelle **vere sul palco**: se il riquadro sullo schermo
+  è più largo del palco, il fascio disegnato passa comunque per il punto che
+  hai cliccato.
+
 ## 5.20
 
 - **Esporta e Importa anche nella versione locale**: è la strada per portare

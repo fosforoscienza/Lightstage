@@ -40,8 +40,19 @@
   <div id="stage-ctl" title="Impostazioni del prossimo preset che salvi">
     <span class="pc-lbl">nuovo<br>preset</span>
   </div>
+  <div id="stage-geo">
+    <label title="Misure vere del palco, in metri: da qui LightStage ricava di quanto inclinare le teste">Palco
+      <input id="geo-w" type="number" min="1" max="60" step="0.5" value="8"><span>&times;</span><input id="geo-d" type="number" min="1" max="60" step="0.5" value="6"><span>m</span>
+    </label>
+    <label title="A che quota deve arrivare la luce quando punti col mirino">Luce
+      <select id="geo-target">
+        <option value="0">a terra</option>
+        <option value="1.6">sui volti</option>
+      </select>
+    </label>
+  </div>
   <div id="multi-hint" class="hidden"></div>
-  <div id="stage-hint"><b>Maiusc</b>+clic sceglie pi&ugrave; fari insieme &middot; trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo (<b>Maiusc</b>: scatti di 15&deg;) &middot; <b>mirino</b>: clic e poi indica dove puntare il fascio</div>
+  <div id="stage-hint"><b>Maiusc</b>+clic sceglie pi&ugrave; fari insieme &middot; trascina un faro per spostarlo &middot; maniglia bianca o rotellina per ruotarlo (<b>Maiusc</b>: scatti di 15&deg;) &middot; <b>mirino</b>: clic e poi indica dove mandare il fascio (pan e tilt)</div>
 </section>
 
 <section id="presets-bar">

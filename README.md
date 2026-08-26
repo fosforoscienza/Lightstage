@@ -108,9 +108,24 @@ Daslight: solo quello che serve.
 - **Puntamento col mirino**: seleziona un faro con il pan e accanto a esso
   compare un mirino, sempre dalla parte opposta al fascio (così la luce non lo
   copre mai). Cliccalo (il puntatore diventa una croce), poi clicca il
-  punto del palco da illuminare: il fader del pan si sposta da solo verso quella
-  direzione, scegliendo il movimento più corto. Lo **zero non cambia**, quindi
-  il faro resta orientato com'era sulla mappa. **Esc** annulla il puntamento.
+  punto del palco da illuminare: si spostano da soli sia il **pan** (la
+  direzione, col movimento più corto) sia il **tilt** (l'inclinazione, se la
+  testa ce l'ha). Lo **zero non cambia**, quindi il faro resta orientato com'era
+  sulla mappa. **Esc** annulla il puntamento.
+- **Il palco in tre dimensioni**: perché il tilt sia giusto servono due misure,
+  in basso a sinistra sulla mappa: **quanto è grande il palco** (larghezza ×
+  profondità in metri) e se la luce deve arrivare **a terra o sui volti**
+  (1,6 m). Ogni testa mobile ha poi la sua **altezza da terra** (campo `H`
+  sulla scheda dei fader). Con questi tre numeri la distanza tra faro e
+  bersaglio è nota, e l'inclinazione viene da sé: `tilt = atan(distanza /
+  altezza)`. Sulla mappa il fascio non è più un cono lungo a caso: si vede la
+  **pozza di luce** dove la luce tocca davvero il pavimento, allungata come
+  nella realtà quando il fascio arriva di sbieco.
+- **Taratura del mirino** (pulsante ⌖ sulla scheda di una testa): il programma
+  ha bisogno di sapere qual è il tilt che punta a piombo. Invece di cercarlo a
+  numeri, punta la testa a mano dove vuoi, premi ⌖ e clicca sulla mappa il
+  punto che sta illuminando: da quel solo punto LightStage ricava sia lo zero
+  del pan sia quello del tilt. Da lì in poi il mirino va a colpo sicuro.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to

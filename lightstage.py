@@ -54,17 +54,23 @@ DEFAULT_CHANNELS = [
 ROLES = {"dimmer", "red", "green", "blue", "uv", "white",
          "strobe", "pan", "tilt", "focus", "return", "other"}
 
+# Misure vere del palco: servono a calcolare il tilt delle teste mobili.
+# w = larghezza, d = profondità, target = quota del bersaglio (0 = pavimento).
+DEFAULT_STAGE = {"w": 8.0, "d": 6.0, "target": 0.0}
+DEFAULT_HEIGHT = 4.0    # altezza a cui si dà per appeso un faro, in metri
+
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 lock = threading.RLock()
 show = {
     "next_id": 1,
-    "fixtures": [],  # {id, name, address, values[8], x, y, rot}
+    "fixtures": [],  # {id, name, address, values[8], x, y, rot, h, tiltzero}
     "presets": [None] * NUM_PRESETS,  # {name, values: {id: [8]}}
     "channels": [dict(c) for c in DEFAULT_CHANNELS],
     "copioni": [],   # {id, name, cues: [{id, pos, preset}]}
     "next_copione": 1,
     "blackout": False,
+    "stage": dict(DEFAULT_STAGE),
 }
 _dirty = threading.Event()
 show_rev = 0        # aumenta a ogni modifica: i dispositivi collegati se ne accorgono
@@ -227,6 +233,26 @@ def sanitize_fade(raw):
     return min(FADE_STEPS, key=lambda s: abs(s - v))
 
 
+def sanitize_stage(raw):
+    """misure del palco in metri, con i valori fuori scala riportati dentro"""
+    stage = dict(DEFAULT_STAGE)
+    if isinstance(raw, dict):
+        for key, lo, hi in (("w", 1.0, 60.0), ("d", 1.0, 60.0), ("target", 0.0, 10.0)):
+            try:
+                stage[key] = max(lo, min(hi, float(raw[key])))
+            except (KeyError, TypeError, ValueError):
+                pass
+    return stage
+
+
+def sanitize_height(raw):
+    """altezza di un faro da terra, in metri"""
+    try:
+        return max(0.0, min(30.0, float(raw)))
+    except (TypeError, ValueError):
+        return DEFAULT_HEIGHT
+
+
 def sanitize_values(raw, n=NUM_CHANNELS):
     vals = [0] * n
     if isinstance(raw, list):
@@ -299,6 +325,8 @@ def apply_show(data):
                 "y": max(0.0, min(1.0, float(f.get("y", 0.2)))),
                 "rot": float(f.get("rot", 0)) % 360,
                 "panzero": max(0.0, min(1.0, float(f.get("panzero", 0)))),
+                "h": sanitize_height(f.get("h", DEFAULT_HEIGHT)),
+                "tiltzero": max(0.0, min(1.0, float(f.get("tiltzero", 0.5)))),
             })
         except (KeyError, TypeError, ValueError):
             continue
@@ -337,6 +365,7 @@ def apply_show(data):
     show["fixtures"] = fixtures
     show["presets"] = presets
     show["channels"] = channels
+    show["stage"] = sanitize_stage(data.get("stage"))
     show["blackout"] = bool(data.get("blackout", False))
     show["next_id"] = max([f["id"] for f in fixtures], default=0) + 1
 
@@ -436,10 +465,21 @@ def get_state():
             "channels": show["channels"],
             "copioni": show["copioni"],
             "blackout": show["blackout"],
+            "stage": show["stage"],
             "dmx": dmx_state(),
             "lan_url": lan_url(),
             "rev": show_rev,
         })
+
+
+@app.put("/api/stage")
+def update_stage():
+    """misure del palco: da qui si ricava il tilt quando si punta col mirino"""
+    body = request.get_json(silent=True) or {}
+    with lock:
+        show["stage"] = sanitize_stage({**show["stage"], **body})
+        mark_dirty()
+        return jsonify({"stage": show["stage"]})
 
 
 @app.post("/api/fixtures")
@@ -464,6 +504,8 @@ def add_fixture():
             "y": max(0.0, min(1.0, float(body.get("y", 0.2)))),
             "rot": float(body.get("rot", 0)) % 360,
             "panzero": max(0.0, min(1.0, float(body.get("panzero", 0)))),
+            "h": sanitize_height(body.get("h", DEFAULT_HEIGHT)),
+            "tiltzero": max(0.0, min(1.0, float(body.get("tiltzero", 0.5)))),
         }
         show["fixtures"].append(fixture)
         rebuild_universe()
@@ -486,12 +528,14 @@ def update_fixture(fid):
                 f["address"] = max(1, min(max_addr, int(body["address"])))
             except (TypeError, ValueError):
                 pass
-        for key in ("x", "y", "panzero"):
+        for key in ("x", "y", "panzero", "tiltzero"):
             if key in body:
                 try:
                     f[key] = max(0.0, min(1.0, float(body[key])))
                 except (TypeError, ValueError):
                     pass
+        if "h" in body:
+            f["h"] = sanitize_height(body["h"])
         if "rot" in body:
             try:
                 f["rot"] = float(body["rot"]) % 360

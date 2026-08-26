@@ -72,6 +72,26 @@
     return NUM_CHANNELS;
   }
 
+  /* misure vere del palco: servono a calcolare il tilt delle teste mobili */
+  const DEFAULT_STAGE = { w: 8, d: 6, target: 0 };
+  const DEFAULT_HEIGHT = 4;   // altezza a cui si dà per appeso un faro, in metri
+
+  function sanitizeStage(raw) {
+    const stage = { ...DEFAULT_STAGE };
+    if (raw && typeof raw === 'object') {
+      for (const [k, lo, hi] of [['w', 1, 60], ['d', 1, 60], ['target', 0, 10]]) {
+        const v = parseFloat(raw[k]);
+        if (!isNaN(v)) stage[k] = Math.max(lo, Math.min(hi, v));
+      }
+    }
+    return stage;
+  }
+
+  function sanitizeHeight(raw) {
+    const v = parseFloat(raw);
+    return isNaN(v) ? DEFAULT_HEIGHT : Math.max(0, Math.min(30, v));
+  }
+
   function sanitizeShow(data) {
     const db = {
       next_id: 1,
@@ -81,8 +101,10 @@
       copioni: [],
       next_copione: 1,
       blackout: false,
+      stage: { ...DEFAULT_STAGE },
     };
     if (!data || typeof data !== 'object') return db;
+    db.stage = sanitizeStage(data.stage);
     db.channels = sanitizeChannels(data.channels);
     for (const f of data.fixtures || []) {
       const id = parseInt(f.id, 10);
@@ -98,6 +120,9 @@
         y: Math.max(0, Math.min(1, parseFloat(f.y) || 0.2)),
         rot: ((parseFloat(f.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(f.panzero) || 0)),
+        h: sanitizeHeight(f.h),
+        tiltzero: f.tiltzero === undefined
+          ? 0.5 : Math.max(0, Math.min(1, parseFloat(f.tiltzero) || 0)),
       });
     }
     (data.presets || []).slice(0, NUM_PRESETS).forEach((p, i) => {
@@ -383,9 +408,15 @@
         channels: db.channels,
         copioni: db.copioni,
         blackout: db.blackout,
+        stage: db.stage,
         dmx: dmxState(),
         lan_url: null,
       };
+    }
+    if (m === 'PUT' && url === '/api/stage') {
+      db.stage = sanitizeStage({ ...db.stage, ...(body || {}) });
+      save();
+      return { stage: db.stage };
     }
     if (m === 'GET' && url === '/api/dmx') return dmxState();
     if (m === 'POST' && url === '/api/dmx/connect') {
@@ -409,6 +440,9 @@
         y: Math.max(0, Math.min(1, parseFloat(b.y) || 0.2)),
         rot: ((parseFloat(b.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(b.panzero) || 0)),
+        h: sanitizeHeight(b.h),
+        tiltzero: b.tiltzero === undefined
+          ? 0.5 : Math.max(0, Math.min(1, parseFloat(b.tiltzero) || 0)),
       };
       db.fixtures.push(fixture);
       rebuildFrame();
@@ -454,12 +488,13 @@
           const a = parseInt(b.address, 10);
           if (!isNaN(a)) f.address = Math.max(1, Math.min(512 - fixtureCount(f) + 1, a));
         }
-        for (const k of ['x', 'y', 'panzero']) {
+        for (const k of ['x', 'y', 'panzero', 'tiltzero']) {
           if (k in b) {
             const v = parseFloat(b[k]);
             if (!isNaN(v)) f[k] = Math.max(0, Math.min(1, v));
           }
         }
+        if ('h' in b) f.h = sanitizeHeight(b.h);
         if ('rot' in b) {
           const r = parseFloat(b.rot);
           if (!isNaN(r)) f.rot = ((r % 360) + 360) % 360;
