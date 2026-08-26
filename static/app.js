@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.22';
+const APP_VERSION = '5.23';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -303,19 +303,61 @@ function fixtureMetri(f) {
   return { x: f.x * g.w, y: f.y * g.d };
 }
 
-/* da un punto della mappa (pixel) al palco vero (metri) */
-function puntoMetri(px, py) {
+/* ---------------------------------------------- il palco dentro il riquadro
+   Le coordinate di un faro vanno da 0 a 1 da un capo all'altro del palco, ma
+   possono uscirne: un faro piazzato davanti al proscenio ha y più di 1, uno
+   dietro il fondale ce l'ha negativo. Il riquadro sullo schermo è più grande
+   del palco apposta, e il palco ci sta dentro disegnato con le proporzioni
+   vere delle misure. La scala è la stessa nei due sensi, così un metro è un
+   metro in qualsiasi direzione e gli angoli sulla mappa sono quelli veri. */
+const VISTA_MARGINE = 0.2;   // spazio attorno al palco, in frazioni di palco
+
+function vista(w, h) {
   const g = stageGeo();
-  return { x: (px / cw) * g.w, y: (py / ch) * g.d };
+  const larg = w || cw;
+  const alt = h || ch;
+  // quanto spazio tenere sui quattro lati, in frazioni di palco: quello che
+  // serve ai fari che stanno fuori, mai meno del margine minimo
+  const bordi = [VISTA_MARGINE, VISTA_MARGINE, VISTA_MARGINE, VISTA_MARGINE];
+  for (const f of state.fixtures) {
+    bordi[0] = Math.max(bordi[0], -f.x);      // a sinistra
+    bordi[1] = Math.max(bordi[1], f.x - 1);   // a destra
+    bordi[2] = Math.max(bordi[2], -f.y);      // dietro
+    bordi[3] = Math.max(bordi[3], f.y - 1);   // davanti
+  }
+  // a scatti di un decimo, così il palco non balla mentre si trascina un faro
+  const [sx, dx, su, giu] = bordi.map((v) => Math.ceil(v * 10) / 10 + 0.05);
+  // un filo di margine anche in pixel: i fari sul bordo hanno un'icona e un
+  // nome da far stare dentro
+  const orlo = Math.min(22, alt * 0.06, larg * 0.06);
+  const scala = Math.min((larg - 2 * orlo) / (g.w * (1 + sx + dx)),
+                         (alt - 2 * orlo) / (g.d * (1 + su + giu)));
+  return {
+    scala,                                  // pixel per metro
+    w: g.w * scala, h: g.d * scala,         // il palco, in pixel
+    ox: (larg - g.w * (1 + sx + dx) * scala) / 2 + g.w * sx * scala,
+    oy: (alt - g.d * (1 + su + giu) * scala) / 2 + g.d * su * scala,
+  };
 }
 
-/* uno spostamento vero (direzione in gradi, distanza in metri) ridisegnato
-   sulla mappa: se il palco non ha le proporzioni del riquadro, le due scale
-   sono diverse e l'angolo sullo schermo cambia un po' */
-function deltaMappa(gradi, metri, w, h) {
+/* da un punto del riquadro (pixel) alle coordinate del palco (0..1 e oltre) */
+function puntoNorm(px, py) {
+  const v = vista();
+  return { x: (px - v.ox) / v.w, y: (py - v.oy) / v.h };
+}
+
+/* da un punto del riquadro (pixel) al palco vero (metri) */
+function puntoMetri(px, py) {
+  const n = puntoNorm(px, py);
   const g = stageGeo();
+  return { x: n.x * g.w, y: n.y * g.d };
+}
+
+/* uno spostamento vero (direzione in gradi, distanza in metri) sulla mappa */
+function deltaMappa(gradi, metri, w, h) {
+  const s = vista(w, h).scala;
   const a = gradi * Math.PI / 180;
-  return { x: Math.sin(a) * metri / g.w * w, y: Math.cos(a) * metri / g.d * h };
+  return { x: Math.sin(a) * metri * s, y: Math.cos(a) * metri * s };
 }
 
 function tiltZero(f) {
@@ -358,9 +400,9 @@ function gittata(f, values) {
      metri se il fascio tocca il palco: la pozza di luce misurata sul palco
            vero, da disegnare dopo aver messo il foglio in scala */
 function proiezione(f, values, w, h) {
-  const g = stageGeo();
-  const px = f.x * w;
-  const py = f.y * h;
+  const v = vista(w, h);
+  const px = v.ox + f.x * v.w;
+  const py = v.oy + f.y * v.h;
   const git = gittata(f, values);
   const azimut = beamAngle(f, values) + (git && git.dietro ? 180 : 0);
   const mezzo = beamHalfAngle(f, values) * Math.PI / 180;
@@ -386,7 +428,7 @@ function proiezione(f, values, w, h) {
       centro,
       largo: Math.max(0.02, (git.h / Math.cos(t)) * Math.tan(mezzo)),
       lungo: Math.max(0.02, (lontano - vicino) / 2),
-      sx: w / g.w, sy: h / g.d,   // quanti pixel vale un metro sui due lati
+      sx: v.scala, sy: v.scala,   // quanti pixel vale un metro
     },
   };
 }
@@ -610,29 +652,17 @@ function renderFixtures() {
     });
     addrWrap.append(addr);
 
-    // le teste mobili hanno anche altezza e taratura: da lì esce il tilt
+    // Le teste mobili mostrano l'altezza da terra: non si scrive, la ricava
+    // la taratura sui quattro angoli insieme a tutto il resto.
     const geo = [];
     if (roleIndexes(f, 'tilt').length) {
-      const altWrap = document.createElement('label');
-      altWrap.className = 'addr hgt';
-      altWrap.title = 'Altezza da terra della testa, in metri: '
-        + 'serve a calcolare il tilt quando punti col mirino';
-      altWrap.append('H');
-      const alt = document.createElement('input');
-      alt.type = 'number';
-      alt.min = 0;
-      alt.max = 30;
-      alt.step = 0.5;
-      alt.value = altezzaFaro(f);
-      alt.addEventListener('change', () => {
-        let v = parseFloat(alt.value);
-        if (isNaN(v)) v = altezzaFaro(f);
-        v = Math.max(0, Math.min(30, v));
-        alt.value = v;
-        f.h = v;
-        pushFixturePatch(f.id, { h: v });
-      });
-      altWrap.append(alt, 'm');
+      const altWrap = document.createElement('span');
+      altWrap.className = 'hgt';
+      altWrap.textContent = `↕ ${altezzaFaro(f).toFixed(1).replace('.', ',')} m`;
+      altWrap.classList.toggle('stimata', !f.taratura);
+      altWrap.title = f.taratura
+        ? 'Altezza da terra, ricavata dalla taratura sui quattro angoli'
+        : 'Altezza di partenza: fai la taratura e LightStage trova quella vera';
 
       const tara = document.createElement('button');
       tara.className = 'cfg';
@@ -1021,6 +1051,14 @@ function drawPresetThumb(canvas, preset) {
   ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx2.clearRect(0, 0, w, h);
 
+  // il palco, appena accennato: serve a capire dove cade la luce
+  const v = vista(w, h);
+  ctx2.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx2.fillRect(v.ox, v.oy, v.w, v.h);
+  ctx2.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx2.lineWidth = 1;
+  ctx2.strokeRect(v.ox, v.oy, v.w, v.h);
+
   ctx2.save();
   ctx2.globalCompositeOperation = 'lighter';
   for (const f of state.fixtures) {
@@ -1059,8 +1097,7 @@ function drawPresetThumb(canvas, preset) {
   for (const f of state.fixtures) {
     const values = preset ? preset.values[String(f.id)] : null;
     const c = values ? colorFromValues(values, fixtureChannels(f)) : null;
-    const x = f.x * w;
-    const y = f.y * h;
+    const { x, y } = fixturePos(f, w, h);
     ctx2.fillStyle = c && c.intensity > 0.02
       ? `rgb(${c.r},${c.g},${c.b})` : '#39414f';
     if (isMovingHead(f)) {
@@ -1551,8 +1588,9 @@ function resizeCanvas() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-function fixturePos(f) {
-  return { x: f.x * cw, y: f.y * ch };
+function fixturePos(f, w, h) {
+  const v = vista(w, h);
+  return { x: v.ox + f.x * v.w, y: v.oy + f.y * v.h };
 }
 
 function fixtureAt(px, py) {
@@ -1862,8 +1900,9 @@ function risolviTaratura(misure, angoli = angoliPalco()) {
 function patchDaTaratura(r, misure) {
   const g = stageGeo();
   return {
-    x: Math.max(0.02, Math.min(0.98, r.P.x / g.w)),
-    y: Math.max(0.02, Math.min(0.98, r.P.y / g.d)),
+    // un faro può stare fuori dal palco: sulla mappa c'è posto anche lì
+    x: Math.max(-1, Math.min(2, r.P.x / g.w)),
+    y: Math.max(-1, Math.min(2, r.P.y / g.d)),
     h: Math.max(0, Math.min(30, r.h)),
     rot: ((r.fi0 % 360) + 360) % 360,
     panzero: 0,
@@ -1872,12 +1911,6 @@ function patchDaTaratura(r, misure) {
     tiltflip: r.vt < 0,
     taratura: misure,
   };
-}
-
-/* fuori dal palco il faro non ci sta sulla mappa: si mette sul bordo */
-function fuoriDalPalco(r) {
-  const g = stageGeo();
-  return r.P.x < -0.02 || r.P.y < -0.02 || r.P.x > g.w + 0.02 || r.P.y > g.d + 0.02;
 }
 
 async function applicaTaratura(f, r, misure) {
@@ -2029,11 +2062,9 @@ function mostraEsitiTaratura() {
       riga.classList.toggle('male', !buona);
       const versi = (e.r.vp < 0 ? ', pan invertito' : '')
         + (e.r.vt < 0 ? ', tilt invertito' : '');
-      const bordo = fuoriDalPalco(e.r)
-        ? ' · risulta fuori dal palco, la metto sul bordo' : '';
       testo.innerHTML = `<b>${e.f.name}</b> — posizione ${e.r.P.x.toFixed(1)} × `
         + `${e.r.P.y.toFixed(1)} m, altezza ${e.r.h.toFixed(1)} m${versi}`
-        + ` · scarto ${cm} cm ${buona ? '✓' : '⚠'}${bordo}`;
+        + ` · scarto ${cm} cm ${buona ? '✓' : '⚠'}`;
     }
     riga.append(chk, testo);
     box.append(riga);
@@ -2081,10 +2112,10 @@ $('#tara-applica').addEventListener('click', async () => {
 /* il bersaglio da puntare, lampeggiante sull'angolo giusto della mappa */
 function drawAngoloTara() {
   if (!taraStato || taraStato.passo > 3) return;
-  const g = stageGeo();
+  const v = vista();
   const a = angoliPalco()[taraStato.passo];
-  const x = Math.max(20, Math.min(cw - 20, a.x / g.w * cw));
-  const y = Math.max(20, Math.min(ch - 20, a.y / g.d * ch));
+  const x = Math.max(20, Math.min(cw - 20, v.ox + a.x * v.scala));
+  const y = Math.max(20, Math.min(ch - 20, v.oy + a.y * v.scala));
   const r = 15 + Math.sin(performance.now() / 300) * 4;
   ctx.save();
   ctx.strokeStyle = '#f5d76e';
@@ -2104,25 +2135,7 @@ function drawAngoloTara() {
 function draw() {
   ctx.clearRect(0, 0, cw, ch);
 
-  // griglia
-  ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-  ctx.lineWidth = 1;
-  const step = 40;
-  ctx.beginPath();
-  for (let x = step; x < cw; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, ch); }
-  for (let y = step; y < ch; y += step) { ctx.moveTo(0, y); ctx.lineTo(cw, y); }
-  ctx.stroke();
-
-  // etichette palco
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.font = '11px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('F O N D A L E', cw / 2, 16);
-  ctx.fillText('P U B B L I C O', cw / 2, ch - 8);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.beginPath();
-  ctx.moveTo(0, ch - 24); ctx.lineTo(cw, ch - 24);
-  ctx.stroke();
+  disegnaPalco();
 
   // fasci di luce (si sommano come luce reale)
   if (!state.blackout) {
@@ -2171,6 +2184,43 @@ function draw() {
   if (inRotazione && state.fixtures.includes(inRotazione)) drawRotateBadge(inRotazione);
 
   requestAnimationFrame(draw);
+}
+
+/* Il palco: un rettangolo con le proporzioni vere delle misure, con la
+   griglia da un metro dentro. Tutt'attorno resta spazio per i fari che stanno
+   fuori — davanti al proscenio, di lato, dietro il fondale. */
+function disegnaPalco() {
+  const g = stageGeo();
+  const v = vista();
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.022)';
+  ctx.fillRect(v.ox, v.oy, v.w, v.h);
+
+  const passo = g.w > 24 || g.d > 24 ? 5 : 1;   // metri tra una linea e l'altra
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let m = passo; m < g.w - 1e-6; m += passo) {
+    const x = v.ox + m * v.scala;
+    ctx.moveTo(x, v.oy); ctx.lineTo(x, v.oy + v.h);
+  }
+  for (let m = passo; m < g.d - 1e-6; m += passo) {
+    const y = v.oy + m * v.scala;
+    ctx.moveTo(v.ox, y); ctx.lineTo(v.ox + v.w, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.strokeRect(v.ox, v.oy, v.w, v.h);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('F O N D A L E', v.ox + v.w / 2, Math.max(11, v.oy - 6));
+  ctx.fillText('P U B B L I C O', v.ox + v.w / 2, Math.min(ch - 3, v.oy + v.h + 14));
+  ctx.textAlign = 'left';
+  ctx.fillText(`${g.w} × ${g.d} m`, v.ox + 4, v.oy + v.h - 5);
+  ctx.restore();
 }
 
 function drawBeam(f) {
@@ -2410,8 +2460,10 @@ canvas.addEventListener('pointermove', (e) => {
   const py = e.clientY - rect.top;
   const f = dragFixture;
   if (dragMode === 'move') {
-    f.x = Math.max(0.02, Math.min(0.98, (px - dragOff.x) / cw));
-    f.y = Math.max(0.02, Math.min(0.98, (py - dragOff.y) / ch));
+    // si può uscire dal palco: i fari stanno spesso davanti o di lato
+    const n = puntoNorm(px - dragOff.x, py - dragOff.y);
+    f.x = Math.max(-1, Math.min(2, n.x));
+    f.y = Math.max(-1, Math.min(2, n.y));
     pushFixturePatch(f.id, { x: f.x, y: f.y });
   } else {
     // la direzione è quella vera sul palco, non quella sullo schermo
@@ -2498,8 +2550,8 @@ async function duplicaFaro(f) {
     count: n,
     channels: fixtureChannels(f).map((c) => ({ ...c })),
     values: [...f.values],
-    x: Math.min(0.96, f.x + 0.05),
-    y: Math.min(0.96, f.y + 0.05),
+    x: Math.min(2, f.x + 0.05),
+    y: Math.min(2, f.y + 0.05),
     rot: f.rot,
     panzero: f.panzero || 0,
     h: altezzaFaro(f),

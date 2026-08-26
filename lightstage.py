@@ -253,6 +253,15 @@ def sanitize_height(raw):
         return DEFAULT_HEIGHT
 
 
+def sanitize_pos(raw, default):
+    """Posizione di un faro sulla mappa: 0..1 va da un capo all'altro del
+    palco, ma un faro può stare anche fuori (davanti al proscenio, di lato)."""
+    try:
+        return max(-1.0, min(2.0, float(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
 def sanitize_zero(raw, default=0.5):
     """Zero di un movimento. Non è un valore DMX ma un riferimento: una testa
     che non arriva a puntare a piombo ha lo zero del tilt fuori da 0..1."""
@@ -348,8 +357,8 @@ def apply_show(data):
                 "address": max(1, min(512 - n + 1, int(f.get("address", 1)))),
                 "values": sanitize_values(f.get("values"), n),
                 "channels": sanitize_channels(raw_ch, fallback=channels, n=n),
-                "x": max(0.0, min(1.0, float(f.get("x", 0.5)))),
-                "y": max(0.0, min(1.0, float(f.get("y", 0.2)))),
+                "x": sanitize_pos(f.get("x"), 0.5),
+                "y": sanitize_pos(f.get("y"), 0.2),
                 "rot": float(f.get("rot", 0)) % 360,
                 "panzero": max(0.0, min(1.0, float(f.get("panzero", 0)))),
                 "h": sanitize_height(f.get("h", DEFAULT_HEIGHT)),
@@ -530,8 +539,8 @@ def add_fixture():
             "values": sanitize_values(body.get("values"), n),
             "channels": sanitize_channels(body.get("channels"),
                                           fallback=show["channels"], n=n),
-            "x": max(0.0, min(1.0, float(body.get("x", 0.5)))),
-            "y": max(0.0, min(1.0, float(body.get("y", 0.2)))),
+            "x": sanitize_pos(body.get("x"), 0.5),
+            "y": sanitize_pos(body.get("y"), 0.2),
             "rot": float(body.get("rot", 0)) % 360,
             "panzero": max(0.0, min(1.0, float(body.get("panzero", 0)))),
             "h": sanitize_height(body.get("h", DEFAULT_HEIGHT)),
@@ -561,12 +570,14 @@ def update_fixture(fid):
                 f["address"] = max(1, min(max_addr, int(body["address"])))
             except (TypeError, ValueError):
                 pass
-        for key in ("x", "y", "panzero"):
+        for key in ("x", "y"):
             if key in body:
-                try:
-                    f[key] = max(0.0, min(1.0, float(body[key])))
-                except (TypeError, ValueError):
-                    pass
+                f[key] = sanitize_pos(body[key], f[key])
+        if "panzero" in body:
+            try:
+                f["panzero"] = max(0.0, min(1.0, float(body["panzero"])))
+            except (TypeError, ValueError):
+                pass
         if "tiltzero" in body:
             f["tiltzero"] = sanitize_zero(body["tiltzero"], f.get("tiltzero", 0.5))
         if "h" in body:

@@ -5,6 +5,20 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.23
+
+- **Il palco è un rettangolo, non tutto il riquadro**: viene disegnato al
+  centro della mappa con le proporzioni vere delle misure e la griglia da un
+  metro. Attorno resta spazio libero, così i fari si possono mettere anche
+  **fuori dal palco** — in platea, di lato, dietro il fondale — che è poi dove
+  stanno quasi sempre. Prima venivano schiacciati sul bordo.
+- Di conseguenza la mappa è in scala: un metro è un metro in tutte le
+  direzioni, e le direzioni disegnate sono quelle vere anche quando il riquadro
+  è molto più largo che alto.
+- **L'altezza delle teste non si scrive più**: la ricava la taratura insieme a
+  tutto il resto. Sulla scheda resta solo mostrata (`↕ 4,5 m`), in corsivo
+  sbiadito finché è un valore di partenza e non una misura vera.
+
 ## 5.22
 
 - **Taratura sui quattro angoli**: il pulsante *Tara le teste* (in basso a

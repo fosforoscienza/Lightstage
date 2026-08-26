@@ -96,10 +96,13 @@ Daslight: solo quello che serve.
   posizione. Si possono unire solo fari con gli **stessi canali** (un par e una
   testa mobile no). Maiusc+clic su un faro già scelto lo toglie, un clic sul
   palco vuoto azzera la scelta.
-- **Anteprima palco**: vista dall'alto del palco. Trascina i fari per
-  posizionarli, ruotali con la maniglia bianca (o con la rotellina del mouse)
-  per orientare il fascio. Il colore e l'intensità del fascio seguono i fader
-  (RGB + UV reso come viola).
+- **Anteprima palco**: pianta vista dall'alto. Il **palco è il rettangolo**
+  disegnato al centro, con le proporzioni vere delle misure che hai messo e la
+  griglia da un metro; tutt'intorno resta spazio libero, perché i fari possono
+  stare anche **fuori dal palco** — in platea, di lato, dietro il fondale — che
+  è poi dove stanno quasi sempre. Trascina i fari per posizionarli, ruotali con
+  la maniglia bianca (o con la rotellina del mouse) per orientare il fascio. Il
+  colore e l'intensità del fascio seguono i fader (RGB + UV reso come viola).
 - **Teste mobili nell'anteprima**: la direzione in cui orienti un faro sulla
   mappa diventa il suo **zero**; da lì il canale **pan** fa ruotare il fascio
   (fino a 540°, come su un wash) e il canale **focus** ne apre l'angolo da
@@ -112,12 +115,13 @@ Daslight: solo quello che serve.
   direzione, col movimento più corto) sia il **tilt** (l'inclinazione, se la
   testa ce l'ha). Lo **zero non cambia**, quindi il faro resta orientato com'era
   sulla mappa. **Esc** annulla il puntamento.
-- **Il palco in tre dimensioni**: perché il tilt sia giusto servono due misure,
-  in basso a sinistra sulla mappa: **quanto è grande il palco** (larghezza ×
-  profondità in metri) e se la luce deve arrivare **a terra o sui volti**
-  (1,6 m). Ogni testa mobile ha poi la sua **altezza da terra** (campo `H`
-  sulla scheda dei fader). Con questi tre numeri la distanza tra faro e
-  bersaglio è nota, e l'inclinazione viene da sé: `tilt = atan(distanza /
+- **Il palco in tre dimensioni**: le uniche misure da scrivere sono in basso a
+  sinistra sulla mappa: **quanto è grande il palco** (larghezza × profondità in
+  metri) e se la luce deve arrivare **a terra o sui volti** (1,6 m).
+  L'**altezza da terra** di ogni testa non si scrive: la trova la taratura, e
+  la scheda dei fader te la mostra soltanto (`↕ 4,5 m`; in corsivo sbiadito
+  finché è solo un valore di partenza). Sapendo quanto dista il bersaglio e
+  quanto è alta la testa, l'inclinazione viene da sé: `tilt = atan(distanza /
   altezza)`. Sulla mappa il fascio non è più un cono lungo a caso: si vede la
   **pozza di luce** dove la luce tocca davvero il pavimento, allungata come
   nella realtà quando il fascio arriva di sbieco.

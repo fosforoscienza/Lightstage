@@ -385,8 +385,14 @@ body {
   font-size: 12px;
 }
 .card-head .addr input.overlap { border-color: var(--danger); color: var(--danger); }
-/* altezza da terra della testa mobile, in metri */
-.card-head .hgt input { width: 44px; }
+/* altezza da terra della testa mobile: non si scrive, la dice la taratura */
+.card-head .hgt {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.card-head .hgt.stimata { opacity: 0.5; font-style: italic; }
 .card-head .del, .card-head .cfg {
   background: none; border: none;
   color: var(--text-dim);

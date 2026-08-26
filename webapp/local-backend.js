@@ -92,6 +92,13 @@
     return isNaN(v) ? DEFAULT_HEIGHT : Math.max(0, Math.min(30, v));
   }
 
+  /* Posizione di un faro sulla mappa: 0..1 va da un capo all'altro del palco,
+     ma un faro può stare anche fuori (davanti al proscenio, di lato). */
+  function sanitizePos(raw, difetto) {
+    const v = parseFloat(raw);
+    return isNaN(v) ? difetto : Math.max(-1, Math.min(2, v));
+  }
+
   /* Zero di un movimento: non è un valore DMX ma un riferimento. Una testa
      che non arriva a puntare a piombo ha lo zero del tilt fuori da 0..1. */
   function sanitizeZero(raw, difetto) {
@@ -140,8 +147,8 @@
         address: Math.max(1, Math.min(512 - n + 1, parseInt(f.address, 10) || 1)),
         values: sanitizeValues(f.values, n),
         channels: sanitizeChannels(f.channels, db.channels, n),
-        x: Math.max(0, Math.min(1, parseFloat(f.x) || 0.5)),
-        y: Math.max(0, Math.min(1, parseFloat(f.y) || 0.2)),
+        x: sanitizePos(f.x, 0.5),
+        y: sanitizePos(f.y, 0.2),
         rot: ((parseFloat(f.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(f.panzero) || 0)),
         h: sanitizeHeight(f.h),
@@ -462,8 +469,8 @@
         address: Math.max(1, Math.min(512 - n + 1, parseInt(b.address, 10) || 1)),
         values: sanitizeValues(b.values, n),
         channels: sanitizeChannels(b.channels, db.channels, n),
-        x: Math.max(0, Math.min(1, parseFloat(b.x) || 0.5)),
-        y: Math.max(0, Math.min(1, parseFloat(b.y) || 0.2)),
+        x: sanitizePos(b.x, 0.5),
+        y: sanitizePos(b.y, 0.2),
         rot: ((parseFloat(b.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(b.panzero) || 0)),
         h: sanitizeHeight(b.h),
@@ -516,11 +523,10 @@
           const a = parseInt(b.address, 10);
           if (!isNaN(a)) f.address = Math.max(1, Math.min(512 - fixtureCount(f) + 1, a));
         }
-        for (const k of ['x', 'y', 'panzero']) {
-          if (k in b) {
-            const v = parseFloat(b[k]);
-            if (!isNaN(v)) f[k] = Math.max(0, Math.min(1, v));
-          }
+        for (const k of ['x', 'y']) if (k in b) f[k] = sanitizePos(b[k], f[k]);
+        if ('panzero' in b) {
+          const v = parseFloat(b.panzero);
+          if (!isNaN(v)) f.panzero = Math.max(0, Math.min(1, v));
         }
         if ('tiltzero' in b) f.tiltzero = sanitizeZero(b.tiltzero, f.tiltzero);
         if ('h' in b) f.h = sanitizeHeight(b.h);
