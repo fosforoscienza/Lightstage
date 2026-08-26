@@ -11,9 +11,8 @@ const state = {
   channels: [],
   copioni: [],
   blackout: false,
-  // misure vere del palco, in metri (w = larghezza, d = profondità,
-  // target = quota di quello che si vuole illuminare)
-  stage: { w: 8, d: 6, target: 0 },
+  // misure vere del palco, in metri (larghezza e profondità)
+  stage: { w: 8, d: 6 },
 };
 let dmx = { available: false, connected: false, port: null, ports: [], error: null };
 let presetModificato = false;   // il preset in onda è stato ritoccato a mano
@@ -282,7 +281,6 @@ function stageGeo() {
   return {
     w: s.w > 0 ? s.w : 8,
     d: s.d > 0 ? s.d : 6,
-    target: s.target > 0 ? s.target : 0,
   };
 }
 
@@ -290,11 +288,6 @@ function stageGeo() {
 function altezzaFaro(f) {
   const h = parseFloat(f.h);
   return isNaN(h) ? ALTEZZA_DEFAULT : h;
-}
-
-/* di quanto il faro sta sopra quello che deve illuminare */
-function altezzaUtile(f) {
-  return altezzaFaro(f) - stageGeo().target;
 }
 
 /* posizione del faro sul palco vero, in metri */
@@ -386,7 +379,7 @@ function tiltForAngle(f, gradi) {
 function gittata(f, values) {
   const t = tiltAngle(f, values);
   if (t === null) return null;
-  const h = altezzaUtile(f);
+  const h = altezzaFaro(f);
   if (h <= 0.05) return null;
   const a = Math.abs(t);
   if (a >= TILT_PIATTO) return null;
@@ -1730,7 +1723,7 @@ function aimAt(f, px, py) {
     const pan = panForAngle(x, direzione);
     if (pan !== null) setPanPosition(x, pan);
     // quanto abbassare il fascio: 0 = a piombo, 90 = orizzontale
-    const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaUtile(x)) * 180 / Math.PI;
+    const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaFaro(x)) * 180 / Math.PI;
     const tilt = tiltForAngle(x, inclinazione);
     if (tilt !== null) setMovePosition(x, 'tilt', tilt);
     if (pan === null && tilt === null) continue;
@@ -1759,7 +1752,7 @@ function calibraFaro(f, px, py) {
   }
   const tilt = movePosition(f, 'tilt');
   if (tilt !== null) {
-    const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaUtile(f)) * 180 / Math.PI;
+    const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaFaro(f)) * 180 / Math.PI;
     f.tiltzero = tilt - versoTilt(f) * inclinazione / TILT_RANGE;
     patch.tiltzero = f.tiltzero;
   }
@@ -1963,14 +1956,12 @@ function renderGeo() {
   };
   scrivi('#geo-w', g.w);
   scrivi('#geo-d', g.d);
-  scrivi('#geo-target', String(g.target));
 }
 
 function salvaGeo() {
   const g = {
     w: parseFloat($('#geo-w').value) || 8,
     d: parseFloat($('#geo-d').value) || 6,
-    target: parseFloat($('#geo-target').value) || 0,
   };
   state.stage = g;
   touch();
@@ -1982,7 +1973,7 @@ function salvaGeo() {
   }).catch(console.error);
 }
 
-['#geo-w', '#geo-d', '#geo-target'].forEach(
+['#geo-w', '#geo-d'].forEach(
   (sel) => $(sel).addEventListener('change', salvaGeo));
 
 /* ------------------------------------------- il giro dei quattro angoli

@@ -7,6 +7,9 @@ aggiunte e ritocchi.
 
 ## 5.23
 
+- Tolta la voce **«luce a terra / sui volti»**: il fascio si punta sul
+  pavimento e basta. Delle misure del palco restano larghezza e profondità.
+
 - **Il palco è un rettangolo, non tutto il riquadro**: viene disegnato al
   centro della mappa con le proporzioni vere delle misure e la griglia da un
   metro. Attorno resta spazio libero, così i fari si possono mettere anche

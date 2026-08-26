@@ -115,9 +115,9 @@ Daslight: solo quello che serve.
   direzione, col movimento più corto) sia il **tilt** (l'inclinazione, se la
   testa ce l'ha). Lo **zero non cambia**, quindi il faro resta orientato com'era
   sulla mappa. **Esc** annulla il puntamento.
-- **Il palco in tre dimensioni**: le uniche misure da scrivere sono in basso a
-  sinistra sulla mappa: **quanto è grande il palco** (larghezza × profondità in
-  metri) e se la luce deve arrivare **a terra o sui volti** (1,6 m).
+- **Il palco in tre dimensioni**: l'unica cosa da scrivere è in basso a
+  sinistra sulla mappa, **quanto è grande il palco** (larghezza × profondità in
+  metri); il fascio si punta sempre a terra.
   L'**altezza da terra** di ogni testa non si scrive: la trova la taratura, e
   la scheda dei fader te la mostra soltanto (`↕ 4,5 m`; in corsivo sbiadito
   finché è solo un valore di partenza). Sapendo quanto dista il bersaglio e

@@ -73,13 +73,13 @@
   }
 
   /* misure vere del palco: servono a calcolare il tilt delle teste mobili */
-  const DEFAULT_STAGE = { w: 8, d: 6, target: 0 };
+  const DEFAULT_STAGE = { w: 8, d: 6 };
   const DEFAULT_HEIGHT = 4;   // altezza a cui si dà per appeso un faro, in metri
 
   function sanitizeStage(raw) {
     const stage = { ...DEFAULT_STAGE };
     if (raw && typeof raw === 'object') {
-      for (const [k, lo, hi] of [['w', 1, 60], ['d', 1, 60], ['target', 0, 10]]) {
+      for (const [k, lo, hi] of [['w', 1, 60], ['d', 1, 60]]) {
         const v = parseFloat(raw[k]);
         if (!isNaN(v)) stage[k] = Math.max(lo, Math.min(hi, v));
       }

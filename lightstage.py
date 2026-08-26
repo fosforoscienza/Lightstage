@@ -54,9 +54,8 @@ DEFAULT_CHANNELS = [
 ROLES = {"dimmer", "red", "green", "blue", "uv", "white",
          "strobe", "pan", "tilt", "focus", "return", "other"}
 
-# Misure vere del palco: servono a calcolare il tilt delle teste mobili.
-# w = larghezza, d = profondità, target = quota del bersaglio (0 = pavimento).
-DEFAULT_STAGE = {"w": 8.0, "d": 6.0, "target": 0.0}
+# Misure vere del palco, in metri: servono a calcolare il tilt delle teste.
+DEFAULT_STAGE = {"w": 8.0, "d": 6.0}
 DEFAULT_HEIGHT = 4.0    # altezza a cui si dà per appeso un faro, in metri
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -237,7 +236,7 @@ def sanitize_stage(raw):
     """misure del palco in metri, con i valori fuori scala riportati dentro"""
     stage = dict(DEFAULT_STAGE)
     if isinstance(raw, dict):
-        for key, lo, hi in (("w", 1.0, 60.0), ("d", 1.0, 60.0), ("target", 0.0, 10.0)):
+        for key, lo, hi in (("w", 1.0, 60.0), ("d", 1.0, 60.0)):
             try:
                 stage[key] = max(lo, min(hi, float(raw[key])))
             except (KeyError, TypeError, ValueError):
