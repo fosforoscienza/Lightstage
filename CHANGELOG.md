@@ -5,6 +5,21 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.26
+
+- **Il verso di pan e tilt si corregge a mano**: sulla scheda di ogni testa ci
+  sono due pulsantini, ↻ per il pan e ⤵ per il tilt, che dicono da che parte
+  gira il movimento quando il valore cresce. Se nel software una testa gira al
+  contrario di come gira davvero sul palco, un clic la rimette a posto. Serviva:
+  il verso lo trova la taratura, ma con misure imprecise può trovarlo al
+  rovescio, e fino a ieri non c'era modo di dirglielo se non rifacendo il giro
+  dei quattro angoli.
+- Girare il verso **non sposta lo zero**: a pan fermo sullo zero il fascio
+  guarda sempre dove dice la mappa, cambia solo da che parte si muove da lì.
+- Alla fine della taratura, se le teste non girano tutte allo stesso verso il
+  riepilogo **lo dice**: teste appese allo stesso modo girano tutte uguali, e
+  quelle in minoranza sono quasi sempre sbagliate.
+
 ## 5.25
 
 - **Via l'altezza di partenza delle teste**: ogni faro nasceva a 4 m da terra,

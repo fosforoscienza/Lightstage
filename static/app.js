@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.25';
+const APP_VERSION = '5.26';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -204,9 +204,25 @@ function panPosition(f, values) {
 
 /* Da che parte gira il movimento quando il valore DMX cresce. Una testa
    appesa a testa in giù gira al contrario di una appoggiata per terra: la
-   taratura se ne accorge da sola. */
+   taratura se ne accorge da sola, e se sbaglia si corregge dalla scheda. */
 function versoPan(f) { return f.panflip ? -1 : 1; }
 function versoTilt(f) { return f.tiltflip ? -1 : 1; }
+
+/* I due versi, per i pulsanti sulla scheda del faro. Girare il verso non
+   sposta lo zero: a pan fermo sullo zero il fascio guarda sempre dove dice
+   la mappa, cambia solo da che parte si muove da lì in poi. */
+const VERSI = {
+  pan: {
+    campo: 'panflip',
+    segni: ['↻', '↺'],
+    dice: (giu) => `Il pan gira in senso ${giu ? 'antiorario' : 'orario'} visto dall'alto`,
+  },
+  tilt: {
+    campo: 'tiltflip',
+    segni: ['⤵', '⤴'],
+    dice: (giu) => `Alzando il tilt il fascio va ${giu ? 'indietro' : 'avanti'}`,
+  },
+};
 
 /* direzione del fascio: zero della mappa più lo spostamento del pan */
 function beamAngle(f, values) {
@@ -618,6 +634,30 @@ function clearActivePreset() {
 }
 
 
+/* Il pulsante che gira il verso di un movimento. Di solito il verso lo trova
+   la taratura, ma se le misure erano imprecise può trovarlo al rovescio: la
+   testa allora gira nel software dalla parte sbagliata rispetto a com'è nella
+   realtà. Un clic qui la rimette a posto senza rifare il giro degli angoli. */
+function bottoneVerso(f, ruolo) {
+  const v = VERSI[ruolo];
+  const b = document.createElement('button');
+  b.className = 'cfg verso';
+  const mostra = () => {
+    const giu = !!f[v.campo];
+    b.textContent = v.segni[giu ? 1 : 0];
+    b.classList.toggle('invertito', giu);
+    b.title = `${v.dice(giu)}. Cliccalo se dal vivo gira al contrario`;
+  };
+  mostra();
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    f[v.campo] = !f[v.campo];
+    pushFixturePatch(f.id, { [v.campo]: f[v.campo] });
+    mostra();
+  });
+  return b;
+}
+
 function renderFixtures() {
   const row = $('#fixtures-row');
   row.innerHTML = '';
@@ -704,6 +744,9 @@ function renderFixtures() {
         iniziaCalibrazione(f);
       });
       geo.push(altWrap, tara);
+    }
+    for (const ruolo of ['pan', 'tilt']) {
+      if (roleIndexes(f, ruolo).length) geo.push(bottoneVerso(f, ruolo));
     }
 
     const cfg = document.createElement('button');
@@ -2118,13 +2161,25 @@ function mostraEsitiTaratura() {
     box.append(riga);
   }
   const male = esiti.filter((e) => !e.r || e.r.scarto >= TARA_BUONA).length;
-  $('#tara-intro').textContent = male
+  const spiega = male
     ? (male === 1 ? 'Una testa' : `${male} teste`)
       + ` su ${esiti.length} non torna${male === 1 ? '' : 'no'}: forse non era `
       + "puntata proprio sull'angolo, oppure ha un'escursione di pan/tilt diversa "
       + 'dal solito. Lascia la spunta solo a quelle giuste e rifai il giro per le altre.'
     : 'Lo scarto è quanto sbaglierebbe il fascio ai quattro angoli con questi '
       + 'valori: sotto i 30 cm la taratura è buona.';
+  // Teste appese allo stesso modo girano tutte allo stesso modo: se i versi
+  // trovati non vanno d'accordo, quelli in minoranza sono quasi sempre
+  // sbagliati (misure imprecise). A occhio non si nota, quindi si dice.
+  const orario = esiti.filter((e) => e.r && e.r.vp > 0).length;
+  const anti = esiti.filter((e) => e.r && e.r.vp < 0).length;
+  const discordi = orario && anti
+    ? `${orario} test${orario === 1 ? 'a gira' : 'e girano'} il pan in un verso e `
+      + `${anti} nell'altro: se sono appese tutte allo stesso modo giravano tutte `
+      + 'uguali, quindi quelle in minoranza sono sbagliate. Rifai il giro per '
+      + 'loro, oppure gira il verso con ↻ sulla loro scheda. '
+    : '';
+  $('#tara-intro').textContent = discordi + spiega;
   openModal('#modal-tara');
 }
 
@@ -2711,10 +2766,17 @@ canvas.addEventListener('dblclick', (e) => {
   vistaIntera();
 });
 
-/* i pulsanti, per chi ha il mouse: avvicinano e allontanano dal centro */
-$('#zoom-in').addEventListener('click', () => avvicinaVista(cw / 2, ch / 2, vistaZoom * 1.4));
-$('#zoom-out').addEventListener('click', () => avvicinaVista(cw / 2, ch / 2, vistaZoom / 1.4));
-$('#zoom-reset').addEventListener('click', vistaIntera);
+/* I pulsanti, per chi ha il mouse: avvicinano e allontanano dal centro. Se la
+   pagina tenuta in cache dal browser è ancora quella vecchia questi pulsanti
+   non ci sono: si tira dritto, che è meglio di un errore qui che fermerebbe
+   tutto quello che viene dopo. */
+function alClic(sel, fn) {
+  const el = $(sel);
+  if (el) el.addEventListener('click', fn);
+}
+alClic('#zoom-in', () => avvicinaVista(cw / 2, ch / 2, vistaZoom * 1.4));
+alClic('#zoom-out', () => avvicinaVista(cw / 2, ch / 2, vistaZoom / 1.4));
+alClic('#zoom-reset', vistaIntera);
 
 /* ---------------------------------------------------------------- modali */
 function openModal(id) { $(id).classList.remove('hidden'); }

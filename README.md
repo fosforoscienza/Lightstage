@@ -158,6 +158,15 @@ Daslight: solo quello che serve.
   ricava lo zero del pan e quello del tilt, dando per buone posizione e altezza
   che già conosce. Se l'altezza non si sa ancora rimette solo lo zero del pan:
   da un punto solo l'altezza non si ricava, serve il giro dei quattro angoli.
+- **Da che parte gira** (pulsanti ↻ e ⤵ sulla scheda di una testa): dicono in
+  che verso si muovono pan e tilt quando il valore DMX cresce, e cliccandoli lo
+  girano. Di solito ci pensa la taratura — una testa appesa a testa in giù gira
+  al contrario — ma se le misure erano imprecise può trovare il verso al
+  rovescio: allora sul palco la testa gira da una parte e nel software dall'altra,
+  e il puntamento non torna. Un clic rimette a posto senza rifare il giro degli
+  angoli. Girare il verso non sposta lo zero: a pan fermo sullo zero il fascio
+  guarda sempre dove dice la mappa. Se dopo una taratura le teste non girano
+  tutte allo stesso verso, il riepilogo lo segnala.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to

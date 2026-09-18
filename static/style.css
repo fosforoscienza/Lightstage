@@ -438,6 +438,9 @@ body {
 }
 .card-head .del:hover { color: var(--danger); background: #2a1a1a; }
 .card-head .cfg:hover { color: var(--text); background: #222938; }
+/* il verso del movimento: acceso quando gira al contrario del solito */
+.card-head .cfg.verso { font-size: 14px; padding: 2px 4px; }
+.card-head .cfg.verso.invertito { color: var(--accent); }
 
 .faders { display: flex; gap: 5px; flex: 1; }
 .fader-col {
