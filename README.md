@@ -103,6 +103,14 @@ Daslight: solo quello che serve.
   è poi dove stanno quasi sempre. Trascina i fari per posizionarli, ruotali con
   la maniglia bianca (o con la rotellina del mouse) per orientare il fascio. Il
   colore e l'intensità del fascio seguono i fader (RGB + UV reso come viola).
+- **Avvicinare la mappa**: due dita sul trackpad (la pizzicata) ingrandiscono
+  il palco fino a otto volte, due dita che scorrono lo spostano; col mouse ci
+  sono **Ctrl**+rotellina e i due pulsanti in basso a destra, e in ogni caso si
+  sposta trascinando il fondo. Serve quando i fari sono tanti e vicini e le
+  icone si accavallano. Si torna a vedere tutto il palco con **tutto** o con un
+  doppio clic sul fondo. È solo un modo di guardare: i fari restano dove sono
+  e si trascinano e si puntano come prima, e le miniature dei preset mostrano
+  sempre il palco intero.
 - **Teste mobili nell'anteprima**: la direzione in cui orienti un faro sulla
   mappa diventa il suo **zero**; da lì il canale **pan** fa ruotare il fascio
   (fino a 540°, come su un wash) e il canale **focus** ne apre l'angolo da

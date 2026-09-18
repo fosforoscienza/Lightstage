@@ -5,6 +5,20 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.24
+
+- **Avvicinare la mappa**: con due dita sul trackpad (la pizzicata, o Ctrl e
+  rotellina col mouse) il palco si ingrandisce fino a otto volte, e due dita
+  che scorrono, o il fondo trascinato, lo spostano. Serve quando i fari sono
+  tanti e vicini: a palco intero le icone e i nomi si accavallano, avvicinando
+  si distinguono uno per uno. Su tablet e telefono vale la pizzicata.
+- In basso a destra sulla mappa ci sono i due pulsanti per chi ha il mouse e,
+  quando si è avvicinato, quanto lo si è fatto e il **tutto** per tornare a
+  vedere il palco intero; ci si torna anche con un doppio clic sul fondo.
+- Avvicinare è soltanto un modo di guardare: i fari restano dove sono, e si
+  trascinano e si puntano come prima, nel punto giusto del palco. Le miniature
+  dei preset mostrano sempre tutto il palco.
+
 ## 5.23
 
 - Tolta la voce **«luce a terra / sui volti»**: il fascio si punta sul

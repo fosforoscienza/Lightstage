@@ -139,6 +139,41 @@ body {
   color: #566074;
   pointer-events: none;
 }
+/* quanto è avvicinata la mappa: i pulsanti ci sono sempre, la percentuale e
+   il "tutto" compaiono solo quando c'è qualcosa a cui tornare */
+#stage-zoom {
+  position: absolute;
+  right: 8px; bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #566074;
+  z-index: 2;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+#stage-panel:hover #stage-zoom,
+#stage-zoom.vicino { opacity: 1; }
+#stage-zoom button {
+  background: #0d1016;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+#stage-zoom button:hover { border-color: var(--accent); color: var(--text); }
+#zoom-val {
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#zoom-val, #zoom-reset { display: none; }
+#stage-zoom.vicino #zoom-val { display: inline-block; }
+#stage-zoom.vicino #zoom-reset { display: inline-block; }
 /* misure vere del palco: da qui esce il tilt delle teste */
 #stage-geo {
   position: absolute;

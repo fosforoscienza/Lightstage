@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.23';
+const APP_VERSION = '5.24';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -305,7 +305,33 @@ function fixtureMetri(f) {
    metro in qualsiasi direzione e gli angoli sulla mappa sono quelli veri. */
 const VISTA_MARGINE = 0.2;   // spazio attorno al palco, in frazioni di palco
 
-function vista(w, h) {
+/* ------------------------------------------------------------- la lente
+   Nel riquadro ci sta sempre tutto il palco, ma quando i fari sono tanti e
+   vicini le icone si accavallano. Con due dita sul trackpad (o la pizzicata
+   sul touchscreen) si avvicina la mappa e ci si sposta dentro, come su una
+   cartina. È soltanto un modo di guardare: le coordinate dei fari non
+   cambiano, e le miniature dei preset restano sempre a palco intero. */
+const VISTA_MIN = 1;
+const VISTA_MAX = 8;
+let vistaZoom = 1;               // quante volte è avvicinata la mappa
+let vistaPan = { x: 0, y: 0 };   // di quanti pixel è spostata
+
+/* Avvicinare allontana dal centro del riquadro tutto quello che c'è
+   disegnato, perciò basta applicare la lente al palco: fari, fasci e griglia
+   ci stanno sopra e la seguono. */
+function lente(v, larg, alt) {
+  if (vistaZoom === VISTA_MIN && !vistaPan.x && !vistaPan.y) return v;
+  const cx = larg / 2, cy = alt / 2;
+  return {
+    scala: v.scala * vistaZoom,
+    w: v.w * vistaZoom, h: v.h * vistaZoom,
+    ox: (v.ox - cx) * vistaZoom + cx + vistaPan.x,
+    oy: (v.oy - cy) * vistaZoom + cy + vistaPan.y,
+  };
+}
+
+/* mini = miniatura di un preset: quelle non vengono mai avvicinate */
+function vista(w, h, mini) {
   const g = stageGeo();
   const larg = w || cw;
   const alt = h || ch;
@@ -325,12 +351,13 @@ function vista(w, h) {
   const orlo = Math.min(22, alt * 0.06, larg * 0.06);
   const scala = Math.min((larg - 2 * orlo) / (g.w * (1 + sx + dx)),
                          (alt - 2 * orlo) / (g.d * (1 + su + giu)));
-  return {
+  const v = {
     scala,                                  // pixel per metro
     w: g.w * scala, h: g.d * scala,         // il palco, in pixel
     ox: (larg - g.w * (1 + sx + dx) * scala) / 2 + g.w * sx * scala,
     oy: (alt - g.d * (1 + su + giu) * scala) / 2 + g.d * su * scala,
   };
+  return mini ? v : lente(v, larg, alt);
 }
 
 /* da un punto del riquadro (pixel) alle coordinate del palco (0..1 e oltre) */
@@ -347,8 +374,8 @@ function puntoMetri(px, py) {
 }
 
 /* uno spostamento vero (direzione in gradi, distanza in metri) sulla mappa */
-function deltaMappa(gradi, metri, w, h) {
-  const s = vista(w, h).scala;
+function deltaMappa(gradi, metri, w, h, mini) {
+  const s = vista(w, h, mini).scala;
   const a = gradi * Math.PI / 180;
   return { x: Math.sin(a) * metri * s, y: Math.cos(a) * metri * s };
 }
@@ -392,17 +419,17 @@ function gittata(f, values) {
      lung  distanza a cui atterra, in pixel
      metri se il fascio tocca il palco: la pozza di luce misurata sul palco
            vero, da disegnare dopo aver messo il foglio in scala */
-function proiezione(f, values, w, h) {
-  const v = vista(w, h);
+function proiezione(f, values, w, h, mini) {
+  const v = vista(w, h, mini);
   const px = v.ox + f.x * v.w;
   const py = v.oy + f.y * v.h;
   const git = gittata(f, values);
   const azimut = beamAngle(f, values) + (git && git.dietro ? 180 : 0);
   const mezzo = beamHalfAngle(f, values) * Math.PI / 180;
-  const unita = deltaMappa(azimut, 1, w, h);
+  const unita = deltaMappa(azimut, 1, w, h, mini);
   const ang = Math.atan2(unita.x, unita.y);
   if (!git) {
-    const lung = Math.min(w, h) * 0.55;
+    const lung = Math.min(w, h) * 0.55 * (mini ? 1 : vistaZoom);
     return { x: px, y: py, ang, lung, largo: Math.tan(mezzo) * lung, metri: null };
   }
   // il cono taglia il pavimento di sbieco: l'impronta è un'ellisse, più
@@ -412,7 +439,7 @@ function proiezione(f, values, w, h) {
   const vicino = git.h * Math.tan(Math.max(0, t - mezzo));
   const lontano = git.h * Math.tan(Math.min(piatto, t + mezzo));
   const centro = (vicino + lontano) / 2;
-  const d = deltaMappa(azimut, centro, w, h);
+  const d = deltaMappa(azimut, centro, w, h, mini);
   return {
     x: px, y: py, ang, largo: null,
     lung: Math.hypot(d.x, d.y),
@@ -1045,7 +1072,7 @@ function drawPresetThumb(canvas, preset) {
   ctx2.clearRect(0, 0, w, h);
 
   // il palco, appena accennato: serve a capire dove cade la luce
-  const v = vista(w, h);
+  const v = vista(w, h, true);
   ctx2.fillStyle = 'rgba(255,255,255,0.03)';
   ctx2.fillRect(v.ox, v.oy, v.w, v.h);
   ctx2.strokeStyle = 'rgba(255,255,255,0.12)';
@@ -1060,7 +1087,7 @@ function drawPresetThumb(canvas, preset) {
     if (!values) continue;
     const c = colorFromValues(values, fixtureChannels(f));
     if (c.intensity <= 0.02) continue;
-    const pr = proiezione(f, values, w, h);
+    const pr = proiezione(f, values, w, h, true);
     ctx2.save();
     ctx2.translate(pr.x, pr.y);
     if (!pr.metri) {
@@ -1090,7 +1117,7 @@ function drawPresetThumb(canvas, preset) {
   for (const f of state.fixtures) {
     const values = preset ? preset.values[String(f.id)] : null;
     const c = values ? colorFromValues(values, fixtureChannels(f)) : null;
-    const { x, y } = fixturePos(f, w, h);
+    const { x, y } = fixturePos(f, w, h, true);
     ctx2.fillStyle = c && c.intensity > 0.02
       ? `rgb(${c.r},${c.g},${c.b})` : '#39414f';
     if (isMovingHead(f)) {
@@ -1579,10 +1606,11 @@ function resizeCanvas() {
   canvas.width = Math.round(cw * dpr);
   canvas.height = Math.round(ch * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  limitaVista();
 }
 
-function fixturePos(f, w, h) {
-  const v = vista(w, h);
+function fixturePos(f, w, h, mini) {
+  const v = vista(w, h, mini);
   return { x: v.ox + f.x * v.w, y: v.oy + f.y * v.h };
 }
 
@@ -2369,15 +2397,103 @@ function drawRotateBadge(f) {
   ctx.fillText(testo, p.x, y + 14);
 }
 
-let dragMode = null; // 'move' | 'rotate'
+let dragMode = null; // 'move' | 'rotate' | 'pan'
 let dragFixture = null;
 let dragOff = { x: 0, y: 0 };
+
+/* --------------------------------------------------------- avvicinare
+   Due dita sul trackpad che si allargano avvicinano la mappa, due dita che
+   scorrono la spostano; sul touchscreen vale la pizzicata. Col mouse restano
+   i pulsanti in basso a destra e il trascinamento del fondo. La mappa non si
+   stacca mai dal riquadro: lo spostamento arriva fin dove il palco avanza
+   fuori e non oltre, così non si finisce mai a guardare il vuoto. */
+function limitaVista() {
+  const maxX = cw * (vistaZoom - 1) / 2;
+  const maxY = ch * (vistaZoom - 1) / 2;
+  vistaPan.x = Math.max(-maxX, Math.min(maxX, vistaPan.x));
+  vistaPan.y = Math.max(-maxY, Math.min(maxY, vistaPan.y));
+}
+
+/* avvicina tenendo fermo il punto che sta sotto le dita */
+function avvicinaVista(px, py, nuovo) {
+  const z = Math.max(VISTA_MIN, Math.min(VISTA_MAX, nuovo));
+  if (Math.abs(z - vistaZoom) < 1e-4) return;
+  const cx = cw / 2, cy = ch / 2;
+  const k = z / vistaZoom;
+  vistaPan.x = px - cx - (px - cx - vistaPan.x) * k;
+  vistaPan.y = py - cy - (py - cy - vistaPan.y) * k;
+  vistaZoom = z <= VISTA_MIN + 1e-4 ? VISTA_MIN : z;
+  if (vistaZoom === VISTA_MIN) vistaPan = { x: 0, y: 0 };
+  limitaVista();
+  renderVista();
+}
+
+function spostaVista(dx, dy) {
+  if (vistaZoom === VISTA_MIN) return;
+  vistaPan.x += dx;
+  vistaPan.y += dy;
+  limitaVista();
+}
+
+function vistaIntera() {
+  vistaZoom = VISTA_MIN;
+  vistaPan = { x: 0, y: 0 };
+  renderVista();
+}
+
+/* il cartellino con l'ingrandimento: i pulsanti ci sono sempre, la
+   percentuale e il "tutto il palco" solo quando c'è qualcosa a cui tornare */
+function renderVista() {
+  const val = $('#zoom-val');
+  if (val) val.textContent = `${Math.round(vistaZoom * 100)}%`;
+  const box = $('#stage-zoom');
+  if (box) box.classList.toggle('vicino', vistaZoom > VISTA_MIN);
+}
+
+let gestureInCorso = false;   // pizzicata in corso su Safari (vedi in fondo)
+let gestureVista = 1;
+
+/* la rotellina misura in pixel, in righe o in schermate: qui sempre pixel */
+function passoRuota(e) {
+  const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? ch : 1;
+  return { x: e.deltaX * k, y: e.deltaY * k };
+}
+
+/* le dita appoggiate sulla mappa, per riconoscere la pizzicata */
+const dita = new Map();
+let pinch = null;   // {dist, x, y, zoom} com'era quando le due dita sono scese
+
+function pinchStato() {
+  const [a, b] = [...dita.values()];
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+    dist: Math.hypot(a.x - b.x, a.y - b.y),
+  };
+}
+
+function fermaTrascinamento() {
+  dragMode = null;
+  dragFixture = null;
+}
 
 canvas.addEventListener('pointerdown', (e) => {
   const rect = canvas.getBoundingClientRect();
   const px = e.clientX - rect.left;
   const py = e.clientY - rect.top;
   const sel = state.fixtures.find((f) => f.id === selectedId);
+
+  // due dita sul touchscreen: da qui in poi si pizzica, non si trascina
+  if (e.pointerType === 'touch') {
+    dita.set(e.pointerId, { x: px, y: py });
+    if (dita.size === 2) {
+      fermaTrascinamento();
+      stopAiming();
+      const c = pinchStato();
+      pinch = { dist: c.dist, x: c.x, y: c.y, zoom: vistaZoom };
+      return;
+    }
+  }
 
   // si sta puntando: questo clic sceglie il punto da illuminare
   if (aimFixture) {
@@ -2421,10 +2537,40 @@ canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
   } else {
     deselezionaTutti();
+    // il fondo della mappa avvicinata si trascina per spostarsi dentro
+    if (vistaZoom > VISTA_MIN) {
+      dragMode = 'pan';
+      dragOff = { x: px, y: py };
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = 'grabbing';
+    }
   }
 });
 
 canvas.addEventListener('pointermove', (e) => {
+  if (dita.has(e.pointerId)) {
+    const rect = canvas.getBoundingClientRect();
+    dita.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }
+  // pizzicata: le due dita insieme avvicinano, il loro centro sposta
+  if (pinch && dita.size >= 2) {
+    const c = pinchStato();
+    if (c.dist > 4 && pinch.dist > 4) {
+      spostaVista(c.x - pinch.x, c.y - pinch.y);
+      pinch.x = c.x;
+      pinch.y = c.y;
+      avvicinaVista(c.x, c.y, pinch.zoom * (c.dist / pinch.dist));
+    }
+    return;
+  }
+  if (dragMode === 'pan') {
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    spostaVista(px - dragOff.x, py - dragOff.y);
+    dragOff = { x: px, y: py };
+    return;
+  }
   if (aimFixture) {
     const rect = canvas.getBoundingClientRect();
     aimPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -2443,7 +2589,8 @@ canvas.addEventListener('pointermove', (e) => {
         return;
       }
     }
-    canvas.style.cursor = fixtureAt(px, py) ? 'grab' : 'default';
+    canvas.style.cursor = fixtureAt(px, py) ? 'grab'
+      : (vistaZoom > VISTA_MIN ? 'move' : 'default');
     return;
   }
   const rect = canvas.getBoundingClientRect();
@@ -2469,15 +2616,37 @@ canvas.addEventListener('pointermove', (e) => {
   }
 });
 
-canvas.addEventListener('pointerup', () => {
-  dragMode = null;
-  dragFixture = null;
-});
+function finePuntatore(e) {
+  dita.delete(e.pointerId);
+  if (dita.size < 2) pinch = null;
+  if (dragMode === 'pan') canvas.style.cursor = vistaZoom > VISTA_MIN ? 'move' : 'default';
+  fermaTrascinamento();
+}
+canvas.addEventListener('pointerup', finePuntatore);
+canvas.addEventListener('pointercancel', finePuntatore);
 
 canvas.addEventListener('wheel', (e) => {
   const rect = canvas.getBoundingClientRect();
-  const f = fixtureAt(e.clientX - rect.left, e.clientY - rect.top);
-  if (!f) return;
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  // la pizzicata sul trackpad arriva al browser come rotellina col Ctrl
+  // premuto: è così che si riconosce l'ingrandimento dallo scorrimento
+  if (e.ctrlKey || e.metaKey) {
+    if (gestureInCorso) return;   // su Safari ci pensano le gesture, sotto
+    e.preventDefault();
+    avvicinaVista(px, py, vistaZoom * Math.exp(-passoRuota(e).y / 100));
+    return;
+  }
+  const f = fixtureAt(px, py);
+  if (!f) {
+    // due dita che scorrono sul fondo: ci si sposta dentro la mappa
+    if (vistaZoom > VISTA_MIN) {
+      e.preventDefault();
+      const d = passoRuota(e);
+      spostaVista(-d.x, -d.y);
+    }
+    return;
+  }
   e.preventDefault();
   const verso = e.deltaY > 0 ? 1 : -1;
   f.rot = e.shiftKey
@@ -2487,6 +2656,36 @@ canvas.addEventListener('wheel', (e) => {
   pushFixturePatch(f.id, { rot: f.rot, panzero: f.panzero });
   showRotateHint(f);
 }, { passive: false });
+
+/* Safari non manda la rotellina col Ctrl: per la pizzicata sul trackpad ha
+   eventi suoi, dove scale è quanto si sono allargate le dita da quando sono
+   scese. Negli altri browser questi eventi non esistono e non fa niente. */
+canvas.addEventListener('gesturestart', (e) => {
+  e.preventDefault();
+  gestureInCorso = true;
+  gestureVista = vistaZoom;
+});
+canvas.addEventListener('gesturechange', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  avvicinaVista(e.clientX - rect.left, e.clientY - rect.top, gestureVista * e.scale);
+});
+canvas.addEventListener('gestureend', (e) => {
+  e.preventDefault();
+  gestureInCorso = false;
+});
+
+/* doppio clic sul fondo: si torna a vedere tutto il palco */
+canvas.addEventListener('dblclick', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  if (fixtureAt(e.clientX - rect.left, e.clientY - rect.top)) return;
+  vistaIntera();
+});
+
+/* i pulsanti, per chi ha il mouse: avvicinano e allontanano dal centro */
+$('#zoom-in').addEventListener('click', () => avvicinaVista(cw / 2, ch / 2, vistaZoom * 1.4));
+$('#zoom-out').addEventListener('click', () => avvicinaVista(cw / 2, ch / 2, vistaZoom / 1.4));
+$('#zoom-reset').addEventListener('click', vistaIntera);
 
 /* ---------------------------------------------------------------- modali */
 function openModal(id) { $(id).classList.remove('hidden'); }
@@ -3187,6 +3386,7 @@ async function init() {
   renderFixtures();
   renderPresets();
   renderDmx();
+  renderVista();
   resizeCanvas();
   requestAnimationFrame(draw);
   checkForUpdate();
