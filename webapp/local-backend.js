@@ -74,8 +74,6 @@
 
   /* misure vere del palco: servono a calcolare il tilt delle teste mobili */
   const DEFAULT_STAGE = { w: 8, d: 6 };
-  const DEFAULT_HEIGHT = 4;   // altezza a cui si dà per appeso un faro, in metri
-
   function sanitizeStage(raw) {
     const stage = { ...DEFAULT_STAGE };
     if (raw && typeof raw === 'object') {
@@ -87,9 +85,21 @@
     return stage;
   }
 
+  /* Altezza di un faro da terra, in metri, o null se non si sa: non c'è
+     un'altezza di partenza, la misura la taratura sui quattro angoli. */
   function sanitizeHeight(raw) {
     const v = parseFloat(raw);
-    return isNaN(v) ? DEFAULT_HEIGHT : Math.max(0, Math.min(30, v));
+    return v > 0 ? Math.min(30, v) : null;
+  }
+
+  /* Fino alla 5.24 ogni faro nasceva a 4 m, un'altezza di partenza che non
+     veniva da nessuna misura. Negli show già salvati quel 4 tondo va buttato:
+     se la testa non è mai stata tarata, la sua altezza non la sa nessuno. */
+  const VECCHIA_ALTEZZA = 4;
+  function altezzaSalvata(raw, taratura) {
+    const h = sanitizeHeight(raw);
+    return h !== null && !taratura && Math.abs(h - VECCHIA_ALTEZZA) < 1e-9
+      ? null : h;
   }
 
   /* Posizione di un faro sulla mappa: 0..1 va da un capo all'altro del palco,
@@ -151,7 +161,7 @@
         y: sanitizePos(f.y, 0.2),
         rot: ((parseFloat(f.rot) || 0) % 360 + 360) % 360,
         panzero: Math.max(0, Math.min(1, parseFloat(f.panzero) || 0)),
-        h: sanitizeHeight(f.h),
+        h: altezzaSalvata(f.h, f.taratura),
         tiltzero: sanitizeZero(f.tiltzero, 0.5),
         panflip: !!f.panflip,
         tiltflip: !!f.tiltflip,

@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.24';
+const APP_VERSION = '5.25';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -274,7 +274,6 @@ function setPanPosition(f, pos) {
               distanza                                                        */
 const TILT_RANGE = 270;   // gradi coperti dal canale tilt (tipico di una testa)
 const TILT_PIATTO = 88;   // oltre questa inclinazione il fascio non tocca il palco
-const ALTEZZA_DEFAULT = 4;
 
 function stageGeo() {
   const s = state.stage || {};
@@ -284,10 +283,14 @@ function stageGeo() {
   };
 }
 
-/* altezza da terra del faro, in metri */
+/* Altezza da terra del faro, in metri, oppure null se non si sa ancora.
+   Non c'è un'altezza di partenza: le teste stanno ognuna alla sua, e un
+   numero inventato sposterebbe il fascio dove non è. La misura la taratura
+   sui quattro angoli; finché non è stata fatta l'altezza manca, e senza non
+   si disegna la pozza di luce né si muove il tilt col mirino. */
 function altezzaFaro(f) {
   const h = parseFloat(f.h);
-  return isNaN(h) ? ALTEZZA_DEFAULT : h;
+  return h > 0 ? h : null;
 }
 
 /* posizione del faro sul palco vero, in metri */
@@ -400,14 +403,15 @@ function tiltForAngle(f, gradi) {
 }
 
 /* Dove il fascio tocca il pavimento, guardando dall'alto: distanza in metri
-   dal faro e da che parte. null se la testa non ha il tilt, se il faro sta
-   sotto il bersaglio o se il fascio è quasi orizzontale: in quei casi si
-   disegna come prima, un cono lungo senza pozza di luce. */
+   dal faro e da che parte. null se la testa non ha il tilt, se non si sa
+   quant'è alta, se il faro sta sotto il bersaglio o se il fascio è quasi
+   orizzontale: in quei casi si disegna come prima, un cono lungo senza
+   pozza di luce. */
 function gittata(f, values) {
   const t = tiltAngle(f, values);
   if (t === null) return null;
   const h = altezzaFaro(f);
-  if (h <= 0.05) return null;
+  if (!(h > 0.05)) return null;
   const a = Math.abs(t);
   if (a >= TILT_PIATTO) return null;
   return { dist: h * Math.tan(a * Math.PI / 180), h, tilt: a, dietro: t < 0 };
@@ -673,16 +677,22 @@ function renderFixtures() {
     addrWrap.append(addr);
 
     // Le teste mobili mostrano l'altezza da terra: non si scrive, la ricava
-    // la taratura sui quattro angoli insieme a tutto il resto.
+    // la taratura sui quattro angoli insieme a tutto il resto. Finché non
+    // è stata fatta non c'è nessuna altezza da mostrare.
     const geo = [];
     if (roleIndexes(f, 'tilt').length) {
+      const alt = altezzaFaro(f);
       const altWrap = document.createElement('span');
       altWrap.className = 'hgt';
-      altWrap.textContent = `↕ ${altezzaFaro(f).toFixed(1).replace('.', ',')} m`;
+      altWrap.textContent = alt === null
+        ? '↕ da tarare' : `↕ ${alt.toFixed(1).replace('.', ',')} m`;
       altWrap.classList.toggle('stimata', !f.taratura);
-      altWrap.title = f.taratura
-        ? 'Altezza da terra, ricavata dalla taratura sui quattro angoli'
-        : 'Altezza di partenza: fai la taratura e LightStage trova quella vera';
+      altWrap.title = alt === null
+        ? 'Altezza da terra sconosciuta: senza, il mirino muove solo il pan. '
+          + 'Fai la taratura sui quattro angoli e LightStage la misura'
+        : (f.taratura
+          ? 'Altezza da terra, ricavata dalla taratura sui quattro angoli'
+          : 'Altezza da terra di questo faro; rifai la taratura per ricavarla');
 
       const tara = document.createElement('button');
       tara.className = 'cfg';
@@ -1739,9 +1749,12 @@ function drawAimBadge() {
 }
 
 /* Punta il faro verso un punto del palco: il pan dà la direzione, il tilt
-   l'inclinazione, che si ricava dall'altezza del faro e dalla distanza. */
+   l'inclinazione, che si ricava dall'altezza del faro e dalla distanza. Di
+   una testa non ancora tarata non si sa l'altezza: quella gira soltanto il
+   pan, e il tilt resta dov'è finché la taratura non dice quant'è alta. */
 function aimAt(f, px, py) {
   const bersaglio = puntoMetri(px, py);
+  const senzaAltezza = [];
   // tutte le teste scelte guardano lo stesso punto, ognuna dal suo posto
   for (const x of [f, ...compagniDi(f)]) {
     const p = fixtureMetri(x);
@@ -1751,12 +1764,22 @@ function aimAt(f, px, py) {
     const pan = panForAngle(x, direzione);
     if (pan !== null) setPanPosition(x, pan);
     // quanto abbassare il fascio: 0 = a piombo, 90 = orizzontale
-    const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaFaro(x)) * 180 / Math.PI;
-    const tilt = tiltForAngle(x, inclinazione);
-    if (tilt !== null) setMovePosition(x, 'tilt', tilt);
+    const h = altezzaFaro(x);
+    let tilt = null;
+    if (h !== null) {
+      const inclinazione = Math.atan2(Math.hypot(dx, dy), h) * 180 / Math.PI;
+      tilt = tiltForAngle(x, inclinazione);
+      if (tilt !== null) setMovePosition(x, 'tilt', tilt);
+    } else if (roleIndexes(x, 'tilt').length) {
+      senzaAltezza.push(x.name);
+    }
     if (pan === null && tilt === null) continue;
     updateFixtureDisplays(x);
     pushValues(x);
+  }
+  if (senzaAltezza.length) {
+    avvisoSelezione(`Solo il pan per ${senzaAltezza.join(', ')}: `
+      + "manca l'altezza, falle la taratura sui quattro angoli");
   }
   clearActivePreset();
 }
@@ -1778,11 +1801,17 @@ function calibraFaro(f, px, py) {
     patch.rot = f.rot;
     patch.panzero = f.panzero;
   }
+  // lo zero del tilt esce dall'inclinazione, e quella si sa solo se si sa
+  // quant'è alta la testa: da un punto solo l'altezza non si ricava
   const tilt = movePosition(f, 'tilt');
-  if (tilt !== null) {
-    const inclinazione = Math.atan2(Math.hypot(dx, dy), altezzaFaro(f)) * 180 / Math.PI;
+  const h = altezzaFaro(f);
+  if (tilt !== null && h !== null) {
+    const inclinazione = Math.atan2(Math.hypot(dx, dy), h) * 180 / Math.PI;
     f.tiltzero = tilt - versoTilt(f) * inclinazione / TILT_RANGE;
     patch.tiltzero = f.tiltzero;
+  } else if (tilt !== null) {
+    avvisoSelezione(`Di ${f.name} è stato tarato solo il pan: `
+      + "senza l'altezza lo zero del tilt non si ricava da un punto solo");
   }
   if (!Object.keys(patch).length) return;
   // ritoccando gli zeri a mano, le misure del giro dei quattro angoli non

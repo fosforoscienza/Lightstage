@@ -5,6 +5,23 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.25
+
+- **Via l'altezza di partenza delle teste**: ogni faro nasceva a 4 m da terra,
+  un numero che non veniva da nessuna misura e che quasi mai era quello vero.
+  Ora una testa non tarata semplicemente **non ha un'altezza**: la scheda segna
+  `↕ da tarare` al posto dei metri, e la misura la taratura sui quattro angoli
+  insieme a posizione e zeri.
+- Senza l'altezza il programma non finge di sapere dove cade la luce: sulla
+  mappa il fascio resta il **cono lungo** di sempre, senza la pozza a terra, e
+  il **mirino muove solo il pan**, dicendolo (il tilt resta dov'è). Appena la
+  taratura dà l'altezza tornano sia la pozza sia il tilt.
+- La taratura veloce col mirino (⌖ sulla scheda) rimette lo zero del pan anche
+  se l'altezza non si sa; quello del tilt no: da un punto solo l'altezza non si
+  ricava, per quella serve il giro dei quattro angoli.
+- Negli show già salvati il vecchio 4 m viene buttato dove non c'era nessuna
+  taratura dietro; le altezze **misurate davvero** restano dov'erano.
+
 ## 5.24
 
 - **Avvicinare la mappa**: con due dita sul trackpad (la pizzicata, o Ctrl e

@@ -126,13 +126,16 @@ Daslight: solo quello che serve.
 - **Il palco in tre dimensioni**: l'unica cosa da scrivere è in basso a
   sinistra sulla mappa, **quanto è grande il palco** (larghezza × profondità in
   metri); il fascio si punta sempre a terra.
-  L'**altezza da terra** di ogni testa non si scrive: la trova la taratura, e
-  la scheda dei fader te la mostra soltanto (`↕ 4,5 m`; in corsivo sbiadito
-  finché è solo un valore di partenza). Sapendo quanto dista il bersaglio e
-  quanto è alta la testa, l'inclinazione viene da sé: `tilt = atan(distanza /
-  altezza)`. Sulla mappa il fascio non è più un cono lungo a caso: si vede la
-  **pozza di luce** dove la luce tocca davvero il pavimento, allungata come
-  nella realtà quando il fascio arriva di sbieco.
+  L'**altezza da terra** di ogni testa non si scrive e non ha un valore di
+  partenza: la misura la taratura. Finché non l'hai fatta la scheda dei fader
+  segna `↕ da tarare`, dopo mostra la misura (`↕ 4,5 m`). Sapendo quanto dista
+  il bersaglio e quanto è alta la testa, l'inclinazione viene da sé:
+  `tilt = atan(distanza / altezza)`. Solo allora sulla mappa il fascio smette
+  di essere un cono lungo a caso e si vede la **pozza di luce** dove la luce
+  tocca davvero il pavimento, allungata come nella realtà quando il fascio
+  arriva di sbieco; di una testa non tarata il cono resta generico, perché
+  senza l'altezza non si sa dove vada a finire il fascio. Per lo stesso motivo
+  il mirino, su una testa non tarata, muove **solo il pan**.
 - **Taratura sui quattro angoli** (pulsante *Tara le teste*, in basso a
   sinistra sulla mappa): il modo completo di far imparare il palco al
   programma. Parte un giro guidato: punti a mano tutte le teste sull'angolo del
@@ -153,7 +156,8 @@ Daslight: solo quello che serve.
   urtata una e devi solo rimetterle gli zeri, punta la testa a mano dove vuoi,
   premi ⌖ e clicca sulla mappa il punto che sta illuminando. Da quel solo punto
   ricava lo zero del pan e quello del tilt, dando per buone posizione e altezza
-  che già conosce.
+  che già conosce. Se l'altezza non si sa ancora rimette solo lo zero del pan:
+  da un punto solo l'altezza non si ricava, serve il giro dei quattro angoli.
 - **Uscita DMX**: il segnale viene inviato in continuo (~30 fps) sul cavo
   USB-DMX. C'è un pulsante **Blackout** (spegne tutto all'istante senza
   perdere i valori dei fader, tasto **B**) e un pulsante **FTB** — *fade to

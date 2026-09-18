@@ -56,8 +56,6 @@ ROLES = {"dimmer", "red", "green", "blue", "uv", "white",
 
 # Misure vere del palco, in metri: servono a calcolare il tilt delle teste.
 DEFAULT_STAGE = {"w": 8.0, "d": 6.0}
-DEFAULT_HEIGHT = 4.0    # altezza a cui si dà per appeso un faro, in metri
-
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 lock = threading.RLock()
@@ -245,11 +243,27 @@ def sanitize_stage(raw):
 
 
 def sanitize_height(raw):
-    """altezza di un faro da terra, in metri"""
+    """Altezza di un faro da terra, in metri, o None se non si sa: non c'è
+    un'altezza di partenza, la misura la taratura sui quattro angoli."""
     try:
-        return max(0.0, min(30.0, float(raw)))
+        h = float(raw)
     except (TypeError, ValueError):
-        return DEFAULT_HEIGHT
+        return None
+    return min(30.0, h) if h > 0 else None
+
+
+# Fino alla 5.24 ogni faro nasceva a 4 m, un'altezza di partenza che non
+# veniva da nessuna misura. Negli show già salvati quel 4 tondo va buttato:
+# se la testa non è mai stata tarata, la sua altezza non la sa nessuno.
+VECCHIA_ALTEZZA = 4.0
+
+
+def altezza_salvata(raw, taratura):
+    """l'altezza di uno show già salvato, senza l'altezza di partenza di prima"""
+    h = sanitize_height(raw)
+    if h is not None and not taratura and abs(h - VECCHIA_ALTEZZA) < 1e-9:
+        return None
+    return h
 
 
 def sanitize_pos(raw, default):
@@ -360,7 +374,7 @@ def apply_show(data):
                 "y": sanitize_pos(f.get("y"), 0.2),
                 "rot": float(f.get("rot", 0)) % 360,
                 "panzero": max(0.0, min(1.0, float(f.get("panzero", 0)))),
-                "h": sanitize_height(f.get("h", DEFAULT_HEIGHT)),
+                "h": altezza_salvata(f.get("h"), f.get("taratura")),
                 "tiltzero": sanitize_zero(f.get("tiltzero"), 0.5),
                 "panflip": bool(f.get("panflip")),
                 "tiltflip": bool(f.get("tiltflip")),
@@ -542,7 +556,7 @@ def add_fixture():
             "y": sanitize_pos(body.get("y"), 0.2),
             "rot": float(body.get("rot", 0)) % 360,
             "panzero": max(0.0, min(1.0, float(body.get("panzero", 0)))),
-            "h": sanitize_height(body.get("h", DEFAULT_HEIGHT)),
+            "h": sanitize_height(body.get("h")),
             "tiltzero": sanitize_zero(body.get("tiltzero"), 0.5),
             "panflip": bool(body.get("panflip")),
             "tiltflip": bool(body.get("tiltflip")),
