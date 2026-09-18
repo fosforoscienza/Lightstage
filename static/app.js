@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.26';
+const APP_VERSION = '5.27';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -324,22 +324,64 @@ function fixtureMetri(f) {
    metro in qualsiasi direzione e gli angoli sulla mappa sono quelli veri. */
 const VISTA_MARGINE = 0.2;   // spazio attorno al palco, in frazioni di palco
 
-/* ------------------------------------------------------------- la lente
-   Nel riquadro ci sta sempre tutto il palco, ma quando i fari sono tanti e
-   vicini le icone si accavallano. Con due dita sul trackpad (o la pizzicata
-   sul touchscreen) si avvicina la mappa e ci si sposta dentro, come su una
-   cartina. È soltanto un modo di guardare: le coordinate dei fari non
-   cambiano, e le miniature dei preset restano sempre a palco intero. */
-const VISTA_MIN = 1;
-const VISTA_MAX = 8;
+/* Quanto lontano dal palco può stare un faro, in palchi: la sala è grande e
+   un faro può stare in fondo, su una torre di lato, in galleria. Il limite
+   serve solo a non perdere un faro nel nulla per un numero sbagliato. */
+const FUORI_MAX = 8;
+
+/* ------------------------------------------------- la tavola da disegno
+   La mappa non è un riquadro fisso ma una tavola larga: il palco sta al
+   centro e attorno c'è la sala, dove i fari stanno quasi sempre. Ci si
+   muove con due dita sul trackpad (o la pizzicata sul touchscreen, o il
+   fondo trascinato) e si avvicina per guardare da vicino. È soltanto un
+   modo di guardare: le coordinate dei fari non cambiano, e le miniature
+   dei preset restano sempre a palco intero. */
+const VISTA_MIN = 0.05;   // tutta la tavola nel riquadro
+const VISTA_MAX = 8;      // il naso sopra un faro
+const TAVOLA_MARGINE = 3; // quanto si estende la tavola oltre il palco, in palchi
 let vistaZoom = 1;               // quante volte è avvicinata la mappa
 let vistaPan = { x: 0, y: 0 };   // di quanti pixel è spostata
+let vistaToccata = false;        // vero da quando ci si è mossi a mano
+
+/* La tavola, in metri: il palco con attorno qualche palco di sala, e
+   comunque tanta da contenere i fari, ovunque siano finiti. Fuori di qui
+   non si va: è quello che tiene la mappa sotto le mani. */
+function tavola() {
+  const g = stageGeo();
+  const t = {
+    x0: -TAVOLA_MARGINE * g.w, x1: g.w * (1 + TAVOLA_MARGINE),
+    y0: -TAVOLA_MARGINE * g.d, y1: g.d * (1 + TAVOLA_MARGINE),
+  };
+  for (const f of state.fixtures) {
+    t.x0 = Math.min(t.x0, (f.x - 0.3) * g.w);
+    t.x1 = Math.max(t.x1, (f.x + 0.3) * g.w);
+    t.y0 = Math.min(t.y0, (f.y - 0.3) * g.d);
+    t.y1 = Math.max(t.y1, (f.y + 0.3) * g.d);
+  }
+  return t;
+}
+
+/* il rettangolo che tiene dentro palco e fari, in metri, con un filo d'aria
+   attorno per le icone e i nomi: è quello che inquadra il pulsante «tutto» */
+function riquadroTutto() {
+  const g = stageGeo();
+  const r = { x0: 0, y0: 0, x1: g.w, y1: g.d };
+  for (const f of state.fixtures) {
+    r.x0 = Math.min(r.x0, f.x * g.w);
+    r.x1 = Math.max(r.x1, f.x * g.w);
+    r.y0 = Math.min(r.y0, f.y * g.d);
+    r.y1 = Math.max(r.y1, f.y * g.d);
+  }
+  const ax = g.w * VISTA_MARGINE;
+  const ay = g.d * VISTA_MARGINE;
+  return { x0: r.x0 - ax, y0: r.y0 - ay, x1: r.x1 + ax, y1: r.y1 + ay };
+}
 
 /* Avvicinare allontana dal centro del riquadro tutto quello che c'è
    disegnato, perciò basta applicare la lente al palco: fari, fasci e griglia
    ci stanno sopra e la seguono. */
 function lente(v, larg, alt) {
-  if (vistaZoom === VISTA_MIN && !vistaPan.x && !vistaPan.y) return v;
+  if (vistaZoom === 1 && !vistaPan.x && !vistaPan.y) return v;
   const cx = larg / 2, cy = alt / 2;
   return {
     scala: v.scala * vistaZoom,
@@ -349,33 +391,34 @@ function lente(v, larg, alt) {
   };
 }
 
-/* mini = miniatura di un preset: quelle non vengono mai avvicinate */
-function vista(w, h, mini) {
+/* un filo di margine anche in pixel: i fari sul bordo hanno un'icona e un
+   nome da far stare dentro */
+function orloVista(larg, alt) {
+  return Math.min(22, alt * 0.06, larg * 0.06);
+}
+
+/* Il riquadro di partenza: il palco al centro, con un po' d'aria attorno.
+   Non si allarga per i fari che stanno fuori — uno in fondo alla sala
+   ridurrebbe il palco a un puntino — ma è sempre lo stesso: il 100% vuol
+   dire una cosa sola, e per andare a prendere i fari lontani c'è la lente. */
+function vistaBase(larg, alt) {
   const g = stageGeo();
-  const larg = w || cw;
-  const alt = h || ch;
-  // quanto spazio tenere sui quattro lati, in frazioni di palco: quello che
-  // serve ai fari che stanno fuori, mai meno del margine minimo
-  const bordi = [VISTA_MARGINE, VISTA_MARGINE, VISTA_MARGINE, VISTA_MARGINE];
-  for (const f of state.fixtures) {
-    bordi[0] = Math.max(bordi[0], -f.x);      // a sinistra
-    bordi[1] = Math.max(bordi[1], f.x - 1);   // a destra
-    bordi[2] = Math.max(bordi[2], -f.y);      // dietro
-    bordi[3] = Math.max(bordi[3], f.y - 1);   // davanti
-  }
-  // a scatti di un decimo, così il palco non balla mentre si trascina un faro
-  const [sx, dx, su, giu] = bordi.map((v) => Math.ceil(v * 10) / 10 + 0.05);
-  // un filo di margine anche in pixel: i fari sul bordo hanno un'icona e un
-  // nome da far stare dentro
-  const orlo = Math.min(22, alt * 0.06, larg * 0.06);
-  const scala = Math.min((larg - 2 * orlo) / (g.w * (1 + sx + dx)),
-                         (alt - 2 * orlo) / (g.d * (1 + su + giu)));
-  const v = {
+  const orlo = orloVista(larg, alt);
+  const scala = Math.min((larg - 2 * orlo) / (g.w * (1 + 2 * VISTA_MARGINE)),
+                         (alt - 2 * orlo) / (g.d * (1 + 2 * VISTA_MARGINE)));
+  return {
     scala,                                  // pixel per metro
     w: g.w * scala, h: g.d * scala,         // il palco, in pixel
-    ox: (larg - g.w * (1 + sx + dx) * scala) / 2 + g.w * sx * scala,
-    oy: (alt - g.d * (1 + su + giu) * scala) / 2 + g.d * su * scala,
+    ox: (larg - g.w * scala) / 2,
+    oy: (alt - g.d * scala) / 2,
   };
+}
+
+/* mini = miniatura di un preset: quelle non vengono mai avvicinate */
+function vista(w, h, mini) {
+  const larg = w || cw;
+  const alt = h || ch;
+  const v = vistaBase(larg, alt);
   return mini ? v : lente(v, larg, alt);
 }
 
@@ -1994,8 +2037,8 @@ function patchDaTaratura(r, misure) {
   const g = stageGeo();
   return {
     // un faro può stare fuori dal palco: sulla mappa c'è posto anche lì
-    x: Math.max(-1, Math.min(2, r.P.x / g.w)),
-    y: Math.max(-1, Math.min(2, r.P.y / g.d)),
+    x: Math.max(-FUORI_MAX, Math.min(1 + FUORI_MAX, r.P.x / g.w)),
+    y: Math.max(-FUORI_MAX, Math.min(1 + FUORI_MAX, r.P.y / g.d)),
     h: Math.max(0, Math.min(30, r.h)),
     rot: ((r.fi0 % 360) + 360) % 360,
     panzero: 0,
@@ -2289,29 +2332,48 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
-/* Il palco: un rettangolo con le proporzioni vere delle misure, con la
-   griglia da un metro dentro. Tutt'attorno resta spazio per i fari che stanno
-   fuori — davanti al proscenio, di lato, dietro il fondale. */
+/* Quanti metri fra una linea e l'altra della griglia: si sale di passo
+   (1, 2, 5, 10, 20…) perché le linee non si infittiscano allontanandosi. */
+function passoGriglia(scala) {
+  for (const p of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]) {
+    if (p * scala >= 28) return p;
+  }
+  return null;   // talmente lontani che la griglia non si legge: si lascia
+}
+
+/* La griglia metrica su tutta la tavola, palco compreso: fuori dal palco è
+   l'unico modo di misurare a occhio, ed è lì che stanno quasi tutti i fari. */
+function disegnaGriglia(v) {
+  const passo = passoGriglia(v.scala);
+  if (!passo) return;
+  const da = (o, dim) => [Math.ceil((-o / v.scala) / passo) * passo,
+                          (dim - o) / v.scala];
+  const [x0, x1] = da(v.ox, cw);
+  const [y0, y1] = da(v.oy, ch);
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let m = x0; m <= x1; m += passo) {
+    const x = Math.round(v.ox + m * v.scala) + 0.5;
+    ctx.moveTo(x, 0); ctx.lineTo(x, ch);
+  }
+  for (let m = y0; m <= y1; m += passo) {
+    const y = Math.round(v.oy + m * v.scala) + 0.5;
+    ctx.moveTo(0, y); ctx.lineTo(cw, y);
+  }
+  ctx.stroke();
+}
+
+/* Il palco: un rettangolo con le proporzioni vere delle misure, posato sulla
+   tavola. La griglia continua tutt'attorno, perché i fari stanno quasi sempre
+   fuori — davanti al proscenio, di lato, in fondo alla sala. */
 function disegnaPalco() {
   const g = stageGeo();
   const v = vista();
   ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.022)';
+  disegnaGriglia(v);
+  ctx.fillStyle = 'rgba(255,255,255,0.035)';
   ctx.fillRect(v.ox, v.oy, v.w, v.h);
-
-  const passo = g.w > 24 || g.d > 24 ? 5 : 1;   // metri tra una linea e l'altra
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let m = passo; m < g.w - 1e-6; m += passo) {
-    const x = v.ox + m * v.scala;
-    ctx.moveTo(x, v.oy); ctx.lineTo(x, v.oy + v.h);
-  }
-  for (let m = passo; m < g.d - 1e-6; m += passo) {
-    const y = v.oy + m * v.scala;
-    ctx.moveTo(v.ox, y); ctx.lineTo(v.ox + v.w, y);
-  }
-  ctx.stroke();
 
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.strokeRect(v.ox, v.oy, v.w, v.h);
@@ -2485,17 +2547,30 @@ let dragMode = null; // 'move' | 'rotate' | 'pan'
 let dragFixture = null;
 let dragOff = { x: 0, y: 0 };
 
-/* --------------------------------------------------------- avvicinare
+/* ------------------------------------------- muoversi sulla tavola
    Due dita sul trackpad che si allargano avvicinano la mappa, due dita che
    scorrono la spostano; sul touchscreen vale la pizzicata. Col mouse restano
-   i pulsanti in basso a destra e il trascinamento del fondo. La mappa non si
-   stacca mai dal riquadro: lo spostamento arriva fin dove il palco avanza
-   fuori e non oltre, così non si finisce mai a guardare il vuoto. */
+   i pulsanti in basso a destra e il fondo da trascinare. Ci si muove su tutta
+   la tavola ma non oltre: al bordo ci si ferma, così non si finisce mai a
+   guardare il vuoto senza sapere dove si è andati a finire. */
 function limitaVista() {
-  const maxX = cw * (vistaZoom - 1) / 2;
-  const maxY = ch * (vistaZoom - 1) / 2;
-  vistaPan.x = Math.max(-maxX, Math.min(maxX, vistaPan.x));
-  vistaPan.y = Math.max(-maxY, Math.min(maxY, vistaPan.y));
+  if (!cw || !ch) return;
+  const b = vistaBase(cw, ch);
+  const t = tavola();
+  const scala = b.scala * vistaZoom;
+  // o = dove finisce sullo schermo il metro zero; da lì si sa che pezzo di
+  // tavola si sta guardando, e lo si tiene dentro i suoi bordi
+  const dentro = (o0, pan, dim, m0, m1) => {
+    const senzaPan = (o0 - dim / 2) * vistaZoom + dim / 2;
+    const largo = dim - m1 * scala;   // più in là si vedrebbe oltre il bordo
+    const stretto = -m0 * scala;
+    const o = largo <= stretto
+      ? Math.max(largo, Math.min(stretto, senzaPan + pan))
+      : (dim - (m0 + m1) * scala) / 2;   // tavola più piccola del riquadro
+    return o - senzaPan;
+  };
+  vistaPan.x = dentro(b.ox, vistaPan.x, cw, t.x0, t.x1);
+  vistaPan.y = dentro(b.oy, vistaPan.y, ch, t.y0, t.y1);
 }
 
 /* avvicina tenendo fermo il punto che sta sotto le dita */
@@ -2506,32 +2581,56 @@ function avvicinaVista(px, py, nuovo) {
   const k = z / vistaZoom;
   vistaPan.x = px - cx - (px - cx - vistaPan.x) * k;
   vistaPan.y = py - cy - (py - cy - vistaPan.y) * k;
-  vistaZoom = z <= VISTA_MIN + 1e-4 ? VISTA_MIN : z;
-  if (vistaZoom === VISTA_MIN) vistaPan = { x: 0, y: 0 };
+  vistaZoom = z;
+  vistaToccata = true;
   limitaVista();
   renderVista();
 }
 
 function spostaVista(dx, dy) {
-  if (vistaZoom === VISTA_MIN) return;
+  if (!dx && !dy) return;
   vistaPan.x += dx;
   vistaPan.y += dy;
+  vistaToccata = true;
   limitaVista();
-}
-
-function vistaIntera() {
-  vistaZoom = VISTA_MIN;
-  vistaPan = { x: 0, y: 0 };
   renderVista();
 }
 
-/* il cartellino con l'ingrandimento: i pulsanti ci sono sempre, la
-   percentuale e il "tutto il palco" solo quando c'è qualcosa a cui tornare */
+/* Inquadra palco e fari tutti insieme: è la vista di partenza e quella a cui
+   riporta il pulsante «tutto». Se ci stanno già nel riquadro di base si torna
+   semplicemente al 100%, senza uno zoom storto per pochi centimetri. */
+function inquadraTutto() {
+  if (!cw || !ch) return;
+  const b = vistaBase(cw, ch);
+  const r = riquadroTutto();
+  const orlo = orloVista(cw, ch);
+  const z = Math.min((cw - 2 * orlo) / Math.max(1e-6, (r.x1 - r.x0) * b.scala),
+                     (ch - 2 * orlo) / Math.max(1e-6, (r.y1 - r.y0) * b.scala));
+  if (z >= 1) {
+    vistaZoom = 1;
+    vistaPan = { x: 0, y: 0 };
+  } else {
+    vistaZoom = Math.max(VISTA_MIN, z);
+    const scala = b.scala * vistaZoom;
+    const centra = (o0, dim, m0, m1) => (dim - (m0 + m1) * scala) / 2
+      - ((o0 - dim / 2) * vistaZoom + dim / 2);
+    vistaPan = {
+      x: centra(b.ox, cw, r.x0, r.x1),
+      y: centra(b.oy, ch, r.y0, r.y1),
+    };
+    limitaVista();
+  }
+  vistaToccata = false;
+  renderVista();
+}
+
+/* il cartellino: i pulsanti ci sono sempre, la percentuale e il «tutto»
+   compaiono da quando ci si è mossi a mano */
 function renderVista() {
   const val = $('#zoom-val');
   if (val) val.textContent = `${Math.round(vistaZoom * 100)}%`;
   const box = $('#stage-zoom');
-  if (box) box.classList.toggle('vicino', vistaZoom > VISTA_MIN);
+  if (box) box.classList.toggle('vicino', vistaToccata);
 }
 
 let gestureInCorso = false;   // pizzicata in corso su Safari (vedi in fondo)
@@ -2621,13 +2720,11 @@ canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
   } else {
     deselezionaTutti();
-    // il fondo della mappa avvicinata si trascina per spostarsi dentro
-    if (vistaZoom > VISTA_MIN) {
-      dragMode = 'pan';
-      dragOff = { x: px, y: py };
-      canvas.setPointerCapture(e.pointerId);
-      canvas.style.cursor = 'grabbing';
-    }
+    // il fondo della tavola si trascina per spostarsi
+    dragMode = 'pan';
+    dragOff = { x: px, y: py };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = 'grabbing';
   }
 });
 
@@ -2673,8 +2770,7 @@ canvas.addEventListener('pointermove', (e) => {
         return;
       }
     }
-    canvas.style.cursor = fixtureAt(px, py) ? 'grab'
-      : (vistaZoom > VISTA_MIN ? 'move' : 'default');
+    canvas.style.cursor = fixtureAt(px, py) ? 'grab' : 'move';
     return;
   }
   const rect = canvas.getBoundingClientRect();
@@ -2684,8 +2780,8 @@ canvas.addEventListener('pointermove', (e) => {
   if (dragMode === 'move') {
     // si può uscire dal palco: i fari stanno spesso davanti o di lato
     const n = puntoNorm(px - dragOff.x, py - dragOff.y);
-    f.x = Math.max(-1, Math.min(2, n.x));
-    f.y = Math.max(-1, Math.min(2, n.y));
+    f.x = Math.max(-FUORI_MAX, Math.min(1 + FUORI_MAX, n.x));
+    f.y = Math.max(-FUORI_MAX, Math.min(1 + FUORI_MAX, n.y));
     pushFixturePatch(f.id, { x: f.x, y: f.y });
   } else {
     // la direzione è quella vera sul palco, non quella sullo schermo
@@ -2703,7 +2799,7 @@ canvas.addEventListener('pointermove', (e) => {
 function finePuntatore(e) {
   dita.delete(e.pointerId);
   if (dita.size < 2) pinch = null;
-  if (dragMode === 'pan') canvas.style.cursor = vistaZoom > VISTA_MIN ? 'move' : 'default';
+  if (dragMode === 'pan') canvas.style.cursor = 'move';
   fermaTrascinamento();
 }
 canvas.addEventListener('pointerup', finePuntatore);
@@ -2723,12 +2819,10 @@ canvas.addEventListener('wheel', (e) => {
   }
   const f = fixtureAt(px, py);
   if (!f) {
-    // due dita che scorrono sul fondo: ci si sposta dentro la mappa
-    if (vistaZoom > VISTA_MIN) {
-      e.preventDefault();
-      const d = passoRuota(e);
-      spostaVista(-d.x, -d.y);
-    }
+    // due dita che scorrono sul fondo: ci si sposta sulla tavola
+    e.preventDefault();
+    const d = passoRuota(e);
+    spostaVista(-d.x, -d.y);
     return;
   }
   e.preventDefault();
@@ -2759,11 +2853,11 @@ canvas.addEventListener('gestureend', (e) => {
   gestureInCorso = false;
 });
 
-/* doppio clic sul fondo: si torna a vedere tutto il palco */
+/* doppio clic sul fondo: si torna a vedere palco e fari tutti insieme */
 canvas.addEventListener('dblclick', (e) => {
   const rect = canvas.getBoundingClientRect();
   if (fixtureAt(e.clientX - rect.left, e.clientY - rect.top)) return;
-  vistaIntera();
+  inquadraTutto();
 });
 
 /* I pulsanti, per chi ha il mouse: avvicinano e allontanano dal centro. Se la
@@ -2776,7 +2870,7 @@ function alClic(sel, fn) {
 }
 alClic('#zoom-in', () => avvicinaVista(cw / 2, ch / 2, vistaZoom * 1.4));
 alClic('#zoom-out', () => avvicinaVista(cw / 2, ch / 2, vistaZoom / 1.4));
-alClic('#zoom-reset', vistaIntera);
+alClic('#zoom-reset', inquadraTutto);
 
 /* ---------------------------------------------------------------- modali */
 function openModal(id) { $(id).classList.remove('hidden'); }
@@ -2831,8 +2925,8 @@ async function duplicaFaro(f) {
     count: n,
     channels: fixtureChannels(f).map((c) => ({ ...c })),
     values: [...f.values],
-    x: Math.min(2, f.x + 0.05),
-    y: Math.min(2, f.y + 0.05),
+    x: Math.min(1 + FUORI_MAX, f.x + 0.05),
+    y: Math.min(1 + FUORI_MAX, f.y + 0.05),
     rot: f.rot,
     panzero: f.panzero || 0,
     h: altezzaFaro(f),
@@ -3477,8 +3571,8 @@ async function init() {
   renderFixtures();
   renderPresets();
   renderDmx();
-  renderVista();
   resizeCanvas();
+  inquadraTutto();
   requestAnimationFrame(draw);
   checkForUpdate();
   setInterval(async () => {

@@ -96,20 +96,27 @@ Daslight: solo quello che serve.
   posizione. Si possono unire solo fari con gli **stessi canali** (un par e una
   testa mobile no). Maiusc+clic su un faro già scelto lo toglie, un clic sul
   palco vuoto azzera la scelta.
-- **Anteprima palco**: pianta vista dall'alto. Il **palco è il rettangolo**
-  disegnato al centro, con le proporzioni vere delle misure che hai messo e la
-  griglia da un metro; tutt'intorno resta spazio libero, perché i fari possono
-  stare anche **fuori dal palco** — in platea, di lato, dietro il fondale — che
-  è poi dove stanno quasi sempre. Trascina i fari per posizionarli, ruotali con
-  la maniglia bianca (o con la rotellina del mouse) per orientare il fascio. Il
-  colore e l'intensità del fascio seguono i fader (RGB + UV reso come viola).
-- **Avvicinare la mappa**: due dita sul trackpad (la pizzicata) ingrandiscono
-  il palco fino a otto volte, due dita che scorrono lo spostano; col mouse ci
-  sono **Ctrl**+rotellina e i due pulsanti in basso a destra, e in ogni caso si
-  sposta trascinando il fondo. Serve quando i fari sono tanti e vicini e le
-  icone si accavallano. Si torna a vedere tutto il palco con **tutto** o con un
-  doppio clic sul fondo. È solo un modo di guardare: i fari restano dove sono
-  e si trascinano e si puntano come prima, e le miniature dei preset mostrano
+- **Anteprima palco**: pianta vista dall'alto, e non un riquadro ma una
+  **tavola da disegno larga**. Il **palco è il rettangolo** al centro, con le
+  proporzioni vere delle misure che hai messo; la **griglia metrica** continua
+  tutt'intorno, perché è fuori dal palco che stanno quasi tutti i fari — in
+  platea, di lato, in fondo alla sala, in galleria. La tavola arriva a **tre
+  palchi di distanza** da ogni lato, e si allarga ancora se ci metti un faro
+  più in là: un faro può stare fino a **otto palchi** dal centro. Trascina i
+  fari per posizionarli, ruotali con la maniglia bianca (o con la rotellina del
+  mouse) per orientare il fascio. Il colore e l'intensità del fascio seguono i
+  fader (RGB + UV reso come viola). Anche il **mirino** punta ovunque sulla
+  tavola, non solo sul palco.
+- **Muoversi sulla tavola**: due dita sul trackpad (la pizzicata) avvicinano
+  fino a otto volte, due dita che scorrono spostano; col mouse ci sono
+  **Ctrl**+rotellina e i due pulsanti in basso a destra, e in ogni caso si
+  sposta **trascinando il fondo**. Ci si ferma al bordo della tavola, così non
+  si finisce nel vuoto senza sapere dove si è andati. Il pulsante **tutto** (o
+  un doppio clic sul fondo) inquadra palco e fari tutti insieme, allontanando
+  quanto serve: è anche la vista con cui il programma si apre. Il 100% è
+  sempre la stessa cosa — il palco che riempie il riquadro — qualunque cosa
+  ci sia attorno. È solo un modo di guardare: i fari restano dove sono e si
+  trascinano e si puntano come prima, e le miniature dei preset mostrano
   sempre il palco intero.
 - **Teste mobili nell'anteprima**: la direzione in cui orienti un faro sulla
   mappa diventa il suo **zero**; da lì il canale **pan** fa ruotare il fascio

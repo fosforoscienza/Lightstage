@@ -103,10 +103,12 @@
   }
 
   /* Posizione di un faro sulla mappa: 0..1 va da un capo all'altro del palco,
-     ma un faro può stare anche fuori (davanti al proscenio, di lato). */
+     ma un faro può stare molto più in là — in fondo alla sala, su una torre
+     di lato. Il limite è largo, serve solo a non perderlo nel nulla. */
+  const FUORI_MAX = 8;
   function sanitizePos(raw, difetto) {
     const v = parseFloat(raw);
-    return isNaN(v) ? difetto : Math.max(-1, Math.min(2, v));
+    return isNaN(v) ? difetto : Math.max(-FUORI_MAX, Math.min(1 + FUORI_MAX, v));
   }
 
   /* Zero di un movimento: non è un valore DMX ma un riferimento. Una testa

@@ -5,6 +5,28 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 5.27
+
+- **La mappa è una tavola da disegno larga**: non più un riquadro che si
+  stringe attorno al palco, ma una superficie che arriva a **tre palchi di
+  distanza** da ogni lato — e si allarga ancora se ci metti un faro più in là.
+  Serve perché i fari stanno quasi tutti fuori dal palco, e adesso ci possono
+  stare **davvero lontano**: fino a otto palchi dal centro, invece di uno.
+  Così un faro in fondo alla sala, su una torre di lato o in galleria ha il suo
+  posto sulla mappa, e il mirino ci punta come su qualsiasi altro punto.
+- **La griglia metrica continua su tutta la tavola**, non solo dentro il palco,
+  e il passo cresce allontanandosi (1, 2, 5, 10, 20 m…) perché le linee
+  restino leggibili: fuori dal palco è l'unico modo di misurare a occhio.
+- **Ci si sposta sempre**, non solo da avvicinati: trascinando il fondo, con
+  due dita che scorrono sul trackpad, con la pizzicata. Al bordo della tavola
+  ci si ferma, così non si finisce nel vuoto senza sapere dove si è andati.
+- Il pulsante **tutto** (o un doppio clic sul fondo) inquadra **palco e fari
+  tutti insieme**, allontanando quanto serve, ed è anche la vista con cui il
+  programma si apre — come prima, ma ora regge anche i fari lontanissimi.
+  In cambio il **100% vuol dire sempre la stessa cosa**: il palco che riempie
+  il riquadro, qualunque cosa ci sia attorno. Prima cambiava scala da sé a
+  ogni faro trascinato fuori.
+
 ## 5.26
 
 - **Il verso di pan e tilt si corregge a mano**: sulla scheda di ogni testa ci

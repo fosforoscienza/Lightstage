@@ -266,11 +266,16 @@ def altezza_salvata(raw, taratura):
     return h
 
 
+# Posizione di un faro sulla mappa: 0..1 va da un capo all'altro del palco,
+# ma un faro può stare molto più in là — in fondo alla sala, su una torre di
+# lato. Il limite è largo, serve solo a non perderlo nel nulla.
+FUORI_MAX = 8.0
+
+
 def sanitize_pos(raw, default):
-    """Posizione di un faro sulla mappa: 0..1 va da un capo all'altro del
-    palco, ma un faro può stare anche fuori (davanti al proscenio, di lato)."""
+    """dove sta un faro lungo un lato, in palchi: 0 e 1 sono i bordi"""
     try:
-        return max(-1.0, min(2.0, float(raw)))
+        return max(-FUORI_MAX, min(1.0 + FUORI_MAX, float(raw)))
     except (TypeError, ValueError):
         return default
 
