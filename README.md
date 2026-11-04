@@ -49,6 +49,26 @@ Daslight: solo quello che serve.
   preset lo toglie dal copione. In alto a destra ci sono **FTB** e **Blackout**
   con le loro durate, come nella Preset grid. Il PDF sta nella cartella `copioni/` (nella versione web, nel
   browser).
+- **Musica**: il pulsante 🎵 in basso a destra (o il tasto **M**) apre il
+  pannello della musica, che resta sopra tutte le schermate. Si carica un
+  brano (mp3, wav, m4a, ogg… — anche trascinandolo sul pannello), si preme ▶
+  e le luci vanno a tempo: l'**intensità** segue il volume e salta sui colpi
+  della cassa, il **colore** cambia a ogni colpo e le **teste mobili** si
+  spostano a tempo attorno alla posizione che hanno, una sì e una no a
+  specchio. Il brano suona dalle casse del computer e intanto LightStage lo
+  ascolta; i BPM stimati compaiono in alto nel pannello. Si sceglie:
+  **Fari** (tutti, o solo quelli scelti sulla mappa in quel momento),
+  **Colori** (tutti *uguali*, *arcobaleno* con un colore per faro, oppure
+  *del preset*: restano i colori della scena e la musica muove solo
+  intensità e teste), **Teste** (ferme, poco, medio, tanto),
+  **Reattività** (poco = le luci respirano col volume, tanto = lampeggiano
+  sulla cassa), **Luminosità** e **Volume**. La musica gira **attorno alla
+  scena in onda**: se lanci un preset o muovi un fader mentre suona, quella
+  diventa la nuova scena; in pausa (o con *Luci a tempo* spente) i fari
+  tornano esattamente dov'erano. **FTB** e **Blackout** funzionano come
+  sempre, e un preset salvato mentre suona memorizza la scena, non l'attimo
+  di musica. Il brano non viene salvato nello show: va ricaricato a ogni
+  apertura.
 - **Come entra un preset**: ogni preset porta con sé la **durata della
   dissolvenza** con cui entra (0 / 0,5 / 1 / 1,5 s; 0 = cambio netto) e se le
   **teste mobili si spostano accese o al buio**. I comandi sono gli stessi
@@ -76,7 +96,8 @@ Daslight: solo quello che serve.
   sempre alla schermata principale.
 - **Scorciatoie da tastiera** (legenda sempre visibile nel piè di pagina):
   **1–9 e 0** lanciano i preset, **B** blackout, **F** fade to black,
-  **N** nuovo faro, **G** griglia preset, **C** copione, **Cmd/Ctrl+C**
+  **N** nuovo faro, **G** griglia preset, **C** copione, **M** musica,
+  **Cmd/Ctrl+C**
   connetti il cavo, **Cmd/Ctrl+S** salva lo show (nella versione web salva il
   setup online, altrimenti scarica il file), **Cmd/Ctrl+O** apre la finestra
   Online (solo versione web).

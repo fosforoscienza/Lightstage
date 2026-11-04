@@ -5,6 +5,25 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 6.0 — *strutturale*
+
+- **Le luci vanno a tempo di musica**: nuovo pannello **🎵 Musica** (pulsante
+  in basso a destra in ogni schermata, o tasto **M**). Si carica un brano, si
+  preme ▶ e i fari dello show seguono la canzone: l'intensità respira col
+  volume e salta sui colpi della cassa, il colore cambia a ogni colpo, le
+  teste mobili si spostano a tempo attorno alla loro posizione, a specchio
+  una sì e una no. I BPM stimati si leggono nel pannello, accanto allo
+  spettro del brano.
+- Si sceglie quali **fari** (tutti o quelli scelti sulla mappa), i **colori**
+  (uguali, arcobaleno, oppure quelli del preset), quanto si muovono le
+  **teste**, la **reattività** ai colpi, la **luminosità** massima e il
+  **volume**. Le scelte restano memorizzate.
+- La musica gira **attorno alla scena in onda**: un preset lanciato o un
+  fader mosso mentre suona diventano la nuova scena, e in pausa i fari
+  tornano esattamente dov'erano. FTB e Blackout funzionano come sempre; un
+  preset salvato o uno show esportato mentre suona memorizzano la scena, non
+  l'attimo di musica.
+
 ## 5.27
 
 - **La mappa è una tavola da disegno larga**: non più un riquadro che si

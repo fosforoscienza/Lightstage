@@ -1280,3 +1280,102 @@ body {
   border-radius: 4px;
   flex: 0 0 auto;
 }
+
+/* --------------------------------------------------------------- musica
+   Il pannello del brano resta sopra tutte le schermate (anche griglia e
+   copione), così la musica si comanda da ovunque. */
+#musica {
+  position: fixed;
+  right: 12px;
+  bottom: 52px;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: rgba(22, 26, 34, 0.97);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+}
+#musica.sopra { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+#musica header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#musica .mu-titolo { font-size: 14px; font-weight: 700; }
+#musica .mu-bpm {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+#musica .mu-chiudi {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+#musica .mu-chiudi:hover { background: #222938; color: var(--text); }
+#musica .mu-riga {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+#musica .mu-file .btn { padding: 4px 10px; font-size: 12px; }
+#musica .mu-nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+#musica .mu-trasporto .btn { padding: 4px 10px; font-size: 12px; min-width: 36px; }
+#musica .mu-trasporto .btn:disabled { opacity: 0.4; cursor: default; }
+#musica .mu-tempo, #musica .mu-durata {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+}
+#musica .mu-durata { text-align: right; }
+#musica input[type=range] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+#musica .mu-spettro {
+  width: 100%;
+  height: 44px;
+  background: #0a0c10;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: block;
+}
+#musica .mu-lbl {
+  flex: 0 0 74px;
+  color: var(--text-dim);
+}
+#musica .mu-nota { color: var(--text-dim); font-size: 11px; }
+#musica .mu-nota.warn { color: var(--held); }
+#musica .mu-slider { cursor: pointer; }
+
+/* il pulsante nel piè di pagina: verde mentre suona, e batte sui colpi */
+.js-musica { font-size: 12px; padding: 4px 10px; }
+.js-musica.suona { border-color: #43a758; color: #9be3a9; }
+.js-musica.colpo { animation: colpo-musica 0.25s ease-out; }
+@keyframes colpo-musica {
+  from { background: rgba(67, 167, 88, 0.55); }
+  to { background: transparent; }
+}

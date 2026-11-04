@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '5.27';
+const APP_VERSION = '6.0';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -1396,12 +1396,19 @@ vaiA('#btn-copione-to-grid', () => {
 async function savePreset(slot, existing) {
   const name = prompt('Nome del preset:', existing ? existing.name : `Preset ${slot + 1}`);
   if (name === null) return;
-  // il preset nasce con il fade e il movimento scelti accanto al palco
-  const res = await api('POST', `/api/presets/${slot}`, {
-    name: name.trim() || `Preset ${slot + 1}`,
-    fade: existing ? presetFade(existing) : fadeGroupValue('#preset-fade'),
-    dark: existing ? presetDark(existing) : defaultDark(),
-  });
+  // con la musica accesa nel preset va la scena, non l'attimo di musica
+  if (typeof musicaPrimaDiSalvare === 'function') await musicaPrimaDiSalvare();
+  let res;
+  try {
+    // il preset nasce con il fade e il movimento scelti accanto al palco
+    res = await api('POST', `/api/presets/${slot}`, {
+      name: name.trim() || `Preset ${slot + 1}`,
+      fade: existing ? presetFade(existing) : fadeGroupValue('#preset-fade'),
+      dark: existing ? presetDark(existing) : defaultDark(),
+    });
+  } finally {
+    if (typeof musicaDopoIlSalvataggio === 'function') musicaDopoIlSalvataggio();
+  }
   state.presets = res.presets;
   activePreset = slot;
   presetModificato = false;
@@ -3248,6 +3255,12 @@ function fadeValues(targets, durata, { only = null, skip = null } = {}) {
   });
 }
 
+/* i valori della scena di un faro: con la musica accesa quelli su cui la
+   musica sta girando (vedi audio.js), altrimenti quelli dei fader */
+function valoriScena(f) {
+  return typeof musicaScena === 'function' ? musicaScena(f) : f.values;
+}
+
 function ftbFade(target) {
   return fadeValues(target, fadeGroupValue('#ftb-time') * 1000, { only: ruoliSpegnimento });
 }
@@ -3255,7 +3268,8 @@ function ftbFade(target) {
 function toggleFtb() {
   if (state.fixtures.length === 0) return;
   if (ftbSnapshot === null) {
-    ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...f.values]]));
+    // con la musica accesa si memorizza la scena, non l'attimo di musica
+    ftbSnapshot = new Map(state.fixtures.map((f) => [f.id, [...valoriScena(f)]]));
     setButtonsOn('.js-ftb', true);
     ftbFade(soloLuciAZero());   // il movimento resta dov'è
   } else {
@@ -3292,7 +3306,7 @@ setupFadeGroup(['#preset-fade', '#preset-fade-grid', '#preset-fade-copione'],
 /* scarica lo show come file (backup / trasferimento) */
 function exportShow() {
   const data = {
-    fixtures: state.fixtures,
+    fixtures: state.fixtures.map((f) => ({ ...f, values: [...valoriScena(f)] })),
     presets: state.presets,
     channels: state.channels,
     copioni: state.copioni,
