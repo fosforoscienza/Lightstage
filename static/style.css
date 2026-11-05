@@ -1379,3 +1379,84 @@ body {
   from { background: rgba(67, 167, 88, 0.55); }
   to { background: transparent; }
 }
+
+/* -------------------------------------------- finestrella «Transizione»
+   Si apre dal «…» accanto alle durate: secondi a mano e teste mobili. */
+#trans-pop {
+  position: fixed;
+  z-index: 130;   /* sopra le schermate, il pannello musica e le modali */
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+  font-size: 12px;
+  color: var(--text);
+}
+#trans-pop .tp-tit { font-size: 14px; font-weight: 700; }
+#trans-pop .tp-riga { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#trans-pop .tp-lbl { color: var(--text-dim); flex: 0 0 auto; }
+#trans-pop .tp-riga .tp-lbl { width: 52px; }
+#trans-pop .tp-sec {
+  width: 58px;
+  background: #0d1016;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 13px;
+  text-align: right;
+}
+#trans-pop .tp-sec:focus { outline: none; border-color: var(--accent); }
+#trans-pop .tp-unita { color: var(--text-dim); }
+#trans-pop .tp-teste { display: flex; flex-direction: column; gap: 6px; }
+#trans-pop .tp-teste label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+#trans-pop .tp-teste label:hover { border-color: #3a4356; }
+#trans-pop .tp-teste label:has(input:checked) { border-color: var(--accent); background: rgba(91, 140, 255, 0.1); }
+#trans-pop .tp-teste input { margin-top: 2px; accent-color: var(--accent); }
+#trans-pop .tp-teste b { display: block; font-size: 12px; }
+#trans-pop .tp-teste small { display: block; color: var(--text-dim); font-size: 11px; line-height: 1.35; margin-top: 2px; }
+#trans-pop .tp-azioni { display: flex; justify-content: flex-end; }
+#trans-pop .tp-azioni .btn { padding: 5px 14px; }
+
+/* il «…» accanto alle durate */
+.preset-ctl .pc-fade button.pc-altro { font-weight: 700; }
+.fade-group button.fg-altro { font-weight: 700; }
+
+/* musica: archivio dei brani e finale */
+#musica select, #musica .mu-fin-prima {
+  background: #0d1016;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+#musica .mu-brani { flex: 1; min-width: 0; }
+#musica .mu-fin-preset { flex: 1; min-width: 0; }
+#musica .mu-fin-prima { width: 46px; text-align: right; }
+#musica .mu-archivio .btn { padding: 4px 8px; font-size: 12px; }
+#musica .mu-dado { padding: 3px 9px; font-size: 12px; }
+#musica .mu-fin-prova { padding: 3px 8px; font-size: 11px; margin-left: auto; }
+#musica .mu-sez {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text);
+}
+#musica .mu-fin-ctl .preset-ctl { display: inline-flex; }

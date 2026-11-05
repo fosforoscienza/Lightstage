@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '6.0';
+const APP_VERSION = '6.1';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -10,6 +10,7 @@ const state = {
   presets: [],
   channels: [],
   copioni: [],
+  brani: [],       // musica salvata (vedi audio.js)
   blackout: false,
   // misure vere del palco, in metri (larghezza e profondità)
   stage: { w: 8, d: 6 },
@@ -95,16 +96,34 @@ function fadeGroupValue(sel) {
    schermata griglia): restano sempre allineati fra loro */
 const gruppiFade = new Map();   // chiave di memoria -> funzione che applica
 
-function setupFadeGroup(selectors, storageKey, { allowOff = false } = {}) {
+function setupFadeGroup(selectors, storageKey, { allowOff = false, titolo = 'Durata' } = {}) {
   const gruppi = [].concat(selectors).map((s) => $(s)).filter(Boolean);
+  // in fondo a ogni gruppo un «…» per scrivere i secondi a mano
+  gruppi.forEach((g) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'fg-altro';
+    b.dataset.value = 'altro';
+    b.textContent = '…';
+    b.title = 'Scrivi i secondi a mano (per le dissolvenze lente)';
+    g.append(b);
+  });
   const applica = (valore) => {
     let trovato = false;
-    gruppi.forEach((g) => g.querySelectorAll('button').forEach((b) => {
+    gruppi.forEach((g) => g.querySelectorAll('button:not(.fg-altro)').forEach((b) => {
       const sel = b.dataset.value === valore;
       if (sel) trovato = true;
       b.classList.toggle('sel', sel);
     }));
-    return trovato;
+    const v = leggiSecondi(valore);
+    const aMano = !trovato && valore !== '' && valore !== null && v !== null;
+    gruppi.forEach((g) => {
+      const b = g.querySelector('.fg-altro');
+      b.classList.toggle('sel', aMano);
+      b.dataset.value = aMano ? String(v) : 'altro';
+      b.textContent = aMano ? `${secondiTesto(v)}s` : '…';
+    });
+    return trovato || aMano;
   };
   gruppiFade.set(storageKey, applica);
   // scelta di partenza segnata nell'HTML: ci si torna se quella memorizzata
@@ -117,6 +136,15 @@ function setupFadeGroup(selectors, storageKey, { allowOff = false } = {}) {
   gruppi.forEach((group) => group.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
+    if (btn.classList.contains('fg-altro')) {
+      btn.blur();
+      apriTransizione(btn, () => ({ fade: fadeGroupValue(`#${group.id}`) }), ({ fade }) => {
+        applica(String(fade));
+        localStorage.setItem(storageKey, String(fade));
+        aggiornaControlliPreset();
+      }, { teste: false, titolo });
+      return;
+    }
     const spegni = allowOff && btn.classList.contains('sel');
     applica(spegni ? '' : btn.dataset.value);
     localStorage.setItem(storageKey, spegni ? '' : btn.dataset.value);
@@ -995,6 +1023,18 @@ function impostaCanale(f, i, v) {
    accanto al palco valgono per il prossimo preset che si salva. */
 const FADE_STEPS = [0, 0.5, 1, 1.5];
 const FADE_LABELS = ['0', '0,5', '1', '1,5'];
+/* oltre ai tempi pronti i secondi si possono scrivere a mano, per le
+   transizioni lente: fino a dieci minuti, al decimo di secondo */
+const FADE_MAX = 600;
+
+function secondiTesto(v) {
+  return String(Math.round(v * 10) / 10).replace('.', ',');
+}
+
+function leggiSecondi(testo) {
+  const v = parseFloat(String(testo).replace(',', '.'));
+  return isNaN(v) ? null : Math.max(0, Math.min(FADE_MAX, Math.round(v * 10) / 10));
+}
 /* tempo lasciato alle teste per arrivare, al buio: da un minimo per uno
    spostamento piccolo a un massimo per un giro completo */
 const ATTESA_MIN = 350;
@@ -1002,7 +1042,7 @@ const ATTESA_MAX = 2500;
 
 function presetFade(p) {
   const v = p && typeof p.fade === 'number' ? p.fade : fadeGroupValue('#preset-fade');
-  return FADE_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+  return leggiSecondi(v) ?? 1;
 }
 
 function presetDark(p) {
@@ -1054,6 +1094,16 @@ function costruisciControlliPreset(leggi, scrivi, { orizzontale = false } = {}) 
     gruppo.append(b);
     return b;
   });
+  // «…»: secondi scritti a mano e scelta delle teste, spiegata per bene
+  const altro = document.createElement('button');
+  altro.type = 'button';
+  altro.className = 'pc-altro';
+  altro.addEventListener('click', (e) => {
+    e.stopPropagation();
+    altro.blur();
+    apriTransizione(altro, leggi, scrivi);
+  });
+  gruppo.append(altro);
   const testa = document.createElement('button');
   testa.type = 'button';
   testa.className = 'pc-head';
@@ -1073,6 +1123,12 @@ function costruisciControlliPreset(leggi, scrivi, { orizzontale = false } = {}) 
   const aggiorna = () => {
     const { fade, dark } = leggi();
     bottoni.forEach((b, i) => b.classList.toggle('sel', FADE_STEPS[i] === fade));
+    const aMano = !FADE_STEPS.includes(fade);
+    altro.classList.toggle('sel', aMano);
+    altro.textContent = aMano ? secondiTesto(fade) : '…';
+    altro.title = aMano
+      ? `Entra in dissolvenza di ${secondiTesto(fade)} secondi (clic per cambiare i secondi o le teste mobili)`
+      : 'Altri tempi: scrivi i secondi a mano (per le transizioni lente) e scegli come si spostano le teste mobili';
     testa.classList.toggle('on', !dark);
     testa.title = dark
       ? 'Le teste mobili si spostano al buio, poi le luci risalgono (clic per spostarle accese)'
@@ -1082,6 +1138,111 @@ function costruisciControlliPreset(leggi, scrivi, { orizzontale = false } = {}) 
   const voce = { el: box, aggiorna };
   controlliPreset.push(voce);
   return voce;
+}
+
+/* ---------------------------------------------- finestrella «Transizione»
+   Si apre dal pulsante «…» accanto alle durate: lì i secondi si scrivono a
+   mano e si sceglie, spiegato per esteso, se le teste mobili si spostano
+   accese o al buio. leggi()/scrivi() sono quelli dei comandi da cui si apre;
+   con teste: false (la durata dell'FTB) resta solo la durata. */
+let transPop = null;
+
+function chiudiTransizione() {
+  if (!transPop) return;
+  transPop.el.remove();
+  document.removeEventListener('pointerdown', transPop.fuori, true);
+  window.removeEventListener('keydown', transPop.tasti, true);
+  transPop = null;
+}
+
+function apriTransizione(ancora, leggi, scrivi, { teste = true, titolo = 'Transizione' } = {}) {
+  const giaQui = transPop && transPop.ancora === ancora;
+  chiudiTransizione();
+  if (giaQui) return;   // secondo clic sullo stesso pulsante: si chiude
+  const el = document.createElement('div');
+  el.id = 'trans-pop';
+  el.innerHTML = `
+    <div class="tp-tit"></div>
+    <div class="tp-riga">
+      <span class="tp-lbl">Durata</span>
+      <span class="fade-group tp-passi"></span>
+      <input type="text" inputmode="decimal" class="tp-sec" title="Secondi scritti a mano, fino a ${FADE_MAX}">
+      <span class="tp-unita">s</span>
+    </div>
+    <div class="tp-teste">
+      <span class="tp-lbl">Teste mobili</span>
+      <label><input type="radio" name="tp-dark" value="0">
+        <span><b>Sempre accese</b><small>si spostano illuminate mentre la scena cambia</small></span></label>
+      <label><input type="radio" name="tp-dark" value="1">
+        <span><b>Al buio</b><small>si spengono in dissolvenza, si spostano, poi si riaccendono in dissolvenza</small></span></label>
+    </div>
+    <div class="tp-azioni"><button type="button" class="btn primary tp-fatto">Fatto</button></div>`;
+  el.querySelector('.tp-tit').textContent = titolo;
+  if (!teste) el.querySelector('.tp-teste').remove();
+  const passi = el.querySelector('.tp-passi');
+  const campo = el.querySelector('.tp-sec');
+  const bottoni = FADE_STEPS.map((v, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = `${FADE_LABELS[i]}s`;
+    b.addEventListener('click', () => { b.blur(); scrivi({ fade: v }); aggiorna(); });
+    passi.append(b);
+    return b;
+  });
+  const aggiorna = () => {
+    const { fade, dark } = leggi();
+    bottoni.forEach((b, i) => b.classList.toggle('sel', FADE_STEPS[i] === fade));
+    if (document.activeElement !== campo) campo.value = secondiTesto(fade);
+    el.querySelectorAll('input[name=tp-dark]').forEach((r) => {
+      r.checked = (r.value === '1') === !!dark;
+    });
+  };
+  const applicaCampo = () => {
+    const v = leggiSecondi(campo.value);
+    if (v === null) { campo.value = secondiTesto(leggi().fade); return; }
+    if (v !== leggi().fade) scrivi({ fade: v });
+    campo.value = secondiTesto(v);
+    aggiorna();
+  };
+  campo.addEventListener('change', applicaCampo);
+  campo.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { applicaCampo(); chiudiTransizione(); }
+  });
+  el.querySelectorAll('input[name=tp-dark]').forEach((r) => r.addEventListener('change', () => {
+    scrivi({ dark: r.value === '1' });
+    r.blur();
+    aggiorna();
+  }));
+  el.querySelector('.tp-fatto').addEventListener('click', () => { applicaCampo(); chiudiTransizione(); });
+  // i clic qui dentro non arrivano a griglia, copione e palco
+  el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  el.addEventListener('click', (e) => e.stopPropagation());
+  document.body.append(el);
+  aggiorna();
+
+  // accanto al pulsante, dentro lo schermo
+  const r = ancora.getBoundingClientRect();
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  let x = r.right + 8;
+  if (x + w > innerWidth - 8) x = Math.max(8, r.left - w - 8);
+  let y = Math.min(r.top, innerHeight - h - 8);
+  el.style.left = `${Math.max(8, x)}px`;
+  el.style.top = `${Math.max(8, y)}px`;
+  campo.focus();
+  campo.select();
+
+  const fuori = (e) => {
+    if (el.contains(e.target) || e.target === ancora) return;
+    applicaCampo();
+    chiudiTransizione();
+  };
+  const tasti = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); chiudiTransizione(); }
+  };
+  document.addEventListener('pointerdown', fuori, true);
+  window.addEventListener('keydown', tasti, true);
+  transPop = { el, ancora, fuori, tasti };
 }
 
 /* cambia solo le impostazioni di un preset, senza toccare le luci salvate */
@@ -1483,14 +1644,17 @@ $('#dup-name').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('#btn-dup-confirm').click();
 });
 
-async function loadPreset(slot) {
+/* come: {fade, dark} per entrare con una transizione diversa da quella del
+   preset (il finale di un brano) */
+async function loadPreset(slot, come = {}) {
   const p = state.presets[slot];
   if (!p) return;
   activePreset = slot;
   presetModificato = false;
   renderPresets();
   syncCueUI();
-  const durata = presetFade(p) * 1000;
+  const durata = ('fade' in come ? leggiSecondi(come.fade) ?? 0 : presetFade(p)) * 1000;
+  const alBuio = 'dark' in come ? !!come.dark : presetDark(p);
   const targets = new Map();
   for (const f of state.fixtures) {
     const saved = p.values[String(f.id)];
@@ -1518,7 +1682,7 @@ async function loadPreset(slot) {
     return;
   }
   // teste al buio: si spegne, si sposta, si riaccende sulla nuova posizione
-  if (presetDark(p) && state.fixtures.some(isMovingHead)) {
+  if (alBuio && state.fixtures.some(isMovingHead)) {
     await entraAlBuio(targets, durata);
     return;
   }
@@ -3285,9 +3449,10 @@ function toggleFtb() {
 }
 
 $$('.js-ftb').forEach((b) => b.addEventListener('click', toggleFtb));
-setupFadeGroup(['#ftb-time', '#ftb-time-grid', '#ftb-time-copione'], 'lightstage-ftb-time');
+setupFadeGroup(['#ftb-time', '#ftb-time-grid', '#ftb-time-copione'], 'lightstage-ftb-time',
+  { titolo: 'Durata dell\'FTB' });
 setupFadeGroup(['#preset-fade', '#preset-fade-grid', '#preset-fade-copione'],
-  'lightstage-preset-fade');
+  'lightstage-preset-fade', { titolo: 'Dissolvenza dei preset' });
 
 /* comandi accanto al palco: valgono per il prossimo preset che si salva */
 (function controlliNuovoPreset() {
@@ -3310,6 +3475,7 @@ function exportShow() {
     presets: state.presets,
     channels: state.channels,
     copioni: state.copioni,
+    brani: state.brani,
     blackout: state.blackout,
     stage: state.stage,
   };
@@ -3434,6 +3600,10 @@ function applyRemoteState(s) {
     state.copioni = s.copioni || [];
     if (typeof renderCopioneSelect === 'function') renderCopioneSelect();
     if (typeof updateCopioneCues === 'function') updateCopioneCues();
+  }
+  if (JSON.stringify(state.brani) !== JSON.stringify(s.brani || [])) {
+    state.brani = s.brani || [];
+    if (typeof musicaBraniCambiati === 'function') musicaBraniCambiati();
   }
   if (JSON.stringify(state.presets) !== JSON.stringify(s.presets)) {
     state.presets = s.presets;
@@ -3566,6 +3736,7 @@ async function init() {
   state.presets = s.presets;
   state.channels = s.channels;
   state.copioni = s.copioni || [];
+  state.brani = s.brani || [];
   state.blackout = s.blackout;
   if (s.stage) state.stage = s.stage;
   dmx = s.dmx;

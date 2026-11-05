@@ -13,7 +13,13 @@
    (la "base") e ci gira attorno. Tutto quello che cambia da fuori mentre
    suona — un preset lanciato, un fader mosso a mano — diventa la nuova base,
    così il movimento delle teste si sposta sulla scena nuova invece di
-   tornare indietro. Quando la musica si ferma i fari tornano sulla base. */
+   tornare indietro. Quando la musica si ferma i fari tornano sulla base.
+
+   Un brano si può salvare nello show: il file audio insieme a tutte le
+   scelte e alla sua "coreografia", cioè la sequenza di colori e movimenti,
+   che ripartendo dall'inizio è sempre la stessa. Ogni brano può avere un
+   finale: un preset su cui le luci arrivano quando la musica finisce (o
+   qualche secondo prima), con la sua transizione. */
 
 const MUSICA_KEY = 'lightstage-musica';
 
@@ -46,6 +52,14 @@ const musica = {
     volume: 0.9,          // 0..1
   },
   scelti: [],             // i fari fissati con «Scelti»
+  // brano salvato
+  brano: null,            // id del brano salvato in uso (null = non salvato)
+  file: null,             // il file aperto, finché non è salvato
+  manca: false,           // il brano salvato non ha (qui) il suo file
+  seme: (Math.random() * 4294967296) >>> 0,   // la coreografia
+  finale: { preset: null, prima: 0, fade: 3, dark: false },
+  finaleFatto: false,     // le luci sono già andate sul finale
+  salvaTimer: null,
   // motore
   timer: null,
   ultimoTick: 0,
@@ -89,6 +103,25 @@ function musicaSalvaOpzioni() {
   try { localStorage.setItem(MUSICA_KEY, JSON.stringify(musica.opz)); } catch (err) { /* pazienza */ }
 }
 
+/* Una scelta è cambiata: con un brano salvato va nel brano (poco dopo, così
+   trascinare un cursore non manda cento richieste), altrimenti resta nel
+   browser come scelta di partenza. */
+function musicaCambiato() {
+  if (musica.brano === null) { musicaSalvaOpzioni(); return; }
+  clearTimeout(musica.salvaTimer);
+  const id = musica.brano;
+  musica.salvaTimer = setTimeout(() => {
+    musica.salvaTimer = null;
+    api('PUT', `/api/brani/${id}`, {
+      opz: musica.opz, scelti: musica.scelti, seme: musica.seme, finale: musica.finale,
+    }).then((res) => { state.brani = res.brani; musicaRenderBrani(); }).catch(console.error);
+  }, 400);
+}
+
+function musicaBranoSalvato(id = musica.brano) {
+  return (state.brani || []).find((b) => b.id === id) || null;
+}
+
 /* ------------------------------------------------------------ pannello */
 const musicaUI = {};
 
@@ -102,8 +135,14 @@ function musicaCostruisciPannello() {
       <span class="mu-bpm" title="Battiti al minuto, stimati dai colpi della cassa">&mdash; BPM</span>
       <button type="button" class="mu-chiudi" title="Nascondi il pannello (la musica continua) — tasto M">&#10005;</button>
     </header>
+    <div class="mu-riga mu-archivio">
+      <select class="mu-brani" title="I brani salvati nello show"></select>
+      <button type="button" class="btn primary mu-salva" title="Salva il brano nello show, con tutte le scelte e il finale">&#128190; Salva</button>
+      <button type="button" class="btn ghost mu-rinomina" title="Rinomina il brano">&#9998;</button>
+      <button type="button" class="btn ghost mu-elimina" title="Elimina il brano dallo show">&#10005;</button>
+    </div>
     <div class="mu-riga mu-file">
-      <label class="btn ghost" title="Carica un brano (mp3, wav, m4a, ogg…) — o trascinalo qui">&#128194; Brano
+      <label class="btn ghost" title="Apri un file audio (mp3, wav, m4a, ogg…) — o trascinalo qui">&#128194; File
         <input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
       </label>
       <span class="mu-nome">Nessun brano caricato</span>
@@ -160,6 +199,26 @@ function musicaCostruisciPannello() {
       <span class="mu-lbl">Volume</span>
       <input type="range" data-opz="volume" min="0" max="100">
     </label>
+    <div class="mu-riga">
+      <span class="mu-lbl">Coreografia</span>
+      <button type="button" class="btn ghost mu-dado" title="Un'altra sequenza di colori e movimenti. Ripartendo dall'inizio il brano rifà sempre la stessa: salvato, se la porta dietro">&#127922; Un'altra</button>
+      <span class="mu-nota">ogni volta uguale, dall'inizio</span>
+    </div>
+    <div class="mu-sez">Finale</div>
+    <div class="mu-riga">
+      <span class="mu-lbl">Arriva su</span>
+      <select class="mu-fin-preset" title="Il preset su cui vanno le luci alla fine del brano (per esempio tutte le teste puntate in un punto)"></select>
+    </div>
+    <div class="mu-riga mu-fin-dettagli">
+      <span class="mu-lbl">Parte</span>
+      <input type="text" inputmode="decimal" class="mu-fin-prima" title="Quanti secondi prima della fine del brano comincia il finale (0 = quando il brano finisce)">
+      <span class="mu-nota">s prima della fine</span>
+      <button type="button" class="btn ghost mu-fin-prova" title="Salta a pochi secondi dal finale e lo fa partire, per provarlo">&#9654; prova</button>
+    </div>
+    <div class="mu-riga mu-fin-dettagli">
+      <span class="mu-lbl">Transizione</span>
+      <span class="mu-fin-ctl"></span>
+    </div>
   `;
   document.body.append(p);
   musicaUI.pannello = p;
@@ -173,11 +232,68 @@ function musicaCostruisciPannello() {
   musicaUI.spettro = p.querySelector('.mu-spettro');
   musicaUI.bpm = p.querySelector('.mu-bpm');
   musicaUI.quanti = p.querySelector('.mu-quanti');
+  musicaUI.brani = p.querySelector('.mu-brani');
+  musicaUI.salva = p.querySelector('.mu-salva');
+  musicaUI.rinomina = p.querySelector('.mu-rinomina');
+  musicaUI.elimina = p.querySelector('.mu-elimina');
+  musicaUI.finPreset = p.querySelector('.mu-fin-preset');
+  musicaUI.finPrima = p.querySelector('.mu-fin-prima');
+
+  // archivio dei brani
+  musicaUI.brani.addEventListener('change', () => {
+    const v = musicaUI.brani.value;
+    musicaUI.brani.blur();
+    musicaScegliBrano(v === '' ? null : parseInt(v, 10)).catch(console.error);
+  });
+  musicaUI.salva.addEventListener('click', () => { musicaUI.salva.blur(); musicaSalvaBrano().catch(console.error); });
+  musicaUI.rinomina.addEventListener('click', () => { musicaUI.rinomina.blur(); musicaRinomina().catch(console.error); });
+  musicaUI.elimina.addEventListener('click', () => { musicaUI.elimina.blur(); musicaElimina().catch(console.error); });
+  p.querySelector('.mu-dado').addEventListener('click', (e) => {
+    e.currentTarget.blur();
+    musica.seme = (Math.random() * 4294967296) >>> 0;
+    musicaAzzeraCoreografia();
+    musicaCambiato();
+    musicaAvviso('Nuova sequenza: ripartirà così dall\'inizio del brano');
+  });
+
+  // il finale
+  const aggiornaElenco = () => musicaRenderFinale();
+  musicaUI.finPreset.addEventListener('focus', aggiornaElenco);
+  musicaUI.finPreset.addEventListener('pointerdown', aggiornaElenco);
+  musicaUI.finPreset.addEventListener('change', () => {
+    const v = musicaUI.finPreset.value;
+    musica.finale.preset = v === '' ? null : parseInt(v, 10);
+    musica.finaleFatto = false;
+    musicaUI.finPreset.blur();
+    musicaCambiato();
+    musicaRenderFinale();
+  });
+  musicaUI.finPrima.addEventListener('change', () => {
+    const v = leggiSecondi(musicaUI.finPrima.value);
+    if (v !== null) { musica.finale.prima = v; musicaCambiato(); }
+    musicaUI.finPrima.value = secondiTesto(musica.finale.prima);
+    musicaUI.finPrima.blur();
+  });
+  musicaUI.finPrima.addEventListener('keydown', (e) => { if (e.key === 'Enter') musicaUI.finPrima.blur(); });
+  p.querySelector('.mu-fin-prova').addEventListener('click', (e) => {
+    e.currentTarget.blur();
+    musicaProvaFinale();
+  });
+  musicaUI.finCtl = costruisciControlliPreset(
+    () => ({ fade: musica.finale.fade, dark: musica.finale.dark }),
+    (patch) => {
+      if ('fade' in patch) musica.finale.fade = leggiSecondi(patch.fade) ?? musica.finale.fade;
+      if ('dark' in patch) musica.finale.dark = !!patch.dark;
+      musicaCambiato();
+      musicaUI.finCtl.aggiorna();
+    },
+    { orizzontale: true });
+  p.querySelector('.mu-fin-ctl').append(musicaUI.finCtl.el);
 
   p.querySelector('.mu-chiudi').addEventListener('click', () => musicaMostra(false));
   musicaUI.file.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
-    if (file) musicaCaricaBrano(file);
+    if (file) musicaApriFile(file).catch(console.error);
     e.target.value = '';
   });
   musicaUI.play.addEventListener('click', () => { musicaUI.play.blur(); musicaPlayPausa(); });
@@ -205,7 +321,7 @@ function musicaCostruisciPannello() {
         musica.scelti = ids;
       }
       musica.opz[chiave] = v;
-      musicaSalvaOpzioni();
+      musicaCambiato();
       musicaAggiornaPannello();
     });
   });
@@ -214,7 +330,7 @@ function musicaCostruisciPannello() {
     r.addEventListener('input', () => {
       musica.opz[r.dataset.opz] = r.value / 100;
       if (r.dataset.opz === 'volume' && musica.el) musica.el.volume = musica.opz.volume;
-      musicaSalvaOpzioni();
+      musicaCambiato();
     });
     // lasciato il cursore il fuoco se ne va, così i tasti rapidi tornano a funzionare
     r.addEventListener('change', () => r.blur());
@@ -228,10 +344,68 @@ function musicaCostruisciPannello() {
     e.preventDefault();
     p.classList.remove('sopra');
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) musicaCaricaBrano(file);
+    if (file) musicaApriFile(file).catch(console.error);
   });
 
+  musicaRenderBrani();
   musicaAggiornaPannello();
+}
+
+/* l'elenco dei brani salvati, e i pulsanti che servono adesso */
+function musicaRenderBrani() {
+  const sel = musicaUI.brani;
+  if (!sel) return;
+  sel.innerHTML = '';
+  const o0 = document.createElement('option');
+  o0.value = '';
+  o0.textContent = musica.el && musica.brano === null ? '— brano non salvato —' : '— brani salvati —';
+  sel.append(o0);
+  for (const b of state.brani || []) {
+    const o = document.createElement('option');
+    o.value = String(b.id);
+    o.textContent = b.name;
+    sel.append(o);
+  }
+  sel.value = musica.brano === null ? '' : String(musica.brano);
+  const salvato = musica.brano !== null;
+  musicaUI.salva.classList.toggle('hidden', salvato || !musica.file);
+  musicaUI.rinomina.classList.toggle('hidden', !salvato);
+  musicaUI.elimina.classList.toggle('hidden', !salvato);
+  sel.classList.toggle('hidden', !(state.brani || []).length && !musica.el);
+}
+
+/* i preset da scegliere come finale */
+function musicaRenderFinale() {
+  const sel = musicaUI.finPreset;
+  if (!sel) return;
+  const fin = musica.finale;
+  const tieni = document.activeElement === sel;
+  sel.innerHTML = '';
+  const o0 = document.createElement('option');
+  o0.value = '';
+  o0.textContent = 'nessun finale (le luci tornano alla scena)';
+  sel.append(o0);
+  state.presets.forEach((p, i) => {
+    if (!p && i !== fin.preset) return;
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = p ? `${i + 1} · ${p.name}` : `${i + 1} · (preset vuoto)`;
+    sel.append(o);
+  });
+  sel.value = fin.preset === null ? '' : String(fin.preset);
+  if (tieni) sel.focus();
+  if (document.activeElement !== musicaUI.finPrima) musicaUI.finPrima.value = secondiTesto(fin.prima);
+  musicaUI.pannello.querySelectorAll('.mu-fin-dettagli')
+    .forEach((r) => r.classList.toggle('hidden', fin.preset === null));
+  if (musicaUI.finCtl) musicaUI.finCtl.aggiorna();
+}
+
+/* arriva una modifica da un altro dispositivo */
+function musicaBraniCambiati() {
+  if (musica.brano !== null && !musicaBranoSalvato()) {
+    musica.brano = null;   // eliminato altrove: qui resta aperto, non salvato
+  }
+  musicaRenderBrani();
 }
 
 /* un pulsante 🎵 nel piè di pagina di ogni schermata */
@@ -264,7 +438,11 @@ function musicaMostra(on) {
   const p = musicaUI.pannello;
   const vedi = on === undefined ? p.classList.contains('hidden') : on;
   p.classList.toggle('hidden', !vedi);
-  if (vedi) musicaAggiornaPannello();
+  if (vedi) {
+    musicaRenderBrani();
+    musicaRenderFinale();
+    musicaAggiornaPannello();
+  }
 }
 
 let musicaAvvisoTimer = null;
@@ -297,7 +475,7 @@ function musicaAggiornaPannello() {
     if (document.activeElement !== r) r.value = Math.round(musica.opz[r.dataset.opz] * 100);
   });
   const el = musica.el;
-  const pronto = !!el;
+  const pronto = !!(el && el.getAttribute('src'));
   musicaUI.play.disabled = !pronto;
   musicaUI.stop.disabled = !pronto;
   musicaUI.pos.disabled = !pronto;
@@ -323,36 +501,195 @@ function musicaAggiornaTempo() {
 }
 
 /* --------------------------------------------------------------- brano */
-function musicaCaricaBrano(file) {
-  if (file.type && !file.type.startsWith('audio/') && !/\.(mp3|wav|m4a|aac|ogg|oga|flac|opus|webm)$/i.test(file.name)) {
-    musicaAvviso('Questo non sembra un file audio');
-    return;
-  }
+function musicaElemento() {
   if (!musica.el) {
     const el = new Audio();
     el.preload = 'auto';
     el.addEventListener('play', musicaAlPlay);
-    el.addEventListener('pause', musicaAllaPausa);
-    el.addEventListener('ended', musicaAllaPausa);
+    el.addEventListener('pause', musicaAllaPausa);   // scatta anche a fine brano
+    el.addEventListener('ended', musicaAggiornaPannello);
     el.addEventListener('timeupdate', musicaAggiornaTempo);
     el.addEventListener('loadedmetadata', musicaAggiornaPannello);
     el.addEventListener('error', () => {
+      if (!el.getAttribute('src')) return;
       musicaUI.nome.textContent = `Il browser non riesce a leggere «${musica.nome}»`;
     });
     musica.el = el;
   }
-  const el = musica.el;
+  return musica.el;
+}
+
+/* mette nel lettore un file (o l'indirizzo di quello salvato sul server) */
+function musicaMettiSorgente(sorgente, nome) {
+  const el = musicaElemento();
   el.pause();
-  if (musica.url) URL.revokeObjectURL(musica.url);
-  musica.url = URL.createObjectURL(file);
-  musica.nome = file.name.replace(/\.[^.]+$/, '');
-  el.src = musica.url;
+  if (musica.url) { URL.revokeObjectURL(musica.url); musica.url = null; }
+  if (sorgente instanceof Blob) {
+    musica.url = URL.createObjectURL(sorgente);
+    el.src = musica.url;
+  } else {
+    el.src = sorgente;
+  }
+  musica.nome = nome;
   el.volume = musica.opz.volume;
   el.load();
-  musicaUI.nome.textContent = musica.nome;
-  musicaUI.nome.title = file.name;
+  musica.manca = false;
+  musica.finaleFatto = false;
+  musicaUI.nome.textContent = nome;
   musicaAzzeraAnalisi();
+  musicaAzzeraCoreografia();
+}
+
+function musicaSvuotaLettore() {
+  const el = musica.el;
+  if (!el) return;
+  el.pause();
+  el.removeAttribute('src');
+  el.load();
+  if (musica.url) { URL.revokeObjectURL(musica.url); musica.url = null; }
+}
+
+function musicaFileAudio(file) {
+  return !file.type || file.type.startsWith('audio/')
+    || /\.(mp3|wav|m4a|aac|ogg|oga|flac|opus|webm)$/i.test(file.name);
+}
+
+/* Si apre un file. Se il brano salvato in uso non ha il suo file (show
+   portato da un altro computer), il file va a lui; altrimenti si comincia un
+   brano nuovo, da salvare se lo si vuole tenere. */
+async function musicaApriFile(file) {
+  if (!musicaFileAudio(file)) { musicaAvviso('Questo non sembra un file audio'); return; }
+  const nome = file.name.replace(/\.[^.]+$/, '');
+  if (musica.brano !== null && musica.manca) {
+    await musicaInviaAudio(musica.brano, file);
+    musicaMettiSorgente(file, musicaBranoSalvato()?.name || nome);
+    musica.file = null;
+  } else {
+    if (musica.brano !== null) {
+      // si lascia il brano salvato: le scelte di partenza tornano quelle di sempre
+      musica.brano = null;
+      musicaCaricaOpzioni();
+      musica.scelti = [];
+      musica.finale = { preset: null, prima: 0, fade: 3, dark: false };
+      musica.seme = (Math.random() * 4294967296) >>> 0;
+    }
+    musica.file = file;
+    musicaMettiSorgente(file, nome);
+  }
+  musicaUI.nome.title = file.name;
+  musicaRenderBrani();
+  musicaRenderFinale();
   musicaAggiornaPannello();
+}
+
+/* il file di un brano: in IndexedDB nella versione web, sul server altrimenti */
+async function musicaInviaAudio(id, file) {
+  if (window.LIGHTSTAGE_AUDIO) {
+    await window.LIGHTSTAGE_AUDIO.salva(id, file);
+    const res = await api('PUT', `/api/brani/${id}/audio`, { tipo: file.type || '' });
+    state.brani = res.brani;
+    return;
+  }
+  const res = await fetch(`/api/brani/${id}/audio`, {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || 'caricamento fallito');
+  state.brani = out.brani;
+}
+
+async function musicaSalvaBrano() {
+  if (!musica.file) return;
+  const nome = prompt('Nome del brano:', musica.nome || 'Brano');
+  if (nome === null) return;
+  musicaUI.salva.disabled = true;
+  try {
+    const res = await api('POST', '/api/brani', {
+      name: nome.trim() || musica.nome || 'Brano',
+      opz: musica.opz, scelti: musica.scelti, seme: musica.seme, finale: musica.finale,
+    });
+    state.brani = res.brani;
+    await musicaInviaAudio(res.brano.id, musica.file);
+    musica.brano = res.brano.id;
+    musica.file = null;
+    musica.nome = res.brano.name;
+    musicaUI.nome.textContent = musica.nome;
+  } catch (err) {
+    alert('Salvataggio del brano non riuscito.\n\n' + (err.message || err));
+  } finally {
+    musicaUI.salva.disabled = false;
+  }
+  musicaRenderBrani();
+}
+
+/* si passa a un brano salvato: le sue scelte, il suo finale, il suo file */
+async function musicaScegliBrano(id) {
+  if (id === musica.brano) return;
+  if (musica.el) musica.el.pause();   // le luci tornano sulla scena
+  if (id === null) {
+    // «— brano non salvato —»: si chiude il brano salvato
+    musica.brano = null;
+    musica.file = null;
+    musicaSvuotaLettore();
+    musicaCaricaOpzioni();
+    musica.scelti = [];
+    musica.finale = { preset: null, prima: 0, fade: 3, dark: false };
+    musicaUI.nome.textContent = 'Nessun brano caricato';
+    musicaRenderBrani();
+    musicaRenderFinale();
+    musicaAggiornaPannello();
+    return;
+  }
+  const b = musicaBranoSalvato(id);
+  if (!b) return;
+  musica.brano = id;
+  musica.file = null;
+  musica.opz = { ...musica.opz, ...b.opz };
+  musica.scelti = [...(b.scelti || [])];
+  musica.seme = b.seme;
+  musica.finale = { ...b.finale };
+  let sorgente = null;
+  if (window.LIGHTSTAGE_AUDIO) {
+    sorgente = await window.LIGHTSTAGE_AUDIO.leggi(id).catch(() => null) || null;
+  } else if (b.audio) {
+    sorgente = `/api/brani/${id}/audio?t=${Date.now()}`;
+  }
+  if (sorgente) {
+    musicaMettiSorgente(sorgente, b.name);
+    musicaUI.nome.title = b.name;
+  } else {
+    musicaSvuotaLettore();
+    musica.nome = b.name;
+    musica.manca = true;
+    musicaUI.nome.textContent = `«${b.name}»: manca il file, aprilo con 📂`;
+  }
+  musicaRenderBrani();
+  musicaRenderFinale();
+  musicaAggiornaPannello();
+}
+
+async function musicaRinomina() {
+  const b = musicaBranoSalvato();
+  if (!b) return;
+  const nome = prompt('Nome del brano:', b.name);
+  if (nome === null || !nome.trim()) return;
+  const res = await api('PUT', `/api/brani/${b.id}`, { name: nome.trim() });
+  state.brani = res.brani;
+  musica.nome = res.brano.name;
+  if (!musica.manca) musicaUI.nome.textContent = musica.nome;
+  musicaRenderBrani();
+}
+
+async function musicaElimina() {
+  const b = musicaBranoSalvato();
+  if (!b) return;
+  if (!confirm(`Eliminare il brano «${b.name}» dallo show? Il file audio salvato viene cancellato.`)) return;
+  const res = await api('DELETE', `/api/brani/${b.id}`);
+  state.brani = res.brani;
+  musica.brano = null;
+  await musicaScegliBrano(null);
 }
 
 /* l'analizzatore si collega al primo play: il browser lascia partire l'audio
@@ -387,7 +724,7 @@ function musicaSuona() {
 
 function musicaPlayPausa() {
   const el = musica.el;
-  if (!el) { musicaUI.file.click(); return; }
+  if (!el || !el.getAttribute('src')) { musicaUI.file.click(); return; }
   if (musicaSuona()) { el.pause(); return; }
   musicaPreparaAudio();
   el.play().catch((err) => {
@@ -406,6 +743,8 @@ function musicaStop() {
 
 function musicaAlPlay() {
   musicaPreparaAudio();
+  // dall'inizio la coreografia riparte da capo: ogni volta la stessa
+  if (musica.el.currentTime < 0.3) musicaAzzeraCoreografia();
   if (!musica.timer) {
     musica.ultimoTick = performance.now();
     musica.timer = setInterval(musicaTick, MUSICA_TICK);
@@ -415,11 +754,60 @@ function musicaAlPlay() {
 
 function musicaAllaPausa() {
   if (musica.timer) { clearInterval(musica.timer); musica.timer = null; }
-  musicaFermaLuci();
+  // a fine brano il finale, se c'è; dopo il finale le luci restano lì
+  if (musica.el.ended && musicaHaFinale() && !musica.finaleFatto) musicaFinale();
+  else if (!musica.finaleFatto) musicaFermaLuci();
   musica.impulso = 0;
   musica.livello = 0;
   musicaDisegnaSpettro();
   musicaAggiornaPannello();
+}
+
+/* La coreografia: colori e movimenti non vengono da Math.random ma da un
+   numero (il seme) e dal numero del colpo. Ripartendo dall'inizio il brano
+   rifà la stessa sequenza; il dado cambia il seme. */
+function musicaCaso(n, k) {
+  let h = (musica.seme ^ Math.imul(n + 1, 0x9E3779B1) ^ Math.imul(k + 1, 0x85EBCA77)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+function musicaAzzeraCoreografia() {
+  musica.colpi = 0;
+  musica.tinta = musicaCaso(0, 7) * 360;
+  musica.tintaVista = musica.tinta;
+  musica.bersaglio = { p: 0, t: 0 };
+  musica.mov.clear();
+}
+
+/* ------------------------------------------------------------- finale */
+function musicaHaFinale() {
+  const p = musica.finale.preset;
+  return p !== null && !!state.presets[p];
+}
+
+/* La musica lascia i fari dove sono in quell'istante e da lì parte la
+   transizione verso il preset del finale: niente ritorno alla scena. */
+function musicaFinale() {
+  musica.finaleFatto = true;
+  musica.base.clear();
+  musica.ultimo.clear();
+  musica.mov.clear();
+  musica.attivo = false;
+  const fin = musica.finale;
+  loadPreset(fin.preset, { fade: fin.fade, dark: fin.dark }).catch(console.error);
+}
+
+function musicaProvaFinale() {
+  const el = musica.el;
+  if (!el || !isFinite(el.duration)) { musicaAvviso('Prima apri il brano'); return; }
+  if (!musicaHaFinale()) { musicaAvviso('Scegli il preset del finale'); return; }
+  const inizio = Math.max(0, el.duration - musica.finale.prima);
+  el.currentTime = Math.max(0, inizio - 8);
+  musica.finaleFatto = false;
+  if (!musicaSuona()) musicaPlayPausa();
 }
 
 function musicaAzzeraAnalisi() {
@@ -504,14 +892,15 @@ function musicaColpo(ora, vero) {
     musica.impulso = 1;
   }
   musica.ultimoColpo = ora;
-  musica.colpi++;
-  // il colore salta: di più se il brano è brillante (tanti alti)
-  musica.tinta = (musica.tinta + (vero ? 55 + 70 * (musica.alti || 0) : 30)) % 360;
+  const n = ++musica.colpi;
+  // il colore salta, ogni volta di un passo diverso (ma sempre lo stesso a
+  // quel colpo di quel brano)
+  musica.tinta = (musica.tinta + (vero ? 50 + 90 * musicaCaso(n, 0) : 30)) % 360;
   // le teste cambiano direzione: a ogni colpo se il tempo è lento, uno sì e
   // uno no se è veloce, così hanno il tempo di arrivare
   const veloce = musica.bpm > 135;
-  if (!veloce || musica.colpi % 2 === 0 || !vero) {
-    musica.bersaglio = { p: Math.random() * 2 - 1, t: Math.random() * 2 - 1 };
+  if (!veloce || n % 2 === 0 || !vero) {
+    musica.bersaglio = { p: musicaCaso(n, 1) * 2 - 1, t: musicaCaso(n, 2) * 2 - 1 };
   }
   document.querySelectorAll('.js-musica.suona').forEach((b) => {
     b.classList.remove('colpo');
@@ -553,7 +942,7 @@ function musicaDisegnaSpettro() {
     c.fillStyle = '#566074';
     c.font = '11px system-ui, sans-serif';
     c.textBaseline = 'middle';
-    c.fillText(musica.el ? 'in pausa' : 'carica un brano per cominciare', 6, h / 2);
+    c.fillText(musica.el && musica.el.getAttribute('src') ? 'in pausa' : 'apri un file o scegli un brano salvato', 6, h / 2);
   }
   // il pallino del colpo
   const r = 7 + 5 * musica.impulso;
@@ -621,7 +1010,15 @@ function musicaTick() {
   musica.tintaVista = (musica.tintaVista + diff * (1 - Math.exp(-dt / 0.045)) + 360) % 360;
   musicaDisegnaSpettro();
 
-  const vai = musica.opz.luci && musicaSuona() && !!musica.analyser;
+  // il finale: qualche secondo prima della fine (a fine brano ci pensa la
+  // pausa); tornando indietro nel brano la musica riprende le luci
+  const el = musica.el;
+  if (musicaHaFinale() && isFinite(el.duration)) {
+    const inizio = el.duration - musica.finale.prima;
+    if (musica.finaleFatto && el.currentTime < inizio - 0.3) musica.finaleFatto = false;
+    else if (!musica.finaleFatto && musica.finale.prima > 0 && el.currentTime >= inizio) musicaFinale();
+  }
+  const vai = musica.opz.luci && musicaSuona() && !!musica.analyser && !musica.finaleFatto;
   if (!vai) {
     if (musica.attivo) musicaFermaLuci();
     return;

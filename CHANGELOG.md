@@ -5,6 +5,31 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 6.1
+
+- **Transizioni con i secondi scritti a mano**: accanto ai tempi pronti
+  (0 / 0,5 / 1 / 1,5 s) c'è un **…** che apre la finestrella *Transizione*.
+  Lì la durata si scrive a mano, fino a 10 minuti e al decimo di secondo,
+  per i cambi di scena molto lenti; il preset mostra poi i suoi secondi al
+  posto dei puntini. Il **…** c'è ovunque si sceglie una durata: accanto al
+  palco, nella Preset grid, nel Copione e nei gruppi *Fade* e *FTB*.
+- Nella stessa finestrella si sceglie, spiegato per esteso, come si spostano
+  le **teste mobili**: *sempre accese*, oppure *al buio* — si spengono in
+  dissolvenza, si spostano, si riaccendono in dissolvenza. L'icona della
+  testa accanto alle durate resta come scorciatoia.
+- **I brani si salvano nello show**: con 💾 il file audio entra nello show
+  insieme a tutte le scelte (fari, colori, teste, reattività, luminosità,
+  volume) e al finale; dall'elenco in cima al pannello si riprende in un clic.
+  Le modifiche a un brano salvato si salvano da sole.
+- **La coreografia è del brano**: colori e movimenti non sono più a caso a
+  ogni ascolto, ma una sequenza fissa che ripartendo dall'inizio si ripete
+  uguale. 🎲 *Un'altra* ne pesca una nuova, e il brano salvato se la tiene.
+- **Finale di un brano**: si sceglie il preset su cui arrivano le luci alla
+  fine della musica (per esempio teste che girano a caso durante l'intro e
+  finiscono tutte puntate in un punto), quanti secondi prima della fine
+  parte e con quale transizione. Arrivate lì, le luci restano sul finale
+  anche a musica finita; *▶ prova* salta a pochi secondi dal finale.
+
 ## 6.0 — *strutturale*
 
 - **Le luci vanno a tempo di musica**: nuovo pannello **🎵 Musica** (pulsante

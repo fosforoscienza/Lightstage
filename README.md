@@ -67,10 +67,25 @@ Daslight: solo quello che serve.
   diventa la nuova scena; in pausa (o con *Luci a tempo* spente) i fari
   tornano esattamente dov'erano. **FTB** e **Blackout** funzionano come
   sempre, e un preset salvato mentre suona memorizza la scena, non l'attimo
-  di musica. Il brano non viene salvato nello show: va ricaricato a ogni
-  apertura.
+  di musica.
+- **Brani salvati**: con **💾 Salva** il brano entra nello show insieme a
+  tutte le sue scelte e al suo finale, e si ritrova nell'elenco in cima al
+  pannello (nella versione web il file resta nel browser, in quella Python
+  nella cartella `musica/`). Le modifiche fatte a un brano salvato si salvano
+  da sole. Anche la **coreografia** — la sequenza di colori e movimenti — è
+  del brano: ripartendo dall'inizio fa sempre la stessa; **🎲 Un'altra** ne
+  pesca una nuova. Esportando lo show i brani passano con le loro scelte ma
+  senza il file audio, che si riapre con **📂 File** sul computer d'arrivo.
+- **Finale di un brano**: in fondo al pannello si sceglie su quale preset
+  arrivano le luci quando la musica finisce — per esempio un'intro con le
+  teste che girano a caso e che finiscono tutte puntate in un punto del
+  palco. Si decide quanti secondi **prima della fine** parte (0 = quando il
+  brano finisce) e con quale **transizione** (durata e teste accese o al
+  buio). Arrivate sul finale, le luci restano lì anche a musica finita;
+  **▶ prova** salta a pochi secondi dal finale per provarlo.
 - **Come entra un preset**: ogni preset porta con sé la **durata della
-  dissolvenza** con cui entra (0 / 0,5 / 1 / 1,5 s; 0 = cambio netto) e se le
+  dissolvenza** con cui entra (0 / 0,5 / 1 / 1,5 s; 0 = cambio netto, oppure
+  i secondi che vuoi con **…**) e se le
   **teste mobili si spostano accese o al buio**. I comandi sono gli stessi
   ovunque: a sinistra di ogni anteprima nella Preset grid, sul bordo
   dell'anteprima nel Copione, e accanto al palco — lì valgono per il prossimo
@@ -78,6 +93,12 @@ Daslight: solo quello che serve.
   in posizione al buio, si lascia il tempo alle teste di arrivare e poi le luci
   risalgono sulla nuova scena. Riguarda **solo le teste mobili**: gli altri fari
   cambiano scena normalmente, con il loro fade.
+- **Transizioni lente**: il pulsante **…** accanto alle durate apre la
+  finestrella *Transizione*, dove i secondi si scrivono a mano (fino a 10
+  minuti, anche con la virgola: 12,5) e si sceglie per esteso come si
+  spostano le teste mobili: **sempre accese**, oppure **al buio** (si
+  spengono in dissolvenza, si spostano, si riaccendono in dissolvenza). Il
+  **…** c'è anche nei gruppi *Fade* e *FTB* in alto.
 - **Durante lo spettacolo tieni la finestra in primo piano** (versione web):
   quando la pagina finisce in secondo piano il browser rallenta di molto ciò
   che sta girando, e senza segnale DMX i fari possono ripartire con il loro

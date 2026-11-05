@@ -20,13 +20,53 @@
   const ROLES = new Set(['dimmer', 'red', 'green', 'blue', 'uv', 'white',
     'strobe', 'pan', 'tilt', 'focus', 'return', 'other']);
 
-  const FADE_STEPS = [0, 0.5, 1, 1.5];
+  const FADE_MAX = 600;   // secondi: le transizioni lente si scrivono a mano
 
-  /* durata di dissolvenza del preset: uno dei tempi previsti, 0 = netto */
-  function sanitizeFade(raw) {
+  /* durata di dissolvenza in secondi, al decimo: 0 = netto, fino a 10 minuti */
+  function sanitizeFade(raw, difetto = 1) {
     const v = parseFloat(raw);
-    if (isNaN(v)) return 1;
-    return FADE_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+    if (isNaN(v)) return difetto;
+    return Math.round(Math.max(0, Math.min(FADE_MAX, v)) * 10) / 10;
+  }
+
+  /* un brano salvato: le scelte della musica e il finale. Il file audio sta
+     a parte, in IndexedDB */
+  const MUSICA_COLORI = ['musica', 'sfalsati', 'preset'];
+  const MUSICA_TESTE = ['ferme', 'poco', 'medio', 'tanto'];
+  function unita(raw, difetto) {
+    const v = parseFloat(raw);
+    return isNaN(v) ? difetto : Math.max(0, Math.min(1, v));
+  }
+  function sanitizeBrano(raw, id) {
+    const b = raw && typeof raw === 'object' ? raw : {};
+    const o = b.opz && typeof b.opz === 'object' ? b.opz : {};
+    const fin = b.finale && typeof b.finale === 'object' ? b.finale : {};
+    const preset = parseInt(fin.preset, 10);
+    const seme = parseInt(b.seme, 10);
+    return {
+      id,
+      name: String(b.name || `Brano ${id}`).slice(0, 40),
+      audio: !!b.audio,
+      tipo: String(b.tipo || '').slice(0, 60),
+      seme: isNaN(seme) ? 1 : seme >>> 0,
+      opz: {
+        luci: o.luci !== false,
+        fari: o.fari === 'scelti' ? 'scelti' : 'tutti',
+        colori: MUSICA_COLORI.includes(o.colori) ? o.colori : 'musica',
+        teste: MUSICA_TESTE.includes(o.teste) ? o.teste : 'medio',
+        reattivita: unita(o.reattivita, 0.6),
+        luminosita: unita(o.luminosita, 1),
+        volume: unita(o.volume, 0.9),
+      },
+      scelti: (Array.isArray(b.scelti) ? b.scelti : [])
+        .map((x) => parseInt(x, 10)).filter((x) => !isNaN(x)).slice(0, 64),
+      finale: {
+        preset: preset >= 0 && preset < NUM_PRESETS ? preset : null,
+        prima: sanitizeFade(fin.prima, 0),
+        fade: sanitizeFade(fin.fade, 3),
+        dark: !!fin.dark,
+      },
+    };
   }
 
   function sanitizeValues(raw, n = NUM_CHANNELS) {
@@ -143,6 +183,8 @@
       channels: DEFAULT_CHANNELS.map((c) => ({ ...c })),
       copioni: [],
       next_copione: 1,
+      brani: [],
+      next_brano: 1,
       blackout: false,
       stage: { ...DEFAULT_STAGE },
     };
@@ -206,6 +248,11 @@
       });
     }
     db.next_copione = Math.max(0, ...db.copioni.map((c) => c.id)) + 1;
+    for (const b of data.brani || []) {
+      const id = parseInt((b || {}).id, 10);
+      if (!isNaN(id)) db.brani.push(sanitizeBrano(b, id));
+    }
+    db.next_brano = Math.max(0, ...db.brani.map((b) => b.id)) + 1;
     db.blackout = !!data.blackout;
     db.next_id = Math.max(0, ...db.fixtures.map((f) => f.id)) + 1;
     return db;
@@ -254,6 +301,27 @@
     salva: (id, blob) => pdfRequest('readwrite', (s2) => s2.put(blob, String(id))),
     leggi: (id) => pdfRequest('readonly', (s2) => s2.get(String(id))),
   };
+  /* i file dei brani, anche loro in IndexedDB (un archivio a parte) */
+  const AUDIO_DB = 'lightstage-musica';
+  function audioRequest(modo, azione) {
+    return new Promise((risolvi, rifiuta) => {
+      const req = indexedDB.open(AUDIO_DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('audio');
+      req.onerror = () => rifiuta(req.error);
+      req.onsuccess = () => {
+        const idb = req.result;
+        const r = azione(idb.transaction('audio', modo).objectStore('audio'));
+        r.onsuccess = () => { risolvi(r.result); idb.close(); };
+        r.onerror = () => { rifiuta(r.error); idb.close(); };
+      };
+    });
+  }
+  window.LIGHTSTAGE_AUDIO = {
+    salva: (id, blob) => audioRequest('readwrite', (s2) => s2.put(blob, String(id))),
+    leggi: (id) => audioRequest('readonly', (s2) => s2.get(String(id))),
+    cancella: (id) => audioRequest('readwrite', (s2) => s2.delete(String(id))),
+  };
+
   function deletePdf(id) {
     return pdfRequest('readwrite', (s2) => s2.delete(String(id)));
   }
@@ -452,6 +520,7 @@
         presets: db.presets,
         channels: db.channels,
         copioni: db.copioni,
+        brani: db.brani,
         blackout: db.blackout,
         stage: db.stage,
         dmx: dmxState(),
@@ -663,6 +732,43 @@
       const c = db.copioni.find((x) => x.id === parseInt(match[1], 10));
       if (c) { c.pdf = true; save(); }
       return { copioni: db.copioni };
+    }
+    if (m === 'POST' && url === '/api/brani') {
+      const brano = sanitizeBrano({ ...(body || {}), audio: false }, db.next_brano++);
+      db.brani.push(brano);
+      save();
+      return { brano, brani: db.brani };
+    }
+    if ((match = /^\/api\/brani\/(\d+)$/.exec(url))) {
+      const id = parseInt(match[1], 10);
+      const i = db.brani.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error('brano non trovato');
+      if (m === 'PUT') {
+        const vecchio = db.brani[i];
+        const b = body || {};
+        const unito = { ...vecchio };
+        for (const k of ['name', 'scelti', 'seme']) if (k in b) unito[k] = b[k];
+        if (b.opz && typeof b.opz === 'object') unito.opz = { ...vecchio.opz, ...b.opz };
+        if (b.finale && typeof b.finale === 'object') unito.finale = { ...vecchio.finale, ...b.finale };
+        db.brani[i] = sanitizeBrano(unito, id);
+        save();
+        return { brano: db.brani[i], brani: db.brani };
+      }
+      if (m === 'DELETE') {
+        db.brani.splice(i, 1);
+        save();
+        window.LIGHTSTAGE_AUDIO.cancella(id).catch(() => {});
+        return { brani: db.brani };
+      }
+    }
+    if ((match = /^\/api\/brani\/(\d+)\/audio$/.exec(url)) && m === 'PUT') {
+      const b = db.brani.find((x) => x.id === parseInt(match[1], 10));
+      if (b) {
+        b.audio = true;
+        b.tipo = String((body || {}).tipo || '').slice(0, 60);
+        save();
+      }
+      return { brani: db.brani };
     }
     if (m === 'PUT' && url === '/api/blackout') {
       db.blackout = !!(body || {}).on;

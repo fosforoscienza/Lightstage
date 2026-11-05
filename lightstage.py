@@ -32,6 +32,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHOW_FILE = os.path.join(BASE_DIR, "show.json")
 PDF_DIR = os.path.join(BASE_DIR, "copioni")
 MAX_PDF = 40 * 1024 * 1024      # 40 MB per copione
+AUDIO_DIR = os.path.join(BASE_DIR, "musica")
+MAX_AUDIO = 150 * 1024 * 1024   # 150 MB per brano
 HOST = "0.0.0.0"  # raggiungibile anche da telefoni/PC sulla stessa rete
 PORT = 8123
 NUM_PRESETS = 100
@@ -66,6 +68,8 @@ show = {
     "channels": [dict(c) for c in DEFAULT_CHANNELS],
     "copioni": [],   # {id, name, cues: [{id, pos, preset}]}
     "next_copione": 1,
+    "brani": [],     # musica salvata: vedi sanitize_brano
+    "next_brano": 1,
     "blackout": False,
     "stage": dict(DEFAULT_STAGE),
 }
@@ -218,16 +222,77 @@ def rebuild_universe():
 
 
 # -------------------------------------------------------------- persistenza
-FADE_STEPS = (0.0, 0.5, 1.0, 1.5)
+FADE_MAX = 600.0   # secondi: le transizioni lente si scrivono a mano
 
 
-def sanitize_fade(raw):
-    """durata di dissolvenza del preset: uno dei tempi previsti, 0 = netto"""
+def sanitize_fade(raw, default=1.0):
+    """durata di dissolvenza in secondi, al decimo: 0 = netto, fino a 10 minuti"""
     try:
         v = float(raw)
     except (TypeError, ValueError):
-        return 1.0
-    return min(FADE_STEPS, key=lambda s: abs(s - v))
+        return default
+    if v != v:   # NaN
+        return default
+    return round(max(0.0, min(FADE_MAX, v)) * 10) / 10
+
+
+# ------------------------------------------------------------------ brani
+MUSICA_COLORI = ("musica", "sfalsati", "preset")
+MUSICA_TESTE = ("ferme", "poco", "medio", "tanto")
+
+
+def _unit(raw, default):
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return default if v != v else max(0.0, min(1.0, v))
+
+
+def sanitize_brano(raw, bid):
+    """Un brano salvato: le scelte della musica e il finale. Il file audio
+    sta a parte, nella cartella musica/."""
+    raw = raw if isinstance(raw, dict) else {}
+    o = raw.get("opz") if isinstance(raw.get("opz"), dict) else {}
+    fin = raw.get("finale") if isinstance(raw.get("finale"), dict) else {}
+    try:
+        preset = int(fin.get("preset"))
+        preset = preset if 0 <= preset < NUM_PRESETS else None
+    except (TypeError, ValueError):
+        preset = None
+    scelti = []
+    for x in raw.get("scelti") or []:
+        try:
+            scelti.append(int(x))
+        except (TypeError, ValueError):
+            continue
+    try:
+        seme = int(raw.get("seme")) & 0xFFFFFFFF
+    except (TypeError, ValueError):
+        seme = 1
+    return {
+        "id": bid,
+        "name": str(raw.get("name") or f"Brano {bid}")[:40],
+        "audio": bool(raw.get("audio")),
+        "tipo": str(raw.get("tipo") or "")[:60],
+        "seme": seme,
+        "opz": {
+            "luci": o.get("luci") is not False,
+            "fari": "scelti" if o.get("fari") == "scelti" else "tutti",
+            "colori": o.get("colori") if o.get("colori") in MUSICA_COLORI else "musica",
+            "teste": o.get("teste") if o.get("teste") in MUSICA_TESTE else "medio",
+            "reattivita": _unit(o.get("reattivita"), 0.6),
+            "luminosita": _unit(o.get("luminosita"), 1.0),
+            "volume": _unit(o.get("volume"), 0.9),
+        },
+        "scelti": scelti[:64],
+        "finale": {
+            "preset": preset,
+            "prima": sanitize_fade(fin.get("prima"), 0.0),
+            "fade": sanitize_fade(fin.get("fade"), 3.0),
+            "dark": bool(fin.get("dark")),
+        },
+    }
 
 
 def sanitize_stage(raw):
@@ -419,6 +484,14 @@ def apply_show(data):
             continue
     show["copioni"] = copioni
     show["next_copione"] = max([c["id"] for c in copioni], default=0) + 1
+    brani = []
+    for b in data.get("brani", []) or []:
+        try:
+            brani.append(sanitize_brano(b, int(b["id"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    show["brani"] = brani
+    show["next_brano"] = max([b["id"] for b in brani], default=0) + 1
     show["fixtures"] = fixtures
     show["presets"] = presets
     show["channels"] = channels
@@ -521,6 +594,7 @@ def get_state():
             "presets": show["presets"],
             "channels": show["channels"],
             "copioni": show["copioni"],
+            "brani": show["brani"],
             "blackout": show["blackout"],
             "stage": show["stage"],
             "dmx": dmx_state(),
@@ -687,6 +761,10 @@ def import_show():
         for c in show["copioni"]:
             if not os.path.exists(os.path.join(PDF_DIR, f"{c['id']}.pdf")):
                 c["pdf"] = False
+        # lo stesso per i file dei brani
+        for b in show["brani"]:
+            if not os.path.exists(os.path.join(AUDIO_DIR, f"{b['id']}.audio")):
+                b["audio"] = False
         rebuild_universe()
         mark_dirty()
         return jsonify({"ok": True})
@@ -873,6 +951,96 @@ def get_pdf(cid):
     if not os.path.exists(percorso):
         return jsonify({"error": "nessun PDF caricato"}), 404
     return send_file(percorso, mimetype="application/pdf")
+
+
+@app.post("/api/brani")
+def add_brano():
+    body = request.get_json(silent=True) or {}
+    with lock:
+        bid = show["next_brano"]
+        show["next_brano"] += 1
+        brano = sanitize_brano({**body, "audio": False}, bid)
+        show["brani"].append(brano)
+        mark_dirty()
+        return jsonify({"brano": brano, "brani": show["brani"]})
+
+
+def find_brano(bid):
+    for b in show["brani"]:
+        if b["id"] == bid:
+            return b
+    return None
+
+
+@app.put("/api/brani/<int:bid>")
+def update_brano(bid):
+    body = request.get_json(silent=True) or {}
+    with lock:
+        b = find_brano(bid)
+        if b is None:
+            return jsonify({"error": "brano non trovato"}), 404
+        unito = {**b, **{k: v for k, v in body.items() if k in ("name", "opz", "scelti", "seme", "finale")}}
+        if isinstance(body.get("opz"), dict):
+            unito["opz"] = {**b["opz"], **body["opz"]}
+        if isinstance(body.get("finale"), dict):
+            unito["finale"] = {**b["finale"], **body["finale"]}
+        nuovo = sanitize_brano(unito, bid)
+        b.clear()
+        b.update(nuovo)
+        mark_dirty()
+        return jsonify({"brano": b, "brani": show["brani"]})
+
+
+@app.delete("/api/brani/<int:bid>")
+def delete_brano(bid):
+    with lock:
+        b = find_brano(bid)
+        if b is None:
+            return jsonify({"error": "brano non trovato"}), 404
+        show["brani"].remove(b)
+        mark_dirty()
+    percorso = os.path.join(AUDIO_DIR, f"{bid}.audio")
+    if os.path.exists(percorso):
+        try:
+            os.remove(percorso)
+        except OSError:
+            pass
+    return jsonify({"brani": show["brani"]})
+
+
+@app.post("/api/brani/<int:bid>/audio")
+def upload_audio(bid):
+    """Riceve il file del brano (corpo grezzo della richiesta)."""
+    with lock:
+        if find_brano(bid) is None:
+            return jsonify({"error": "brano non trovato"}), 404
+    dati = request.get_data()
+    if not dati:
+        return jsonify({"error": "file vuoto"}), 400
+    if len(dati) > MAX_AUDIO:
+        return jsonify({"error": "brano troppo grande (massimo 150 MB)"}), 413
+    os.makedirs(AUDIO_DIR, exist_ok=True)
+    with open(os.path.join(AUDIO_DIR, f"{bid}.audio"), "wb") as fh:
+        fh.write(dati)
+    with lock:
+        b = find_brano(bid)
+        if b is not None:
+            b["audio"] = True
+            b["tipo"] = (request.content_type or "")[:60]
+        mark_dirty()
+        return jsonify({"brani": show["brani"]})
+
+
+@app.get("/api/brani/<int:bid>/audio")
+def get_audio(bid):
+    percorso = os.path.join(AUDIO_DIR, f"{bid}.audio")
+    if not os.path.exists(percorso):
+        return jsonify({"error": "nessun file per questo brano"}), 404
+    with lock:
+        b = find_brano(bid)
+        tipo = (b or {}).get("tipo") or "audio/mpeg"
+    # conditional: risponde alle richieste a pezzi, così nel brano si salta avanti
+    return send_file(percorso, mimetype=tipo, conditional=True)
 
 
 @app.get("/api/events")
