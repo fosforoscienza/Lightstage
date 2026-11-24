@@ -236,6 +236,20 @@ def sanitize_fade(raw, default=1.0):
     return round(max(0.0, min(FADE_MAX, v)) * 10) / 10
 
 
+TEMPO_MAX = 3600.0   # secondi: per quanto una scena può restare in onda da sola
+
+
+def sanitize_tempo(raw):
+    """secondi in onda prima di passare alla scena dopo; None = finché non la cambi tu"""
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if v != v or v <= 0:
+        return None
+    return max(0.1, round(min(TEMPO_MAX, v) * 10) / 10)
+
+
 # ------------------------------------------------------------------ brani
 MUSICA_COLORI = ("musica", "sfalsati", "preset")
 MUSICA_TESTE = ("ferme", "poco", "medio", "tanto")
@@ -401,17 +415,29 @@ def sanitize_channels(raw, fallback=None, n=NUM_CHANNELS):
     return channels
 
 
+CANALI_AMMESSI = (1, 8, 16)   # un dimmer da solo, un par, una testa mobile
+
+
 def fixture_count(f):
-    """Numero di canali del faro (8 o 16)."""
+    """Numero di canali del faro (1, 8 o 16)."""
     return len(f["channels"])
 
 
-def requested_count(body):
-    if body.get("count") == 16:
-        return 16
-    if isinstance(body.get("channels"), list) and len(body["channels"]) == 16:
-        return 16
+def conta_canali(raw):
+    """1, 8 o 16 se la lista di canali ne ha tanti, altrimenti il predefinito"""
+    if isinstance(raw, list) and len(raw) in CANALI_AMMESSI:
+        return len(raw)
     return NUM_CHANNELS
+
+
+def requested_count(body):
+    try:
+        n = int(body.get("count"))
+    except (TypeError, ValueError):
+        n = None
+    if n in CANALI_AMMESSI:
+        return n
+    return conta_canali(body.get("channels"))
 
 
 def load_show():
@@ -433,7 +459,7 @@ def apply_show(data):
     for f in data.get("fixtures", []):
         try:
             raw_ch = f.get("channels")
-            n = 16 if isinstance(raw_ch, list) and len(raw_ch) == 16 else NUM_CHANNELS
+            n = conta_canali(raw_ch)
             fixtures.append({
                 "id": int(f["id"]),
                 "name": str(f.get("name", "Faro"))[:24],
@@ -459,6 +485,7 @@ def apply_show(data):
                 "name": str(p.get("name", f"Preset {i + 1}"))[:24],
                 "fade": sanitize_fade(p.get("fade")),
                 "dark": bool(p.get("dark")),
+                "tempo": sanitize_tempo(p.get("tempo")),
                 "values": {
                     str(k): sanitize_values(v, n=16)
                     for k, v in dict(p["values"]).items()
@@ -727,6 +754,7 @@ def save_preset(slot):
             "name": str(body.get("name") or f"Preset {slot + 1}")[:24],
             "fade": sanitize_fade(body.get("fade")),
             "dark": bool(body.get("dark")),
+            "tempo": sanitize_tempo(body.get("tempo")),
             "values": {str(f["id"]): list(f["values"]) for f in show["fixtures"]},
         }
         mark_dirty()
@@ -784,6 +812,8 @@ def update_preset(slot):
             p["fade"] = sanitize_fade(body.get("fade"))
         if "dark" in body:
             p["dark"] = bool(body.get("dark"))
+        if "tempo" in body:
+            p["tempo"] = sanitize_tempo(body.get("tempo"))
         mark_dirty()
         return jsonify({"presets": show["presets"]})
 
@@ -806,6 +836,7 @@ def copy_preset(slot):
             "name": str(body.get("name") or sorgente["name"])[:24],
             "fade": sanitize_fade(sorgente.get("fade")),
             "dark": bool(sorgente.get("dark")),
+            "tempo": sanitize_tempo(sorgente.get("tempo")),
             "values": {k: list(v) for k, v in sorgente["values"].items()},
         }
         mark_dirty()

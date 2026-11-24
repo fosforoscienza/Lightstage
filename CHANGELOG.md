@@ -5,6 +5,23 @@ Due cifre soltanto: il **primo numero** cambia con le modifiche strutturali
 (qualcosa di nuovo nel modo di usare il programma), il **secondo** con
 aggiunte e ritocchi.
 
+## 6.2
+
+- **Tempo in onda per ogni scena**: nella Preset grid, accanto al nome di
+  ogni preset, c'è il cronometro ⏱. Di base è **∞** e la scena si cambia a
+  mano come sempre; scrivendo dei secondi, allo scadere va in onda da sola
+  la scena successiva con la sua transizione. Sul preset in onda si vede il
+  conto alla rovescia e una barra che avanza sotto l'anteprima. Con FTB o
+  Blackout il tempo si ferma.
+- **Loop di scene**: il nuovo pulsante **🔁 Loop** nella Preset grid manda
+  in onda a ripetizione le scene di un intervallo (*dalla 3 alla 7*): finita
+  l'ultima si riparte dalla prima. Le scene senza un tempo proprio restano
+  in onda per i secondi scelti nel loop (o aspettano il GO). Si ferma con
+  **■ Ferma** nella stessa finestrella.
+- **Fari da un canale solo**: aggiungendo un faro si può scegliere
+  *1 canale (solo dimmer)*, per lampade e par alogeni collegati a un dimmer
+  pack: un fader, luce bianca nell'anteprima.
+
 ## 6.1
 
 - **Transizioni con i secondi scritti a mano**: accanto ai tempi pronti

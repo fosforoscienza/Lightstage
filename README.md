@@ -8,8 +8,10 @@ Daslight: solo quello che serve.
 
 ## Cosa fa
 
-- **Fari**: aggiungi un faro con nome, indirizzo DMX e **8 o 16 canali**: per
-  ognuno hai un fader (0–255). Ogni faro ha i **suoi** nomi e ruoli dei canali
+- **Fari**: aggiungi un faro con nome, indirizzo DMX e **1, 8 o 16 canali**:
+  per ognuno hai un fader (0–255). Il faro da **1 canale** è un dimmer solo
+  (una lampada, un par alogeno su un dimmer pack): un fader, luce bianca
+  nell'anteprima. Ogni faro ha i **suoi** nomi e ruoli dei canali
   (pulsante ⚙ sulla scheda), quindi puoi mescolare par, teste mobili e altro
   nello stesso show; aggiungendo un faro puoi copiare i canali da uno già
   configurato. Il pulsante *"Crea 8 fari"* prepara in un clic la
@@ -34,6 +36,26 @@ Daslight: solo quello che serve.
   sempre qual è la scena caricata. Al buio si può anche cambiare scena — clic
   e barra spaziatrice — senza interrompere l'FTB: le teste si riposizionano
   subito e le luci salgono su quella scena quando si toglie l'FTB.
+- **Tempo in onda di una scena**: nella Preset grid ogni preset ha, accanto
+  al nome, il pulsante del cronometro ⏱. Di base è **∞**: la scena resta in
+  onda finché non la cambi tu. Se scrivi dei secondi (anche con la virgola,
+  fino a un'ora), allo scadere va in onda da sola la **scena successiva** —
+  il primo spazio pieno che segue — con la sua transizione. Sul preset in
+  onda il cronometro fa il conto alla rovescia e una barra verde sotto
+  l'anteprima mostra il tempo che passa. Con **FTB** o **Blackout** il
+  tempo si ferma e riparte quando tornano le luci. Il finale di un brano
+  invece resta in onda.
+- **Loop di scene**: il pulsante **🔁 Loop** in alto nella Preset grid apre
+  la finestrella del loop: si sceglie **dalla scena** … **alla scena** … e si
+  preme **▶ Avvia**. Le scene dell'intervallo vanno in onda una dopo l'altra,
+  ognuna con il suo tempo e la sua transizione, e finita l'ultima si riparte
+  dalla prima, all'infinito (gli spazi vuoti si saltano). Le scene senza un
+  tempo loro restano in onda per i secondi scritti in **Senza tempo**
+  (lasciato vuoto, aspettano il GO). Se la scena in onda è già nel loop si
+  continua da lì, altrimenti si parte dalla prima. Mentre gira il pulsante
+  diventa viola (*Loop 3–7*) e i numeri delle scene del loop hanno il segno
+  ↻; si ferma riaprendo la finestrella e premendo **■ Ferma** (la scena in
+  onda resta). Il loop continua anche cambiando schermata.
 - **Copione**: il pulsante 📜 in basso a destra (o il tasto **C**) apre la
   schermata del copione. Dentro si creano più **progetti**; ognuno ha il
   **PDF del copione** a destra, sfogliabile come in Anteprima, e a sinistra una

@@ -7,7 +7,7 @@
 <meta http-equiv="cache-control" content="no-cache">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E">
 <!-- il ?v= serve a non far riusare al browser i file della versione precedente -->
-<link rel="stylesheet" href="../static/style.css?v=6.1">
+<link rel="stylesheet" href="../static/style.css?v=6.2">
 </head>
 <body>
 
@@ -118,6 +118,7 @@
 <section id="preset-grid" class="hidden">
   <header>
     <h2>Preset grid</h2>
+    <button id="btn-loop" class="btn ghost" title="Manda in onda a ripetizione le scene di un intervallo">&#128257; Loop</button>
     <div class="spacer"></div>
     <div class="fade-box">
       Preset
@@ -152,6 +153,7 @@
     <span class="key-item"><kbd>clic</kbd><em>su uno vuoto: salva le luci attuali</em></span>
     <span class="key-item"><kbd>&#128190;</kbd><em>sovrascrivi</em></span>
     <span class="key-item"><kbd>&#10005;</kbd><em>svuota</em></span>
+    <span class="key-item"><kbd>&#9201;</kbd><em>tempo in onda</em></span>
     <span class="key-item"><kbd>B</kbd><em>blackout</em></span>
     <span class="key-item"><kbd>F</kbd><em>fade to black</em></span>
     <span class="key-item"><kbd>Esc</kbd><em>chiudi</em></span>
@@ -296,6 +298,7 @@
     </label>
     <label>Numero di canali
       <select id="add-count">
+        <option value="1">1 canale (solo dimmer)</option>
         <option value="8">8 canali</option>
         <option value="16">16 canali</option>
       </select>
@@ -362,9 +365,9 @@
   </div>
 </div>
 
-<script src="local-backend.js?v=6.1"></script>
-<script src="../static/app.js?v=6.1"></script>
-<script src="../static/copione.js?v=6.1"></script>
-<script src="../static/audio.js?v=6.1"></script>
+<script src="local-backend.js?v=6.2"></script>
+<script src="../static/app.js?v=6.2"></script>
+<script src="../static/copione.js?v=6.2"></script>
+<script src="../static/audio.js?v=6.2"></script>
 </body>
 </html>

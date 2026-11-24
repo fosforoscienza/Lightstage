@@ -4,7 +4,8 @@
    i dati vivono nel localStorage del browser e il DMX esce dal cavo
    USB tramite l'API Web Serial (Chrome/Edge). */
 (function () {
-  const NUM_CHANNELS = 8;   // predefinito: i fari possono averne anche 16
+  const NUM_CHANNELS = 8;   // predefinito: i fari possono averne anche 1 o 16
+  const CANALI_AMMESSI = [1, 8, 16];   // un dimmer da solo, un par, una testa mobile
   const NUM_PRESETS = 100;
   const STORE_KEY = 'lightstage-show';
   const DEFAULT_CHANNELS = [
@@ -27,6 +28,15 @@
     const v = parseFloat(raw);
     if (isNaN(v)) return difetto;
     return Math.round(Math.max(0, Math.min(FADE_MAX, v)) * 10) / 10;
+  }
+
+  const TEMPO_MAX = 3600;   // secondi: per quanto una scena può restare in onda da sola
+
+  /* secondi in onda prima di passare alla scena dopo; null = finché non la cambi tu */
+  function sanitizeTempo(raw) {
+    const v = parseFloat(raw);
+    if (isNaN(v) || v <= 0) return null;
+    return Math.max(0.1, Math.round(Math.min(TEMPO_MAX, v) * 10) / 10);
   }
 
   /* un brano salvato: le scelte della musica e il finale. Il file audio sta
@@ -103,13 +113,17 @@
   }
 
   function fixtureCount(f) {
-    return f.channels.length; // 8 o 16
+    return f.channels.length; // 1, 8 o 16
+  }
+
+  function contaCanali(raw) {
+    return Array.isArray(raw) && CANALI_AMMESSI.includes(raw.length) ? raw.length : NUM_CHANNELS;
   }
 
   function requestedCount(b) {
-    if (b.count === 16 || parseInt(b.count, 10) === 16) return 16;
-    if (Array.isArray(b.channels) && b.channels.length === 16) return 16;
-    return NUM_CHANNELS;
+    const n = parseInt(b.count, 10);
+    if (CANALI_AMMESSI.includes(n)) return n;
+    return contaCanali(b.channels);
   }
 
   /* misure vere del palco: servono a calcolare il tilt delle teste mobili */
@@ -194,7 +208,7 @@
     for (const f of data.fixtures || []) {
       const id = parseInt(f.id, 10);
       if (isNaN(id)) continue;
-      const n = Array.isArray(f.channels) && f.channels.length === 16 ? 16 : NUM_CHANNELS;
+      const n = contaCanali(f.channels);
       db.fixtures.push({
         id,
         name: String(f.name || 'Faro').slice(0, 24),
@@ -220,6 +234,7 @@
           name: String(p.name || `Preset ${i + 1}`).slice(0, 24),
           fade: sanitizeFade(p.fade),
           dark: !!p.dark,
+          tempo: sanitizeTempo(p.tempo),
           values,
         };
       }
@@ -649,6 +664,7 @@
       if ('name' in b) p.name = String(b.name || p.name).slice(0, 24);
       if ('fade' in b) p.fade = sanitizeFade(b.fade);
       if ('dark' in b) p.dark = !!b.dark;
+      if ('tempo' in b) p.tempo = sanitizeTempo(b.tempo);
       save();
       return { presets: db.presets };
     }
@@ -664,6 +680,7 @@
         name: String((body || {}).name || p.name).slice(0, 24),
         fade: sanitizeFade(p.fade),
         dark: !!p.dark,
+        tempo: sanitizeTempo(p.tempo),
         values,
       };
       save();
@@ -679,6 +696,7 @@
           name: String((body || {}).name || `Preset ${slot + 1}`).slice(0, 24),
           fade: sanitizeFade((body || {}).fade),
           dark: !!(body || {}).dark,
+          tempo: sanitizeTempo((body || {}).tempo),
           values,
         };
         save();

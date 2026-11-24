@@ -797,7 +797,7 @@ function musicaFinale() {
   musica.mov.clear();
   musica.attivo = false;
   const fin = musica.finale;
-  loadPreset(fin.preset, { fade: fin.fade, dark: fin.dark }).catch(console.error);
+  loadPreset(fin.preset, { fade: fin.fade, dark: fin.dark, finale: true }).catch(console.error);
 }
 
 function musicaProvaFinale() {

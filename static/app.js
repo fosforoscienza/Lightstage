@@ -2,7 +2,7 @@
 
 /* Versione dell'app, mostrata nel piè di pagina.
    Cambio strutturale -> primo numero, ritocchi -> secondo. Vedi CHANGELOG.md */
-const APP_VERSION = '6.1';
+const APP_VERSION = '6.2';
 
 /* ------------------------------------------------------------------ stato */
 const state = {
@@ -206,7 +206,7 @@ function fixtureChannels(f) {
 }
 
 function fixtureSpan(f) {
-  return fixtureChannels(f).length; // 8 o 16 canali DMX occupati
+  return fixtureChannels(f).length; // 1, 8 o 16 canali DMX occupati
 }
 
 /* ------------------------------------------- puntamento e apertura fascio
@@ -1420,6 +1420,30 @@ function renderGrid() {
     nameEl.className = 'cell-name';
     nameEl.textContent = p ? p.name : 'vuoto';
     foot.append(num, nameEl);
+    let tempoBtn = null;
+    let tempoVal = null;
+    let barra = null;
+    if (p) {
+      // tempo in onda: ∞ finché non lo cambi, oppure i secondi
+      tempoBtn = document.createElement('button');
+      tempoBtn.type = 'button';
+      tempoBtn.className = 'cell-tempo';
+      tempoBtn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="9" r="5.6"/><path d="M8 9V5.8M6.3 1.6h3.4"/></svg><span></span>';
+      tempoVal = tempoBtn.querySelector('span');
+      tempoBtn.title = 'Tempo in onda: dopo quanti secondi parte da sola la scena dopo (∞ = resta finché non la cambi)';
+      tempoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tempoBtn.blur();
+        apriTempo(tempoBtn, i);
+      });
+      foot.append(tempoBtn);
+      // barra del tempo che passa, sotto la miniatura
+      const corsia = document.createElement('div');
+      corsia.className = 'cell-corsa';
+      barra = document.createElement('i');
+      corsia.append(barra);
+      cell.append(corsia);
+    }
     cell.append(foot);
 
     const actions = document.createElement('div');
@@ -1473,10 +1497,11 @@ function renderGrid() {
     });
 
     wrap.append(cell);
-    gridCells.set(i, { cell, canvas, nameEl, badge });
+    gridCells.set(i, { cell, canvas, nameEl, badge, tempoBtn, tempoVal, barra });
   });
   updateGridSelection();
   aggiornaControlliPreset();
+  aggiornaCorsaUI();
   // le miniature si disegnano dopo il layout, così hanno le misure giuste
   requestAnimationFrame(() => {
     gridCells.forEach((ref, slot) => drawPresetThumb(ref.canvas, state.presets[slot]));
@@ -1532,6 +1557,384 @@ function closeGrid() {
 $('#btn-grid').addEventListener('click', openGrid);
 $('#btn-grid-close').addEventListener('click', closeGrid);
 
+/* ------------------------------------------- tempo in onda e loop di scene
+   Ogni preset può avere un tempo: quanti secondi resta in onda prima che
+   parta da sola la scena dopo (il primo spazio pieno che segue), con la sua
+   transizione. Senza tempo la scena resta finché non la cambi tu.
+   Il loop manda in onda a ripetizione le scene di un intervallo: finita
+   l'ultima riparte dalla prima. Le scene del loop senza un tempo proprio
+   restano in onda per il tempo scelto nel loop.
+   Con FTB o Blackout il cronometro si ferma e riparte con le luci. */
+const TEMPO_MAX = 3600;
+const LOOP_BASE = 5;   // secondi, per le scene del loop senza un tempo loro
+
+let corsa = null;      // {slot, durata, trascorso, ultimo}: la scena che scorre
+const loop = (() => {
+  let salvato = {};
+  try { salvato = JSON.parse(localStorage.getItem('lightstage-loop') || '{}') || {}; } catch (e) { /* niente */ }
+  const intero = (v, d) => (Number.isInteger(v) && v >= 0 && v < 100 ? v : d);
+  return {
+    da: intero(salvato.da, 0),
+    a: intero(salvato.a, 9),
+    base: typeof salvato.base === 'number' && salvato.base >= 0
+      ? Math.min(TEMPO_MAX, salvato.base) : LOOP_BASE,
+    attivo: false,
+  };
+})();
+
+function salvaLoop() {
+  try {
+    localStorage.setItem('lightstage-loop',
+      JSON.stringify({ da: loop.da, a: loop.a, base: loop.base }));
+  } catch (e) { /* niente */ }
+}
+
+function leggiTempo(testo) {
+  const t = String(testo ?? '').trim();
+  if (!t || t === '∞') return null;
+  const v = parseFloat(t.replace(',', '.'));
+  if (isNaN(v) || v <= 0) return null;
+  return Math.max(0.1, Math.round(Math.min(TEMPO_MAX, v) * 10) / 10);
+}
+
+function tempoTesto(v) {
+  if (!(v > 0)) return '∞';
+  if (v >= 60) {
+    const m = Math.floor(v / 60);
+    const s = Math.round(v - m * 60);
+    return s ? `${m}m${String(s).padStart(2, '0')}` : `${m}m`;
+  }
+  return `${secondiTesto(v)}s`;
+}
+
+function presetTempo(p) {
+  return p && p.tempo > 0 ? p.tempo : null;
+}
+
+function nelLoop(slot) {
+  return loop.attivo && slot >= loop.da && slot <= loop.a;
+}
+
+/* quanto resta in onda la scena: il suo tempo, o quello del loop */
+function tempoScena(slot) {
+  const p = state.presets[slot];
+  if (!p) return null;
+  const proprio = presetTempo(p);
+  if (proprio) return proprio;
+  if (nelLoop(slot) && loop.base > 0) return loop.base;
+  return null;
+}
+
+/* la scena che parte dopo: dentro il loop si torna alla prima */
+function scenaDopo(slot) {
+  if (nelLoop(slot)) {
+    for (let i = slot + 1; i <= loop.a; i++) if (state.presets[i]) return i;
+    for (let i = loop.da; i <= slot; i++) if (state.presets[i]) return i;
+    return null;
+  }
+  for (let i = slot + 1; i < state.presets.length; i++) if (state.presets[i]) return i;
+  return null;
+}
+
+/* parte il cronometro della scena appena andata in onda (null = nessuno) */
+function avviaCorsa(slot) {
+  const t = slot === null ? null : tempoScena(slot);
+  corsa = t ? { slot, durata: t * 1000, trascorso: 0, ultimo: performance.now() } : null;
+  aggiornaCorsaUI();
+}
+
+/* tempo cambiato o loop acceso/spento: la scena in onda tiene il trascorso */
+function ricalcolaCorsa() {
+  const t = activePreset === null ? null : tempoScena(activePreset);
+  if (!t) corsa = null;
+  else if (corsa && corsa.slot === activePreset) corsa.durata = t * 1000;
+  else corsa = { slot: activePreset, durata: t * 1000, trascorso: 0, ultimo: performance.now() };
+  aggiornaCorsaUI();
+}
+
+function tickCorsa() {
+  if (!corsa) return;
+  if (corsa.slot !== activePreset || !state.presets[corsa.slot]) {
+    corsa = null;
+    aggiornaCorsaUI();
+    return;
+  }
+  const ora = performance.now();
+  if (!luciGiu()) corsa.trascorso += ora - corsa.ultimo;   // al buio si ferma
+  corsa.ultimo = ora;
+  if (corsa.trascorso < corsa.durata) {
+    aggiornaCorsaUI();
+    return;
+  }
+  const dopo = scenaDopo(corsa.slot);
+  corsa = null;
+  if (dopo === null) aggiornaCorsaUI();
+  else loadPreset(dopo).catch(console.error);
+}
+setInterval(tickCorsa, 100);
+
+/* conto alla rovescia e barra sulla cella in onda, segno del loop sulle altre */
+function aggiornaCorsaUI() {
+  gridCells.forEach((ref, slot) => {
+    const p = state.presets[slot];
+    if (ref.tempoBtn) {
+      const proprio = presetTempo(p);
+      const scorre = corsa && corsa.slot === slot;
+      const resta = scorre ? Math.max(0, (corsa.durata - corsa.trascorso) / 1000) : 0;
+      // mentre scorre: i secondi che restano (al decimo sotto i dieci)
+      const testo = scorre
+        ? tempoTesto(Math.max(0.1, resta >= 10 ? Math.ceil(resta) : Math.ceil(resta * 10) / 10))
+        : (proprio ? tempoTesto(proprio) : (nelLoop(slot) && loop.base > 0 ? tempoTesto(loop.base) : '∞'));
+      if (ref.tempoVal.textContent !== testo) ref.tempoVal.textContent = testo;
+      ref.tempoBtn.classList.toggle('on', !!proprio);
+      ref.tempoBtn.classList.toggle('scorre', !!scorre);
+      ref.tempoBtn.classList.toggle('dal-loop', !proprio && nelLoop(slot) && loop.base > 0);
+    }
+    if (ref.barra) {
+      const scorre = corsa && corsa.slot === slot;
+      ref.barra.style.transform = `scaleX(${scorre ? Math.min(1, corsa.trascorso / corsa.durata) : 0})`;
+      ref.barra.parentElement.classList.toggle('attiva', !!scorre);
+    }
+    ref.cell.classList.toggle('in-loop', !!p && nelLoop(slot));
+  });
+  aggiornaBottoneLoop();
+}
+
+function aggiornaBottoneLoop() {
+  const b = $('#btn-loop');
+  if (!b) return;
+  b.classList.toggle('on', loop.attivo);
+  b.innerHTML = loop.attivo
+    ? `&#128257; Loop ${loop.da + 1}–${loop.a + 1}`
+    : '&#128257; Loop';
+  b.title = loop.attivo
+    ? `Loop acceso: le scene da ${loop.da + 1} a ${loop.a + 1} vanno in onda a ripetizione (clic per cambiarlo o fermarlo)`
+    : 'Manda in onda a ripetizione le scene di un intervallo';
+}
+
+/* Popup piccolo accanto a un pulsante, con lo stesso stile della finestrella
+   «Transizione» (ne prende anche il posto: uno solo per volta). */
+function montaPopup(el, ancora, { primaDiChiudere = null, fuoco = null } = {}) {
+  el.id = 'trans-pop';
+  el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  el.addEventListener('click', (e) => e.stopPropagation());
+  document.body.append(el);
+  const r = ancora.getBoundingClientRect();
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  // a destra del pulsante, sennò a sinistra, sennò sotto
+  let x = r.right + 8;
+  let y = Math.min(r.top, innerHeight - h - 8);
+  if (x + w > innerWidth - 8) {
+    x = r.left - w - 8;
+    if (x < 8) {
+      x = Math.min(Math.max(8, r.left), innerWidth - w - 8);
+      y = Math.min(r.bottom + 6, innerHeight - h - 8);
+    }
+  }
+  el.style.left = `${Math.max(8, x)}px`;
+  el.style.top = `${Math.max(8, y)}px`;
+  if (fuoco) { fuoco.focus(); fuoco.select(); }
+  const fuori = (e) => {
+    if (el.contains(e.target) || e.target === ancora || ancora.contains(e.target)) return;
+    if (primaDiChiudere) primaDiChiudere();
+    chiudiTransizione();
+  };
+  const tasti = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); chiudiTransizione(); }
+  };
+  document.addEventListener('pointerdown', fuori, true);
+  window.addEventListener('keydown', tasti, true);
+  transPop = { el, ancora, fuori, tasti };
+}
+
+/* finestrella «Tempo in onda» di un preset */
+function apriTempo(ancora, slot) {
+  const giaQui = transPop && transPop.ancora === ancora;
+  chiudiTransizione();
+  if (giaQui) return;
+  const p = state.presets[slot];
+  if (!p) return;
+  const el = document.createElement('div');
+  el.className = 'tm';
+  el.innerHTML = `
+    <div class="tp-tit">Tempo in onda</div>
+    <div class="small tp-spiega"></div>
+    <div class="tp-riga">
+      <span class="tp-lbl">Resta</span>
+      <span class="fade-group tp-passi"></span>
+    </div>
+    <div class="tp-riga">
+      <span class="tp-lbl">Secondi</span>
+      <input type="text" inputmode="decimal" class="tp-sec" title="Secondi scritti a mano, fino a ${TEMPO_MAX} (vuoto = infinito)">
+      <span class="tp-unita">s</span>
+    </div>
+    <div class="small tp-nota"></div>
+    <div class="tp-azioni"><button type="button" class="btn primary tp-fatto">Fatto</button></div>`;
+  el.querySelector('.tp-spiega').textContent =
+    `Quanto resta in onda "${p.name}" prima che parta da sola la scena dopo, con la sua transizione.`;
+  const campo = el.querySelector('.tp-sec');
+  const nota = el.querySelector('.tp-nota');
+  const leggi = () => presetTempo(state.presets[slot]);
+  const scrivi = (t) => {
+    patchPreset(slot, { tempo: t }).then(() => { ricalcolaCorsa(); aggiorna(); }).catch(console.error);
+    ricalcolaCorsa();
+  };
+  const passi = el.querySelector('.tp-passi');
+  const PASSI = [null, 5, 10, 30, 60];
+  const bottoni = PASSI.map((v) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = v === null ? '∞' : tempoTesto(v);
+    b.title = v === null ? 'Infinito: resta finché non la cambi tu' : `${v} secondi`;
+    b.addEventListener('click', () => { b.blur(); scrivi(v); campo.value = v ? secondiTesto(v) : ''; aggiorna(); });
+    passi.append(b);
+    return b;
+  });
+  const aggiorna = () => {
+    const t = leggi();
+    bottoni.forEach((b, i) => b.classList.toggle('sel', PASSI[i] === t));
+    if (document.activeElement !== campo) campo.value = t ? secondiTesto(t) : '';
+    const dopo = scenaDopo(slot);
+    if (!t && nelLoop(slot) && loop.base > 0) {
+      nota.textContent = `Nel loop resta ${tempoTesto(loop.base)}, il tempo scelto per le scene senza un tempo loro.`;
+    } else if (!t) {
+      nota.textContent = 'Infinito: resta in onda finché non mandi tu un\'altra scena.';
+    } else if (dopo === null) {
+      nota.textContent = 'Dopo non c\'è nessuna scena: allo scadere resta in onda questa.';
+    } else {
+      nota.textContent = `Poi va in onda ${dopo + 1} · "${state.presets[dopo].name}".`;
+    }
+  };
+  campo.placeholder = '∞';
+  const applicaCampo = () => {
+    const t = leggiTempo(campo.value);
+    if (t !== leggi()) scrivi(t);
+    campo.value = t ? secondiTesto(t) : '';
+    aggiorna();
+  };
+  campo.addEventListener('change', applicaCampo);
+  campo.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { applicaCampo(); chiudiTransizione(); }
+  });
+  el.querySelector('.tp-fatto').addEventListener('click', () => { applicaCampo(); chiudiTransizione(); });
+  aggiorna();
+  montaPopup(el, ancora, { primaDiChiudere: applicaCampo, fuoco: campo });
+}
+
+/* finestrella «Loop»: intervallo di scene, tempo di base, avvia o ferma */
+function apriLoop(ancora) {
+  const giaQui = transPop && transPop.ancora === ancora;
+  chiudiTransizione();
+  if (giaQui) return;
+  const n = state.presets.length;
+  const el = document.createElement('div');
+  el.className = 'lp';
+  el.innerHTML = `
+    <div class="tp-tit">Loop di scene</div>
+    <div class="small">Le scene dell'intervallo vanno in onda una dopo l'altra, ognuna con il suo tempo e la sua transizione; finita l'ultima si riparte dalla prima. Gli spazi vuoti si saltano.</div>
+    <div class="tp-riga">
+      <span class="tp-lbl">Dalla</span>
+      <input type="number" min="1" max="${n}" class="tp-sec lp-da">
+      <span class="tp-lbl lp-alla">alla</span>
+      <input type="number" min="1" max="${n}" class="tp-sec lp-a">
+    </div>
+    <div class="tp-riga">
+      <span class="tp-lbl">Senza tempo</span>
+      <input type="text" inputmode="decimal" class="tp-sec lp-base" title="Secondi per le scene del loop che non hanno un tempo loro (vuoto: aspettano il GO)">
+      <span class="tp-unita">s</span>
+    </div>
+    <div class="small lp-nota"></div>
+    <div class="tp-azioni">
+      <button type="button" class="btn ghost lp-ferma">&#9632; Ferma</button>
+      <button type="button" class="btn primary lp-avvia">&#9654; Avvia</button>
+    </div>`;
+  const da = el.querySelector('.lp-da');
+  const a = el.querySelector('.lp-a');
+  const base = el.querySelector('.lp-base');
+  const nota = el.querySelector('.lp-nota');
+  const avvia = el.querySelector('.lp-avvia');
+  const ferma = el.querySelector('.lp-ferma');
+  da.value = String(loop.da + 1);
+  a.value = String(loop.a + 1);
+  base.value = loop.base > 0 ? secondiTesto(loop.base) : '';
+  base.placeholder = 'GO';
+
+  const leggiCampi = () => {
+    const x = Math.max(1, Math.min(n, parseInt(da.value, 10) || 1)) - 1;
+    const y = Math.max(1, Math.min(n, parseInt(a.value, 10) || n)) - 1;
+    return { da: Math.min(x, y), a: Math.max(x, y), base: leggiTempo(base.value) || 0 };
+  };
+  const pieni = (r) => {
+    const s = [];
+    for (let i = r.da; i <= r.a; i++) if (state.presets[i]) s.push(i);
+    return s;
+  };
+  const aggiorna = () => {
+    const r = leggiCampi();
+    const scene = pieni(r);
+    ferma.classList.toggle('hidden', !loop.attivo);
+    avvia.innerHTML = loop.attivo ? '&#10003; Applica' : '&#9654; Avvia';
+    avvia.disabled = scene.length === 0;
+    if (!scene.length) {
+      nota.textContent = `Fra ${r.da + 1} e ${r.a + 1} non ci sono preset salvati.`;
+      nota.classList.add('warn');
+      return;
+    }
+    nota.classList.remove('warn');
+    const senza = scene.filter((i) => !presetTempo(state.presets[i])).length;
+    let t = `${scene.length} ${scene.length === 1 ? 'scena' : 'scene'}`;
+    if (senza) {
+      t += r.base > 0
+        ? `, di cui ${senza} senza tempo: restano ${tempoTesto(r.base)}.`
+        : `, di cui ${senza} senza tempo: aspettano il GO.`;
+    } else t += ', tutte con il loro tempo.';
+    if (loop.attivo) t = `In corso. ${t}`;
+    nota.textContent = t;
+  };
+  [da, a, base].forEach((c) => c.addEventListener('input', aggiorna));
+  const conferma = () => {
+    const r = leggiCampi();
+    const scene = pieni(r);
+    if (!scene.length) return;
+    Object.assign(loop, r);
+    salvaLoop();
+    const eraAcceso = loop.attivo;
+    loop.attivo = true;
+    chiudiTransizione();
+    // se la scena in onda è già nel loop si continua da lì, sennò si parte dalla prima
+    if (activePreset !== null && nelLoop(activePreset) && state.presets[activePreset]) {
+      if (eraAcceso) ricalcolaCorsa(); else avviaCorsa(activePreset);
+    } else {
+      armedPreset = null;
+      loadPreset(scene[0]).catch(console.error);
+    }
+    aggiornaCorsaUI();
+  };
+  avvia.addEventListener('click', conferma);
+  [da, a, base].forEach((c) => c.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') conferma();
+  }));
+  ferma.addEventListener('click', () => {
+    fermaLoop();
+    chiudiTransizione();
+  });
+  aggiorna();
+  montaPopup(el, ancora, { fuoco: da });
+}
+
+/* il loop si ferma: la scena in onda resta, con il suo tempo se ne ha uno */
+function fermaLoop() {
+  if (!loop.attivo) return;
+  loop.attivo = false;
+  ricalcolaCorsa();
+}
+
+$('#btn-loop').addEventListener('click', (e) => {
+  e.currentTarget.blur();   // il fuoco resta libero per la barra spaziatrice
+  apriLoop(e.currentTarget);
+});
+
 /* passaggio diretto fra le tre schermate, dai pulsanti in fondo.
    Dopo il clic il pulsante lascia il fuoco: altrimenti la barra spaziatrice
    lo ricliccherebbe invece di mandare in onda il preset. */
@@ -1566,6 +1969,7 @@ async function savePreset(slot, existing) {
       name: name.trim() || `Preset ${slot + 1}`,
       fade: existing ? presetFade(existing) : fadeGroupValue('#preset-fade'),
       dark: existing ? presetDark(existing) : defaultDark(),
+      tempo: existing ? presetTempo(existing) : null,
     });
   } finally {
     if (typeof musicaDopoIlSalvataggio === 'function') musicaDopoIlSalvataggio();
@@ -1573,6 +1977,8 @@ async function savePreset(slot, existing) {
   state.presets = res.presets;
   activePreset = slot;
   presetModificato = false;
+  // la scena salvata è in onda: niente cronometro, non è partita da un GO
+  if (!corsa || corsa.slot !== slot) corsa = null;
   renderPresets();
   if (!$('#preset-grid').classList.contains('hidden')) renderGrid();
   syncCueUI();
@@ -1651,6 +2057,8 @@ async function loadPreset(slot, come = {}) {
   if (!p) return;
   activePreset = slot;
   presetModificato = false;
+  // parte il suo tempo in onda; il finale di un brano invece resta lì
+  avviaCorsa(come.finale ? null : slot);
   renderPresets();
   syncCueUI();
   const durata = ('fade' in come ? leggiSecondi(come.fade) ?? 0 : presetFade(p)) * 1000;
@@ -3137,7 +3545,7 @@ function addModalCount() {
 function buildAddChannelRows() {
   const n = parseInt($('#add-count').value, 10) || 8;
   const wrap = $('#add-channels-rows');
-  // cambiando 8<->16 si conservano le righe già compilate
+  // cambiando 1/8/16 si conservano le righe già compilate
   const prev = Array.from(wrap.children).map((row) => ({
     label: row.children[1].value,
     role: row.children[2].value,
@@ -3163,6 +3571,10 @@ function buildAddChannelRows() {
     if (prev[i]) {
       label.value = prev[i].label;
       role.value = prev[i].role;
+    } else if (n === 1) {
+      // un canale solo è quasi sempre il dimmer di una lampada
+      label.value = ROLE_LABELS.dimmer;
+      role.value = 'dimmer';
     } else {
       role.value = 'other';
     }
@@ -3188,6 +3600,12 @@ function refreshAddModal() {
   if (src) countSel.value = String(fixtureSpan(src));
   else if (tpl) countSel.value = String(tpl.channels.length);
   countSel.disabled = !!src || !!tpl;
+  // il set predefinito con un canale solo è un dimmer, non un UkFog
+  const def = $('#add-copy').querySelector('option[value=""]');
+  if (def) {
+    def.textContent = countSel.value === '1'
+      ? 'Dimmer (luce bianca, un fader)' : 'Predefiniti (UkFog UV+RGB)';
+  }
   $('#add-channels-box').classList.toggle('hidden', !isNew);
   if (isNew) buildAddChannelRows();
   $('#add-address').value = nextFreeAddress(addModalCount());
@@ -3244,6 +3662,9 @@ $('#btn-add-confirm').addEventListener('click', async () => {
     channels = fixtureChannels(src);
   } else if (tpl) {
     channels = tpl.channels.map((c) => ({ ...c }));
+  } else if (count === 1) {
+    // un canale solo: è il dimmer (una lampada, un par alogeno su un dimmer pack)
+    channels = [{ label: 'Dimmer', role: 'dimmer' }];
   }
   closeModals();
   await addFixture(name, address, channels, count);
